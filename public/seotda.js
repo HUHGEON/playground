@@ -183,7 +183,8 @@
   const MONEY_ACTS = ['콜', '삥', '따당', '하프', '풀', '올인'];
 
   R.init = function (main, info) {
-    main.innerHTML = '<div id="seotdaFelt"></div>';
+    main.innerHTML = '<div id="seotdaStage"><div id="seotdaFelt"></div></div>';
+    if (!window._seotdaFitBound) { window.addEventListener('resize', fitStage); window._seotdaFitBound = true; }
     info.innerHTML = '<div id="seotdaWait"></div>' +
       '<button id="jokboToggle" class="sub" style="width:100%;margin-top:6px">📖 족보 보기</button>' +
       '<div id="jokboPanel" style="display:none;margin-top:8px">' + jokboTableHTML() + '</div>';
@@ -236,11 +237,11 @@
       `<div id="potCtrl"></div>`;
 
     // 좌석 — 나는 6시(하단 중앙) 고정, 나머지는 시계방향. 인원별 배치(5인은 양옆 끝에 2명씩)
-    const LAYOUTS = {                                  // [left%, top%], 나 다음(시계방향) 순서 — 전체 위로 올림(하단 버튼 공간)
-      2: [[50, 8]],
-      3: [[13, 16], [87, 16]],
-      4: [[11, 42], [50, 6], [89, 42]],
-      5: [[13, 58], [13, 9], [87, 9], [87, 58]],     // 좌(상·하)·우(상·하)
+    const LAYOUTS = {                                  // [left%, top%], 나 다음(시계방향). 윗줄은 카드가 판 위로 안 넘치게 18%+
+      2: [[50, 18]],
+      3: [[15, 20], [85, 20]],
+      4: [[13, 50], [50, 18], [87, 50]],
+      5: [[13, 60], [13, 19], [87, 19], [87, 60]],   // 좌(상·하)·우(상·하)
     };
     const table = felt.querySelector('#seotdaTable');
     const myIdx = me ? s.players.indexOf(me) : -1;
@@ -393,9 +394,36 @@
     // 섞기 연출
     if (intro) playShuffle(felt);
 
+    fitStage();                                      // 고정 판을 화면에 맞춰 스케일(말풍선 재고정 포함)
+
     // 스크롤 위치 복원(베팅 등으로 판 다시 그려도 화면 안 튀게)
     if (window.scrollX !== _sx || window.scrollY !== _sy) window.scrollTo(_sx, _sy);
   };
+
+  // 고정 크기 felt를 가용 공간에 맞춰 통째로 scale (어떤 기기서든 동일 비율·겹침 없음)
+  let _fitRAF = 0;
+  function fitStage() {
+    if (_fitRAF) return;
+    _fitRAF = requestAnimationFrame(() => {
+      _fitRAF = 0;
+      const stage = document.getElementById('seotdaStage');
+      const felt = document.getElementById('seotdaFelt');
+      if (!stage || !felt || stage.offsetParent === null) return;   // 숨김 상태면 skip
+      felt.style.transform = 'none';                                 // 자연 크기 측정
+      const fw = felt.offsetWidth || 720;
+      const fh = felt.offsetHeight;
+      if (!fh) return;
+      const availW = stage.clientWidth;
+      const topY = stage.getBoundingClientRect().top;                // 뷰포트 기준 stage 상단
+      const reserveBottom = 92;                                      // 하단 채팅바+여백 확보
+      const availH = window.innerHeight - topY - reserveBottom;
+      let s = Math.min(availW / fw, availH / fh, 1.12);              // 가로·세로 중 작은 쪽, 과확대 방지
+      s = Math.max(s, 0.35);
+      felt.style.transform = `scale(${s})`;
+      stage.style.height = Math.ceil(fh * s) + 'px';                 // 스케일된 높이만큼 자리 차지 → 채팅 정상 흐름
+      repositionBubbles();                                          // 스케일 반영된 좌석 위치로 말풍선 재고정
+    });
+  }
 
   // 베팅 종류별 색 구분용 클래스 suffix (한글 라벨 → 코드)
   function actCls(a) {

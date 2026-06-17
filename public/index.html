@@ -135,10 +135,12 @@
   .tag.host { background: linear-gradient(180deg, #6a5420, #4a3a17); color: #ffd97a; }
 
   /* ===== 섯다 ===== */
-  #seotdaFelt { position: relative; background: radial-gradient(135% 120% at 50% -8%, #2a9a5c 0%, #16693d 45%, #0c3a22 78%); border: 7px solid; border-image: linear-gradient(160deg, #5a4022, #2f2010) 1; border-radius: 26px; padding: 20px 16px 24px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.35), inset 0 0 90px rgba(0,0,0,.5), 0 22px 55px rgba(0,0,0,.6); width: min(96vw, 820px); }
+  /* 고정 크기로 디자인 → JS가 화면에 맞춰 통째로 scale → 어떤 기기서든 동일 비율, 겹침 0 */
+  #seotdaStage { width: 720px; max-width: 100%; display: flex; justify-content: center; align-items: flex-start; overflow: hidden; }
+  #seotdaFelt { position: relative; flex: 0 0 720px; width: 720px; transform-origin: top center; will-change: transform; background: radial-gradient(135% 120% at 50% -8%, #2a9a5c 0%, #16693d 45%, #0c3a22 78%); border: 7px solid; border-image: linear-gradient(160deg, #5a4022, #2f2010) 1; border-radius: 26px; padding: 22px 18px 24px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.35), inset 0 0 90px rgba(0,0,0,.5), 0 22px 55px rgba(0,0,0,.6); }
   #seotdaFelt::before { content: ''; position: absolute; inset: 6px; border-radius: 20px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); pointer-events: none; }
-  /* 원형 테이블 + 중앙 판돈 */
-  #seotdaTable { position: relative; width: 100%; height: min(92vw, 50vh, 460px); margin: 14px auto 16px; }
+  /* 원형 테이블 + 중앙 판돈 (고정 높이) */
+  #seotdaTable { position: relative; width: 100%; height: 470px; margin: 12px auto 14px; }
   #potCenter { position: absolute; left: 50%; top: 44%; transform: translate(-50%,-50%); text-align: center; z-index: 5; pointer-events: none; }
   #potCtrl { pointer-events: auto; margin-top: 8px; }
   #potCtrl button { padding: 10px 18px; font-size: 14px; }
@@ -202,8 +204,8 @@
 
   #myStatus { text-align: center; margin-top: 8px; }
   #myStatus .ms-line { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
-  #seotdaActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
-  #seotdaActions button { padding: 12px 16px; font-size: 14px; }
+  #seotdaActions { display: flex; gap: 11px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+  #seotdaActions button { padding: 13px 20px; font-size: 15px; }
   /* 베팅 종류별 색 (버튼) */
   #seotdaActions .b-check { background: linear-gradient(180deg,#5a6675,#454f5c); }
   #seotdaActions .b-ping  { background: linear-gradient(180deg,#3a7bd5,#2a5ea8); }
