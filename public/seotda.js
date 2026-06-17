@@ -226,22 +226,23 @@
       [-17, 1, 26, 'oman'], [1, 3, 7, 'man'], [19, 4, -13, 'oman'], [-5, 9, 19, 'man'],
       [11, 11, -7, 'man'], [-2, -3, 38, 'oman'], [22, -1, 5, 'man'], [-22, 8, -18, 'oman'],
     ];
-    const piles = Math.min(BILLS.length, 2 + Math.floor((s.pot || 0) / Math.max(1, s.ante)));
+    const pot = s.pot || 0;
+    const piles = pot > 0 ? Math.min(BILLS.length, 1 + Math.floor(pot / Math.max(1, s.ante))) : 0;  // 판돈 0이면 다발 없음
     let stack = '';
     for (let i = 0; i < piles; i++) { const b = BILLS[i]; stack += `<span class="wbill ${b[3]}" style="left:calc(50% + ${b[0]}px);top:calc(50% + ${b[1]}px);transform:translate(-50%,-50%) rotate(${b[2]}deg)"><i class="den">${b[3] === 'oman' ? '5만' : '1만'}</i></span>`; }
     potC.innerHTML =
-      `<div class="potpile">${stack}</div>` +
-      `<div class="potamt">💵 ${(s.pot || 0).toLocaleString()}</div>` +
+      (piles ? `<div class="potpile">${stack}</div>` : '') +
+      `<div class="potamt">💵 ${pot.toLocaleString()}</div>` +
       ((s.carryPot > 0 && s.phase === 'playing') ? `<div class="potsub">묻힌 ${s.carryPot.toLocaleString()}</div>` : '') +
       (s.secondsLeft != null ? `<div class="pottimer" id="sTimer">⏱ ${s.secondsLeft}초</div>` : '') +
       `<div id="potCtrl"></div>`;
 
     // 좌석 — 나는 6시(하단 중앙) 고정, 나머지는 시계방향. 인원별 배치(5인은 양옆 끝에 2명씩)
     const LAYOUTS = {                                  // [left%, top%], 나 다음(시계방향). 윗줄은 카드가 판 위로 안 넘치게 18%+
-      2: [[50, 18]],
-      3: [[15, 20], [85, 20]],
-      4: [[13, 50], [50, 18], [87, 50]],
-      5: [[13, 60], [13, 19], [87, 19], [87, 60]],   // 좌(상·하)·우(상·하)
+      2: [[50, 17]],
+      3: [[15, 18], [85, 18]],
+      4: [[13, 50], [50, 17], [87, 50]],
+      5: [[13, 60], [13, 17], [87, 17], [87, 60]],   // 좌(상·하)·우(상·하)
     };
     const table = felt.querySelector('#seotdaTable');
     const myIdx = me ? s.players.indexOf(me) : -1;
@@ -258,7 +259,7 @@
     ordered.forEach((p, k) => {
       const el = seatEl(p, s.players.indexOf(p), intro, dealN);
       let L, T;
-      if (k === 0 && myIdx >= 0) { L = 50; T = 80; }                 // 나 = 6시(위로 올려 하단 버튼 공간 확보)
+      if (k === 0 && myIdx >= 0) { L = 50; T = 83; }                 // 나 = 6시(하단)
       else if (lay) { L = lay[k - 1][0]; T = lay[k - 1][1]; }
       else { const a = (2 * Math.PI / N) * k; L = 50 - 39 * Math.sin(a); T = 50 + 37 * Math.cos(a); }
       el.style.left = L + '%'; el.style.top = T + '%';
