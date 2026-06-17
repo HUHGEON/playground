@@ -1,7 +1,7 @@
 {
   "name": "lan-games",
   "version": "1.0.0",
-  "description": "같은 네트워크(LAN)/ngrok에서 즐기는 미니 게임 허브 — 오셀로 · 섯다",
+  "description": "웹에서 친구들과 즐기는 미니 게임 허브 — 오셀로 · 섯다",
   "main": "server.js",
   "engines": {
     "node": ">=18"
