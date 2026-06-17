@@ -294,7 +294,7 @@ function lanAddresses() {
 }
 
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n  🎮 게임 허브 실행 중 (오셀로 · 섯다) — 포트 ${PORT}\n`);
+  console.log(`\n  🎮 playground 실행 중 (오셀로 · 섯다) — 포트 ${PORT}\n`);
   console.log(`  로컬:           http://localhost:${PORT}`);
   for (const ip of lanAddresses()) console.log(`  같은 네트워크:  http://${ip}:${PORT}`);
   console.log('');
