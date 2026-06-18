@@ -402,14 +402,24 @@ function finalizeShowdown(room, contenders) {
     reveals = h.reveals.map((r, i) => ({ ...r, win: winSet.has(h.entries[i].ws) }));
   }
 
-  // 동점(승자 2명 이상) → 분배가 아니라 판돈 묻고(이월) 다음 판으로
+  // 동점(승자 2명 이상) → 분배 X, 판돈 묻고(이월) 재경기. 동점자는 무조건 참여, 하위/다이자는 절반 내고 합류
   if (contenders.length > 1 && winners.length > 1) {
-    gs.carryPot = totalPot; gs.carrySeats = winners.slice(); gs.rejoin = null;   // 동점자끼리만 이월 재대결(올인자 포함)
+    gs.carryPot = totalPot; gs.rejoin = null;
     gs.carrySeq = (gs.carrySeq || 0) + 1;                                         // "묻고 더블로 가!" 토스트 트리거
     h.result = { tie: true, winners: winners.map((w) => ({ name: w.name, color: w.color })), pot: totalPot, reveals, sole: false };
-    room.phase = 'finished';
-    room.ctx.notify(room, `🤝 동점(${winners.map((w) => w.name).join(', ')}) — 판돈 ${won(totalPot)} 묻고 다음 판으로 이월!`);
-    maybeTransferHost(room); scheduleAutoStart(room);
+    room.ctx.notify(room, `🤝 동점(${winners.map((w) => w.name).join(', ')}) — 판돈 ${won(totalPot)} 묻고 재경기!`);
+    const half = Math.floor(totalPot / 2);
+    const cands = h.seats.filter((s) => !winners.includes(s) && room.queue.includes(s) && (gs.chips[s.sessionId] ?? 0) >= half);
+    if (cands.length) {                                                           // 하위자가 합류할 여력 있으면 합류 단계
+      gs.rejoin = { base: winners.slice(), cands, joined: new Set(), decided: new Set(), half };
+      room.phase = 'rejoin';
+      room.ctx.notify(room, `하위 ${cands.map((c) => c.name).join(', ')}님 — 절반 ${won(half)} 내면 재경기 합류 가능.`);
+      startStageTimer(room, 'rejoin', 20000);
+    } else {                                                                      // 합류 가능자 없으면 동점자끼리 바로 재대결
+      gs.carrySeats = winners.slice();
+      room.phase = 'finished';
+      maybeTransferHost(room); scheduleAutoStart(room);
+    }
     return;
   }
 
