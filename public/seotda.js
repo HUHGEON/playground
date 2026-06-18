@@ -207,17 +207,23 @@
     });
   }
 
-  // 재경기 합류 — 화면 가운데 모달(카운트다운, 시간초과 시 서버가 자동 빠지기 처리)
+  // 재경기 합류 — 화면 가운데 모달. cand는 결정 버튼, 자동참여자(동점자/base)는 대기 모드
   function renderRejoinModal(s) {
     let m = document.getElementById('rejoinModal');
-    if (!s.canRejoin) { if (m) m.remove(); return; }
+    if (!s.canRejoin && !s.rejoinWaiting) { if (m) m.remove(); return; }
     if (!m) { m = document.createElement('div'); m.id = 'rejoinModal'; m.className = 'rejoin-modal'; document.body.appendChild(m); }
-    m.innerHTML = '<div class="rjtitle">🔁 재경기 합류</div>' +
-      '<div class="rjbody">묻힌 판돈의 절반 <b>' + won(s.rejoinCost) + '</b>을 내고<br>이번 재경기 판에 참여하시겠습니까?</div>' +
-      (s.secondsLeft != null ? '<div class="rjtimer">⏱ ' + s.secondsLeft + '초 후 자동 빠지기</div>' : '') +
-      '<div class="rjbtns"><button class="pok">합류</button><button class="pno">빠지기</button></div>';
-    m.querySelector('.pok').onclick = () => window.send({ type: 'rejoin' });
-    m.querySelector('.pno').onclick = () => window.send({ type: 'passRejoin' });
+    const timer = s.secondsLeft != null ? '<div class="rjtimer">⏱ ' + s.secondsLeft + '초</div>' : '';
+    if (s.canRejoin) {
+      m.innerHTML = '<div class="rjtitle">🔁 재경기 합류</div>' +
+        '<div class="rjbody">묻힌 판돈의 절반 <b>' + won(s.rejoinCost) + '</b>을 내고<br>이번 재경기 판에 참여하시겠습니까?</div>' +
+        (s.secondsLeft != null ? '<div class="rjtimer">⏱ ' + s.secondsLeft + '초 후 자동 빠지기</div>' : '') +
+        '<div class="rjbtns"><button class="pok">합류</button><button class="pno">빠지기</button></div>';
+      m.querySelector('.pok').onclick = () => window.send({ type: 'rejoin' });
+      m.querySelector('.pno').onclick = () => window.send({ type: 'passRejoin' });
+    } else {   // rejoinWaiting — 자동 참여, 다른 사람 합류 결정 대기
+      m.innerHTML = '<div class="rjtitle">🔁 재경기</div>' +
+        '<div class="rjbody">묻고 더블로 갑니다!<br><span class="pushmeta">다른 분들의 합류 결정을 기다리는 중…</span></div>' + timer;
+    }
   }
 
   // 좌석 칸 가운데에 "어떤 베팅을 했는지" 토스트 팝(색 구분)

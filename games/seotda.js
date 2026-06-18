@@ -414,7 +414,7 @@ function finalizeShowdown(room, contenders) {
       gs.rejoin = { base: winners.slice(), cands, joined: new Set(), decided: new Set(), half };
       room.phase = 'rejoin';
       room.ctx.notify(room, `하위 ${cands.map((c) => c.name).join(', ')}님 — 절반 ${won(half)} 내면 재경기 합류 가능.`);
-      startStageTimer(room, 'rejoin', 20000);
+      startStageTimer(room, 'rejoin', 10000);
     } else {                                                                      // 합류 가능자 없으면 동점자끼리 바로 재대결
       gs.carrySeats = winners.slice();
       room.phase = 'finished';
@@ -449,7 +449,7 @@ function executeRedeal(room) {
     gs.rejoin = { base: nonFolded, cands, joined: new Set(), decided: new Set(), half };
     room.phase = 'rejoin';
     room.ctx.notify(room, `다이했던 ${cands.map((c) => c.name).join(', ')}님 — 절반 ${won(half)} 내면 합류 가능.`);
-    startStageTimer(room, 'rejoin', 20000);
+    startStageTimer(room, 'rejoin', 10000);
   } else {
     dealHand(room, nonFolded);
   }
@@ -745,6 +745,9 @@ module.exports = {
       : ((h ? h.pot : 0) + (gs.carryPot || 0));
     const canRedeal = room.phase === 'redeal' && h.redealers.includes(ws) && !h.redealPassed.has(ws);
     const canRejoin = room.phase === 'rejoin' && gs.rejoin && gs.rejoin.cands.includes(ws) && !gs.rejoin.decided.has(ws);
+    // 재경기에 자동 참여(동점자/base) 또는 이미 합류 결정한 사람 → "합류 대기 중"
+    const rejoinWaiting = room.phase === 'rejoin' && gs.rejoin && !canRejoin &&
+      (gs.rejoin.base.includes(ws) || (gs.rejoin.cands.includes(ws) && gs.rejoin.joined.has(ws)));
 
     return {
       game: 'seotda',
@@ -759,7 +762,7 @@ module.exports = {
       secondsLeft: stageDeadline ? Math.max(0, Math.ceil((stageDeadline - Date.now()) / 1000)) : null,
       stage: room.phase === 'redeal' ? 'redeal' : room.phase === 'rejoin' ? 'rejoin' : null,
       redealerNames: room.phase === 'redeal' ? h.redealers.map((w) => w.name) : null,
-      canRedeal, canRejoin,
+      canRedeal, canRejoin, rejoinWaiting,
       rejoinCost: gs.rejoin ? gs.rejoin.half : 0,
       result: h ? h.result : null,
       canStart: room.host === ws && module.exports.canStart(room),
