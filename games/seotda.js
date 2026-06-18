@@ -4,16 +4,28 @@
 //  - 풀 베팅: 앤티 → (체크/삥/하프/콜/따당/올인/다이) 라운드 → 오픈
 //  - 최대 4인 동시. 칩은 sessionId로 보관(새로고침/재접속 유지).
 // ───────────────────────────────────────────────────────────
-const START_CHIPS = Number(process.env.SEOTDA_START) || 30000;
-const ANTE        = Number(process.env.SEOTDA_ANTE)  || 500;
+const EOK = 100000000, CHEONMAN = 10000000;          // 억 / 천만 단위
+const START_CHIPS = Number(process.env.SEOTDA_START) || EOK;        // 기본 시작 칩 1억
+const ANTE        = Number(process.env.SEOTDA_ANTE)  || CHEONMAN;   // 기본 점당 천만
 const ACTION_MS   = Number(process.env.SEOTDA_TURN_MS) || 7000;    // 액션 제한(기본 7초) → 초과 시 자동 콜
 const AUTOSTART_MS = Number(process.env.SEOTDA_AUTOSTART_MS) || 5000;  // 판 종료 후 자동 시작(5초)
 const MAX_SEATS   = 5;
-// 방 생성 제약 (서버 권위 검증 — 클라 값은 참고용)
-const ANTE_MIN  = 10,   ANTE_MAX  = 100000;          // 점당(앤티) 범위
-const CHIPS_MIN = 1000, CHIPS_MAX = 100000000;       // 시작 칩 범위 (1천 ~ 1억)
+// 방 생성 제약 (서버 권위 검증 — 클라 값은 참고용). 억/천만 스케일.
+const ANTE_MIN  = CHEONMAN,   ANTE_MAX  = 10 * EOK;  // 점당 천만 ~ 10억
+const CHIPS_MIN = EOK,        CHIPS_MAX = 100 * EOK; // 시작 칩 1억 ~ 100억
 const CHIPS_ANTE_MULT = 4;                            // 시작 칩은 점당의 4배 이상이어야 (여러 판 가능)
-const LIMITS = { anteMin: ANTE_MIN, anteMax: ANTE_MAX, chipsMin: CHIPS_MIN, chipsMax: CHIPS_MAX, chipsAnteMult: CHIPS_ANTE_MULT };
+const LIMITS = { anteMin: ANTE_MIN, anteMax: ANTE_MAX, chipsMin: CHIPS_MIN, chipsMax: CHIPS_MAX, chipsAnteMult: CHIPS_ANTE_MULT, eok: EOK, cheonman: CHEONMAN };
+
+// 큰 금액을 억/만 단위로 읽기 쉽게 — 100억, 1억 5,000만, 1,000만, 2,500
+function won(n) {
+  n = Math.round(Number(n) || 0);
+  if (Math.abs(n) < 10000) return n.toLocaleString();
+  const eok = Math.floor(n / EOK), man = Math.floor((n % EOK) / 10000);
+  let s = '';
+  if (eok) s += eok.toLocaleString() + '억';
+  if (man) s += (s ? ' ' : '') + man.toLocaleString() + '만';
+  return s || n.toLocaleString();
+}
 
 // ---- 덱 / 카드 ----
 // card = { m: 1~10, v: 0|1 }
@@ -223,7 +235,7 @@ function applyAction(room, ws, act) {
     if (owe <= 0) return false;
     const paid = put(room, ws, owe);
     h.needAct.delete(ws);
-    room.ctx.notify(room, `${ws.name}님 콜 (+${paid.toLocaleString()})`);
+    room.ctx.notify(room, `${ws.name}님 콜 (+${won(paid)})`);
   } else if (act === 'ping') {
     // 삥 = 기본(앤티)만큼 첫 베팅 — 아직 아무도 안 올렸을 때만
     if (owe !== 0 || h.currentBet !== gs.ante) return false;
@@ -248,7 +260,7 @@ function applyAction(room, ws, act) {
     const my = h.contrib.get(ws) || 0;
     if (my > h.currentBet) { h.currentBet = my; h.needAct = new Set(h.seats.filter((s) => !h.folded.has(s) && !h.allin.has(s) && s !== ws)); }
     h.needAct.delete(ws);
-    room.ctx.notify(room, `${ws.name}님 올인! (${(my - before).toLocaleString()})`);
+    room.ctx.notify(room, `${ws.name}님 올인! (${won(my - before)})`);
   } else {
     return false;
   }
@@ -313,7 +325,7 @@ function resetAllChips(room) {
   const gs = room.gs;
   for (const s of room.queue) gs.chips[s.sessionId] = gs.startChips;
   gs.carryPot = 0; gs.carrySeats = null; gs.buyinReq = {};
-  room.ctx.notify(room, `🔄 게임 재시작 — 모두 ${gs.startChips.toLocaleString()} 칩으로 초기화!`);
+  room.ctx.notify(room, `🔄 게임 재시작 — 모두 ${won(gs.startChips)} 칩으로 초기화!`);
 }
 
 // 방장이 파산(칩 < 앤티)하면 칩 가장 많은 사람에게 방장 이양
@@ -376,7 +388,7 @@ function finalizeShowdown(room, contenders) {
     gs.carryPot = totalPot; gs.carrySeats = h.seats.slice(); gs.rejoin = null;   // 이월 — 이 멤버로만 계속(새 대기인원 X)
     h.result = { tie: true, winners: winners.map((w) => ({ name: w.name, color: w.color })), pot: totalPot, reveals, sole: false };
     room.phase = 'finished';
-    room.ctx.notify(room, `🤝 동점(${winners.map((w) => w.name).join(', ')}) — 판돈 ${totalPot.toLocaleString()} 묻고 다음 판으로 이월!`);
+    room.ctx.notify(room, `🤝 동점(${winners.map((w) => w.name).join(', ')}) — 판돈 ${won(totalPot)} 묻고 다음 판으로 이월!`);
     maybeTransferHost(room); scheduleAutoStart(room);
     return;
   }
@@ -387,7 +399,7 @@ function finalizeShowdown(room, contenders) {
   h.result = { winners: winners.map((w) => ({ name: w.name, color: w.color })), pot: totalPot, reveals, sole: contenders.length <= 1 };
   room.phase = 'finished';
   const names = winners.map((w) => w.name).join(', ');
-  room.ctx.notify(room, `🏆 ${names} 승리 — 판돈 ${totalPot.toLocaleString()} 획득${reveals ? '' : ' (단독)'}`);
+  room.ctx.notify(room, `🏆 ${names} 승리 — 판돈 ${won(totalPot)} 획득${reveals ? '' : ' (단독)'}`);
   const busted = h.seats.filter((s) => (gs.chips[s.sessionId] ?? 0) < gs.ante);
   if (busted.length) room.ctx.notify(room, `${busted.map((b) => b.name).join(', ')}님 칩 부족 — 다음 판 관전`);
   maybeTransferHost(room); scheduleAutoStart(room);
@@ -401,11 +413,11 @@ function executeRedeal(room) {
   const nonFolded = h.seats.filter((s) => !h.folded.has(s));
   const half = Math.floor(gs.carryPot / 2);
   const cands = h.seats.filter((s) => h.folded.has(s) && (gs.chips[s.sessionId] ?? 0) >= half);
-  room.ctx.notify(room, `🔁 재경기! 판돈 ${gs.carryPot.toLocaleString()} 묻고 다음 판으로.`);
+  room.ctx.notify(room, `🔁 재경기! 판돈 ${won(gs.carryPot)} 묻고 다음 판으로.`);
   if (cands.length) {
     gs.rejoin = { base: nonFolded, cands, joined: new Set(), decided: new Set(), half };
     room.phase = 'rejoin';
-    room.ctx.notify(room, `다이했던 ${cands.map((c) => c.name).join(', ')}님 — 절반 ${half.toLocaleString()} 내면 합류 가능.`);
+    room.ctx.notify(room, `다이했던 ${cands.map((c) => c.name).join(', ')}님 — 절반 ${won(half)} 내면 합류 가능.`);
     startStageTimer(room, 'rejoin', 20000);
   } else {
     dealHand(room, nonFolded);
@@ -453,8 +465,8 @@ function dealHand(room, seats) {
   h.turnIdx = 0;
   gs.buttonRot++;
   room.phase = 'playing';
-  const carry = gs.carryPot ? ` (묻힌 판돈 ${gs.carryPot.toLocaleString()})` : '';
-  room.ctx.notify(room, `섯다 시작! ${seats.map((s) => s.name).join(', ')} (앤티 ${gs.ante.toLocaleString()})${carry} — 선: ${h.order[0].name}`);
+  const carry = gs.carryPot ? ` (묻힌 판돈 ${won(gs.carryPot)})` : '';
+  room.ctx.notify(room, `섯다 시작! ${seats.map((s) => s.name).join(', ')} (앤티 ${won(gs.ante)})${carry} — 선: ${h.order[0].name}`);
   if (h.needAct.size === 0) { showdown(room); return; }  // 전원 앤티로 올인 → 베팅 없이 바로 오픈
   if (!h.needAct.has(h.order[0])) nextActor(h);     // 선이 올인이면 다음
   startActionTimer(room);
@@ -559,7 +571,7 @@ module.exports = {
         gs.chips[ws.sessionId] -= r.half;
         gs.carryPot += r.half;
         r.joined.add(ws);
-        room.ctx.notify(room, `${ws.name}님 절반 ${r.half.toLocaleString()} 내고 재경기 합류!`);
+        room.ctx.notify(room, `${ws.name}님 절반 ${won(r.half)} 내고 재경기 합류!`);
       } else {
         room.ctx.notify(room, `${ws.name}님 재경기 합류 안 함.`);
       }

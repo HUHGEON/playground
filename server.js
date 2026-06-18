@@ -243,8 +243,11 @@ wss.on('connection', (ws) => {
 
     } else if (msg.type === 'chat') {
       if (!ws.joined) return;
+      const nowC = Date.now();
+      if (ws.lastChatAt && nowC - ws.lastChatAt < 500) return;   // 채팅 0.5초 제한(도배 방지)
       const text = String(msg.text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
       if (!text) return;
+      ws.lastChatAt = nowC;
       handleChat(ws, text);
 
     } else if (msg.type === 'logout') {

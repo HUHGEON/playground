@@ -78,25 +78,24 @@
   });
 
   // ---- 방 생성/입장/나가기 ----
-  // 섯다 방 생성 제약 (서버와 동일)
-  var SEOTDA_LIMITS = { anteMin: 10, anteMax: 100000, chipsMin: 1000, chipsMax: 100000000, chipsAnteMult: 4 };
+  // 섯다 방 생성 제약 — 입력은 단위(억 / 천만), 서버엔 원화 값으로 전송
+  var EOK = 100000000, CHEONMAN = 10000000;
+  var SEOTDA_LIMITS = { chipsUnitMin: 1, chipsUnitMax: 100, anteUnitMin: 1, anteUnitMax: 100, chipsAnteMult: 4 };
+  var OPT_HINT = '시작 칩 1~100억 · 점당 1~100천만 · 시작 칩 ≥ 점당×4';
   function validateSeotdaOpts() {
     var L = SEOTDA_LIMITS;
-    var ante = parseInt($('optAnte').value, 10);
-    var chips = parseInt($('optStart').value, 10);
+    var cU = parseInt($('optStart').value, 10);   // 억 단위
+    var aU = parseInt($('optAnte').value, 10);    // 천만 단위
     var hint = $('optHint');
     var err = null;
-    if (!Number.isFinite(ante) || ante < L.anteMin || ante > L.anteMax)
-      err = '점당은 ' + L.anteMin.toLocaleString() + ' ~ ' + L.anteMax.toLocaleString() + ' 사이여야 해요';
-    else if (!Number.isFinite(chips) || chips < L.chipsMin || chips > L.chipsMax)
-      err = '시작 칩은 ' + L.chipsMin.toLocaleString() + ' ~ ' + L.chipsMax.toLocaleString() + ' 사이여야 해요';
-    else if (chips < ante * L.chipsAnteMult)
-      err = '시작 칩은 점당의 ' + L.chipsAnteMult + '배 이상이어야 해요 (최소 ' + (ante * L.chipsAnteMult).toLocaleString() + ')';
-    if (hint) {
-      hint.classList.toggle('err', !!err);
-      hint.textContent = err || '시작 칩 1,000~1억 · 점당 10~100,000 · 시작 칩은 점당의 4배 이상';
-    }
-    return err ? null : { startChips: chips, ante: ante };
+    if (!Number.isFinite(cU) || cU < L.chipsUnitMin || cU > L.chipsUnitMax)
+      err = '시작 칩은 1~100억 사이여야 해요';
+    else if (!Number.isFinite(aU) || aU < L.anteUnitMin || aU > L.anteUnitMax)
+      err = '점당은 1~100천만 사이여야 해요';
+    else if (cU * EOK < aU * CHEONMAN * L.chipsAnteMult)
+      err = '시작 칩은 점당의 4배 이상이어야 해요 (점당 ' + aU + '천만이면 시작 칩 ' + Math.ceil(aU * CHEONMAN * L.chipsAnteMult / EOK) + '억 이상)';
+    if (hint) { hint.classList.toggle('err', !!err); hint.textContent = err || OPT_HINT; }
+    return err ? null : { startChips: cU * EOK, ante: aU * CHEONMAN };
   }
   function createRoom() {
     if (!selectedGame) return;
@@ -116,9 +115,13 @@
   $('leaveBtn').addEventListener('click', () => window.send({ type: 'leaveRoom' }));
 
   // ---- 채팅 ----
+  var lastChatSent = 0;
   function sendChatFrom(id) {
     const el = $(id), text = el.value.trim();
     if (!text) return;
+    const now = Date.now();
+    if (now - lastChatSent < 500) return;            // 채팅 0.5초 제한(서버와 동일)
+    lastChatSent = now;
     window.send({ type: 'chat', text }); el.value = '';
   }
   $('lobbyChatSend').addEventListener('click', () => sendChatFrom('lobbyChatInput'));

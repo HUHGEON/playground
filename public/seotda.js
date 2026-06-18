@@ -2,6 +2,17 @@
 (function () {
   const R = {};
   const esc = (x) => window.esc(x);
+  // 큰 금액을 억/만 단위로 읽기 쉽게 — 100억, 1억 5,000만, 1,000만, 2,500
+  const EOK = 100000000;
+  function won(n) {
+    n = Math.round(Number(n) || 0);
+    if (Math.abs(n) < 10000) return n.toLocaleString();
+    const eok = Math.floor(n / EOK), man = Math.floor((n % EOK) / 10000);
+    let s = '';
+    if (eok) s += eok.toLocaleString() + '억';
+    if (man) s += (s ? ' ' : '') + man.toLocaleString() + '만';
+    return s || n.toLocaleString();
+  }
 
   // 실제 화투 20장(이미지 기준). 'm-v' 키. v0=윗패(광/열끗/그림), v1=아랫패(띠/피)
   const PNAME = { 1: '송학', 2: '매조', 3: '벚꽃', 4: '흑싸리', 5: '난초', 6: '모란', 7: '홍싸리', 8: '공산', 9: '국화', 10: '단풍' };
@@ -204,7 +215,7 @@
     if (!felt) return;
     const _sx = window.scrollX, _sy = window.scrollY;   // 렌더(판 다시 그림)로 인한 스크롤 튐 방지
     const sub = document.getElementById('roomSub');     // 방정보 밑 점당/시작칩
-    if (sub) sub.textContent = `점당 ${s.ante.toLocaleString()} · 시작 ${s.startChips.toLocaleString()}`;
+    if (sub) sub.textContent = `점당 ${won(s.ante)} · 시작 ${won(s.startChips)}`;
     const intro = s.phase === 'playing' && s.handId && s.handId !== lastHandId;
     if (s.phase === 'playing') lastHandId = s.handId;
 
@@ -232,8 +243,8 @@
     for (let i = 0; i < piles; i++) { const b = BILLS[i]; stack += `<span class="wbill ${b[3]}" style="left:calc(50% + ${b[0]}px);top:calc(50% + ${b[1]}px);transform:translate(-50%,-50%) rotate(${b[2]}deg)"><i class="den">${b[3] === 'oman' ? '5만' : '1만'}</i></span>`; }
     potC.innerHTML =
       (piles ? `<div class="potpile">${stack}</div>` : '') +
-      `<div class="potamt">💵 ${pot.toLocaleString()}</div>` +
-      ((s.carryPot > 0 && s.phase === 'playing') ? `<div class="potsub">묻힌 ${s.carryPot.toLocaleString()}</div>` : '') +
+      `<div class="potamt">💵 ${won(pot)}</div>` +
+      ((s.carryPot > 0 && s.phase === 'playing') ? `<div class="potsub">묻힌 ${won(s.carryPot)}</div>` : '') +
       (s.secondsLeft != null ? `<div class="pottimer" id="sTimer">⏱ ${s.secondsLeft}초</div>` : '') +
       `<div id="potCtrl"></div>`;
 
@@ -287,13 +298,13 @@
     } else if (s.stage === 'redeal') {
       res.innerHTML = `🔁 <b>구사·멍구사</b> — ${(s.redealerNames || []).map(esc).join(', ')}님 재경기 결정 중…`;
     } else if (s.stage === 'rejoin') {
-      res.innerHTML = `🔁 재경기! 다이했던 분은 절반 ${s.rejoinCost.toLocaleString()} 내면 합류 — 묻힌 판돈 💵${(s.carryPot || 0).toLocaleString()}`;
+      res.innerHTML = `🔁 재경기! 다이했던 분은 절반 ${won(s.rejoinCost)} 내면 합류 — 묻힌 판돈 💵${won(s.carryPot || 0)}`;
     } else if (s.result && s.result.tie) {
       const names = s.result.winners.map((w) => esc(w.name)).join(', ');
-      res.textContent = `🤝 동점 (${names}) — 판돈 ${s.result.pot.toLocaleString()} 묻고 다음 판으로 이월!`;
+      res.textContent = `🤝 동점 (${names}) — 판돈 ${won(s.result.pot)} 묻고 다음 판으로 이월!`;
     } else if (s.result) {
       const names = s.result.winners.map((w) => esc(w.name)).join(', ');
-      res.textContent = `🏆 ${names} — 판돈 ${s.result.pot.toLocaleString()} 획득` + (s.result.sole ? ' (단독, 비공개)' : '');
+      res.textContent = `🏆 ${names} — 판돈 ${won(s.result.pot)} 획득` + (s.result.sole ? ' (단독, 비공개)' : '');
     }
 
     // 내 상태 (내가 자리에 없을 때만: 관전/재참가 안내. 앉아있으면 내 좌석에 패 표시)
@@ -303,7 +314,7 @@
     } else if (s.canRequestBuyin) {
       mh.innerHTML = '<div class="ms-line">💸 칩 부족 — 재참가 가능</div>';
       const b = document.createElement('button'); b.className = 'gold';
-      b.textContent = `🙋 재참가 요청 (${s.buyinAmount.toLocaleString()}칩으로)`;
+      b.textContent = `🙋 재참가 요청 (${won(s.buyinAmount)}칩으로)`;
       b.onclick = () => window.send({ type: 'requestBuyin' });
       mh.appendChild(b);
     } else if (s.buyinPending) {
@@ -324,7 +335,7 @@
       mkBtn('b-raise', '🔁 재경기 선언', () => window.send({ type: 'redeal' }));
       mkBtn('b-call', '그냥 끝내기(정산)', () => window.send({ type: 'passRedeal' }));
     } else if (s.canRejoin) {
-      mkBtn('b-allin', `합류 (절반 ${s.rejoinCost.toLocaleString()})`, () => window.send({ type: 'rejoin' }));
+      mkBtn('b-allin', `합류 (절반 ${won(s.rejoinCost)})`, () => window.send({ type: 'rejoin' }));
       mkBtn('b-die', '빠지기', () => window.send({ type: 'passRejoin' }));
     } else if (s.myTurn && s.actions) {
       s.actions.forEach((a) => {
@@ -359,7 +370,7 @@
     // 재참가 승인/거절 박스 (칩 최소 보유자에게만)
     const bbox = felt.querySelector('#buyinBox');
     if (bbox && s.iAmApprover && s.buyinRequests && s.buyinRequests.length) {
-      bbox.innerHTML = '<div class="buyin-title">🙋 재참가 요청 — 승인하면 내 칩과 같은 ' + s.buyinAmount.toLocaleString() + '칩으로 합류</div>';
+      bbox.innerHTML = '<div class="buyin-title">🙋 재참가 요청 — 승인하면 내 칩과 같은 ' + won(s.buyinAmount) + '칩으로 합류</div>';
       s.buyinRequests.forEach((nm) => {
         const row = document.createElement('div'); row.className = 'buyin-row';
         row.innerHTML = `<span>${esc(nm)}</span>`;
@@ -385,7 +396,7 @@
         wait.innerHTML = '<h3>대기열</h3>' + overflow.map((w) =>
           `<div class="qrow"><span class="qname" style="color:${w.color}">${esc(w.name)}</span>` +
           `<span class="tag">${w.willSit ? '다음 판 합류' : '대기열'}</span>` +
-          `<span class="ch" style="color:var(--gold);font-size:12px">${w.chips.toLocaleString()}</span></div>`).join('');
+          `<span class="ch" style="color:var(--gold);font-size:12px">${won(w.chips)}</span></div>`).join('');
       } else wait.innerHTML = '';
     }
 
@@ -438,7 +449,7 @@
       el.innerHTML =
         `<div class="cards"><span class="emptycard">${p.bankrupt ? '💸' : '🪑'}</span></div>` +
         `<div class="namebar"><span class="nm" style="color:${p.color}">${esc(p.name)}</span></div>` +
-        `<div class="ch">💵 ${p.chips.toLocaleString()}</div>` +
+        `<div class="ch">💵 ${won(p.chips)}</div>` +
         `<div class="hd"><span class="stag ${p.bankrupt ? 'bust' : 'wait'}">${p.bankrupt ? '파산' : '대기중'}</span></div>`;
       return el;
     }
@@ -450,9 +461,9 @@
     const hd = p.handName || (p.isMe && p.cards ? evalLocal(p.cards) : '');
     el.innerHTML =
       `<div class="cards"></div>` +
-      (actBadge ? `<div class="betrow">${actBadge}${p.contrib ? '<span class="betc">+' + p.contrib.toLocaleString() + '</span>' : ''}</div>` : (p.contrib ? `<div class="betrow"><span class="betc">+${p.contrib.toLocaleString()}</span></div>` : '<div class="betrow"></div>')) +
+      (actBadge ? `<div class="betrow">${actBadge}${p.contrib ? '<span class="betc">+' + won(p.contrib) + '</span>' : ''}</div>` : (p.contrib ? `<div class="betrow"><span class="betc">+${won(p.contrib)}</span></div>` : '<div class="betrow"></div>')) +
       `<div class="namebar"><span class="nm" style="color:${p.color}">${esc(p.name)}</span>${tags}</div>` +
-      `<div class="ch">💵 ${p.chips.toLocaleString()}</div>` +
+      `<div class="ch">💵 ${won(p.chips)}</div>` +
       `<div class="hd">${(p.win ? '🏆 ' : '') + hd}</div>`;
     const cw = el.querySelector('.cards');
     if (p.cards) {
