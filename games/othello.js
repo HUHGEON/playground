@@ -154,15 +154,13 @@ module.exports = {
 
   onLeave(room, ws) {
     const gs = room.gs;
-    const wasActive = isActive(room, ws) && room.phase === 'playing';
+    const myColor = colorOf(gs, ws);
+    if (myColor && room.phase === 'playing') {        // 대국 중 나가기 = 기권 → 상대 승
+      gs.winner = opp(myColor);
+      conclude(room, `${ws.name || '참가자'}님이 나가 기권 — ${gs.winner === 'B' ? '흑 ●' : '백 ○'} 승리`);
+    }
     if (gs.players.B === ws) gs.players.B = null;
     if (gs.players.W === ws) gs.players.W = null;
-    if (wasActive) {
-      room.phase = 'lobby';
-      gs.players.B = null; gs.players.W = null;
-      clearTurnTimer(gs);
-      room.ctx.notify(room, `${ws.name || '참가자'}님이 나가 게임을 중단합니다.`);
-    }
   },
 
   cleanup(room) { clearTurnTimer(room.gs); },

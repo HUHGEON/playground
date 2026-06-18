@@ -112,7 +112,10 @@
   $('createBtn').addEventListener('click', createRoom);
   $('roomName').addEventListener('keydown', (e) => { if (ENTER_OK(e)) createRoom(); });
   ['optStart', 'optAnte'].forEach((id) => { var el = $(id); if (el) el.addEventListener('input', validateSeotdaOpts); });
-  $('leaveBtn').addEventListener('click', () => window.send({ type: 'leaveRoom' }));
+  $('leaveBtn').addEventListener('click', () => {
+    if (window.leaveConfirm && !confirm(window.leaveConfirm)) return;   // 대국/판 중 나가기 = 기권 확인
+    window.send({ type: 'leaveRoom' });
+  });
 
   // ---- 채팅 ----
   var lastChatSent = 0;
@@ -162,7 +165,7 @@
     if (h1) h1.style.display = inRoom ? 'none' : '';
     $('userbar').style.display = inRoom ? 'none' : (myName ? 'flex' : 'none');
     document.body.classList.toggle('inroom', inRoom);
-    if (!inRoom) document.body.classList.remove('game-seotda', 'game-othello');
+    if (!inRoom) { document.body.classList.remove('game-seotda', 'game-othello'); window.leaveConfirm = null; }
   }
 
   // ---- 로비 렌더 ----

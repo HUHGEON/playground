@@ -226,10 +226,7 @@ wss.on('connection', (ws) => {
 
     } else if (msg.type === 'leaveRoom') {
       if (!ws.roomId) return;
-      const room = rooms.get(ws.roomId);
-      const mod = room && GAMES[room.gameType];
-      if (mod && mod.isLocked && mod.isLocked(room, ws)) return;  // 대국 중 잠김(오셀로)
-      removeFromRoom(ws);
+      removeFromRoom(ws);   // 대국 중이어도 퇴장 허용 — onLeave가 게임 중단/상대 알림 처리
       sendLobby(ws);
 
     } else if (msg.type === 'start') {

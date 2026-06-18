@@ -375,6 +375,7 @@
       ctrl.appendChild(b);
     }
     document.getElementById('leaveBtn').disabled = false;
+    window.leaveConfirm = (s.phase === 'playing' && me) ? '판 진행 중 나가면 다이(기권) 처리됩니다. 나가시겠어요?' : null;
 
     // 재참가 승인/거절 박스 (칩 최소 보유자에게만)
     const bbox = felt.querySelector('#buyinBox');

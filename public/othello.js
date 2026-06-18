@@ -108,7 +108,8 @@
     else if (s.isHost && (s.phase === 'lobby' || s.phase === 'finished')) { const b = mkO('ostart', '상대 입장 대기 중', null); b.disabled = true; ctrl.appendChild(b); }
     if (s.canResign) ctrl.appendChild(mkO('danger', '기권', () => { if (confirm('기권하시겠습니까?')) window.send({ type: 'resign' }); }));
     if (s.canDefer) ctrl.appendChild(mkO('sub', '순위 미루기', () => window.send({ type: 'defer' })));
-    document.getElementById('leaveBtn').disabled = s.canResign;
+    document.getElementById('leaveBtn').disabled = false;   // 나가기 항상 허용(대국 중이면 기권 처리)
+    window.leaveConfirm = (s.phase === 'playing' && (myRole === 'B' || myRole === 'W')) ? '대국 중 나가면 기권 처리됩니다. 나가시겠어요?' : null;
 
     // 대기열(사이드바)
     const q = $('queue'); q.innerHTML = '';
