@@ -118,32 +118,53 @@
   #overlay h2 { margin: 0; font-size: 19px; font-weight: 800; text-align: center; }
   #overlay input { padding: 12px 14px; border-radius: 11px; border: 1px solid #3a4350; background: rgba(0,0,0,.30); color: #fff; font-size: 15px; text-align: center; }
 
-  /* ===== 오셀로 ===== */
-  #turnbar { font-size: 18px; font-weight: 800; padding: 12px 22px; border-radius: 14px; text-align: center; min-width: 300px; background: var(--panel); border: 1px solid var(--panel-brd); color: var(--muted); transition: .2s; }
-  #turnbar.you { background: linear-gradient(180deg, #2aa55c, #1f8048); color: #fff; border-color: transparent; box-shadow: 0 0 0 3px rgba(56,196,106,.30); }
-  #turnbar.them { background: linear-gradient(180deg, #4a3a1f, #3a2f1f); color: #f0c987; border-color: transparent; }
-  #turnbar.over { background: linear-gradient(180deg, #34405a, #2a3346); color: #dbe6f5; border-color: transparent; }
-  #timer { font-size: 22px; font-weight: 800; min-height: 26px; color: #dbe6f5; font-variant-numeric: tabular-nums; }
-  #timer.low { color: #ff6b6b; animation: pulse .9s ease-in-out infinite; }
+  /* ===== 오셀로 (클래식 우드보드 · 틸 패널) ===== */
+  body.game-othello #roomMain { max-width: 464px; width: 100%; display: flex; flex-direction: column; gap: 11px; align-items: stretch; }
+  body.game-othello .layout { flex-wrap: wrap; }
   @keyframes pulse { 50% { opacity: .55; } }
-  #scores { display: flex; gap: 16px; font-size: 15px; align-items: center; }
-  .chip { display: flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; background: var(--panel); border: 1px solid var(--panel-brd); max-width: 190px; font-weight: 600; transition: .2s; }
-  .chip.active { box-shadow: 0 0 0 2px var(--accent); }
-  .chip .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .disc-mini { width: 16px; height: 16px; border-radius: 50%; flex: none; box-shadow: 0 1px 2px rgba(0,0,0,.5); }
-  .disc-mini.black { background: radial-gradient(circle at 34% 28%, #6d6d6d, #111); }
-  .disc-mini.white { background: radial-gradient(circle at 34% 28%, #fff, #cfcfcf); }
-  #board { display: grid; grid-template-columns: repeat(8, var(--cell)); grid-template-rows: repeat(8, var(--cell)); background: #0a3a24; padding: 13px; border-radius: 14px; gap: 2px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.35), 0 0 0 5px #0c3320, 0 26px 55px rgba(0,0,0,.55); }
-  .ocell { background: linear-gradient(150deg, #1c7547, #136039); display: flex; align-items: center; justify-content: center; position: relative; border-radius: 2px; }
-  .ocell.playable { cursor: pointer; }
-  .ocell.playable::after { content: ""; width: 32%; height: 32%; border-radius: 50%; background: radial-gradient(circle, rgba(140,245,170,.9), rgba(110,220,150,.5)); box-shadow: 0 0 10px rgba(120,235,160,.6); animation: breathe 1.6s ease-in-out infinite; }
-  @keyframes breathe { 50% { transform: scale(1.18); opacity: .75; } }
-  .ocell.hint::after { content: ""; width: 24%; height: 24%; border-radius: 50%; background: rgba(255,255,255,.20); }
-  .disc { width: 82%; height: 82%; border-radius: 50%; box-shadow: 0 3px 5px rgba(0,0,0,.45); }
-  .disc.black { background: radial-gradient(circle at 34% 28%, #6d6d6d, #1a1a1a 58%, #000); }
-  .disc.white { background: radial-gradient(circle at 34% 28%, #ffffff, #dadada 55%, #b6b6b6); }
-  .disc.place { animation: place .26s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes breathe { 50% { transform: scale(1.18); opacity: .55; } }
   @keyframes place { from { transform: scale(0); } to { transform: scale(1); } }
+  /* 플레이어 패널(틸) */
+  .opanel { position: relative; display: flex; align-items: center; gap: 13px; padding: 14px 16px 11px; border-radius: 13px; background: linear-gradient(180deg,#317063,#1d4f46); border: 2px solid #9a7d3a; box-shadow: 0 8px 22px rgba(0,0,0,.4); }
+  .opanel.turn { border-color: #f6df84; box-shadow: 0 0 0 1px #f6df84, 0 0 20px rgba(246,223,132,.4), 0 8px 22px rgba(0,0,0,.4); }
+  .olevel { position: absolute; left: 14px; right: 14px; top: 6px; height: 4px; border-radius: 99px; background: rgba(0,0,0,.32); overflow: hidden; }
+  .olevelfill { height: 100%; background: linear-gradient(90deg,#e8c558,#f6df84); border-radius: 99px; transition: width .9s linear; }
+  .oavatar { width: 48px; height: 48px; border-radius: 50%; flex: none; margin-top: 3px; display: flex; align-items: center; justify-content: center; font-size: 24px; background: rgba(0,0,0,.25); border: 2px solid #ecc659; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+  .oinfo { flex: 1; min-width: 0; margin-top: 3px; }
+  .oname { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .osym { font-size: 11px; font-weight: 600; } .osym.black { color: #cfd8e0; } .osym.white { color: #9fd0c0; }
+  .ostatus { font-size: 11px; color: #8fc1b1; margin-top: 1px; white-space: nowrap; }
+  .oscore { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+  .oscorenum { font-size: 32px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; color: #fff; min-width: 36px; text-align: right; }
+  .disc-mini { width: 21px; height: 21px; border-radius: 50%; flex: none; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+  .disc-mini.black { background: radial-gradient(circle at 36% 30%, #7a7a7a, #262626 50%, #000 88%); }
+  .disc-mini.white { background: radial-gradient(circle at 36% 30%, #fff, #ededed 45%, #c2c2c2 85%); }
+  /* 결과 배너 */
+  #oResult { text-align: center; }
+  .opill { display: inline-block; padding: 9px 24px; border-radius: 999px; font-size: 16px; font-weight: 800; font-family: 'Space Grotesk', sans-serif; color: #3a2a10; background: linear-gradient(180deg,#f1d36a,#d9b042); box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  /* 나무 프레임 보드 */
+  #oBoardWrap { position: relative; align-self: center; }
+  #oFrame { position: relative; padding: 18px; border-radius: 16px; background: linear-gradient(158deg,#d8b96d 0%,#c4a155 45%,#ab8842 100%); box-shadow: 0 20px 44px rgba(0,0,0,.5), inset 0 2px 5px rgba(255,255,255,.4), inset 0 -4px 8px rgba(0,0,0,.28); }
+  .ocorner { position: absolute; width: 15px; height: 15px; border-radius: 5px; background: #26544c; }
+  .ocorner.tl { top: 7px; left: 7px; } .ocorner.tr { top: 7px; right: 7px; } .ocorner.bl { bottom: 7px; left: 7px; } .ocorner.br { bottom: 7px; right: 7px; }
+  #board { display: grid; grid-template-columns: repeat(8, 52px); grid-template-rows: repeat(8, 52px); gap: 1px; padding: 2px; border-radius: 4px; background: #5a7730; box-shadow: inset 0 0 0 2px #46602a; }
+  .ocell { background: linear-gradient(150deg,#90ad50,#82a046); display: flex; align-items: center; justify-content: center; position: relative; }
+  .ocell.playable { cursor: pointer; }
+  .ocell.playable::after { content: ""; width: 36%; height: 36%; border-radius: 50%; border: 3px solid rgba(255,255,255,.92); box-sizing: border-box; box-shadow: 0 0 7px rgba(255,255,255,.45); animation: breathe 1.8s ease-in-out infinite; }
+  .ocell.hint::after { content: ""; width: 26%; height: 26%; border-radius: 50%; background: rgba(40,30,10,.3); box-shadow: inset 0 0 0 1px rgba(255,255,255,.22); }
+  .ocell.last { box-shadow: inset 0 0 0 2px rgba(255,221,120,.9); }
+  .disc { width: 80%; height: 80%; border-radius: 50%; box-shadow: 0 3px 5px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.25); transition: background .32s ease; }
+  .disc.black { background: radial-gradient(circle at 36% 30%, #9a9a9a 0%, #383838 42%, #050505 88%); }
+  .disc.white { background: radial-gradient(circle at 36% 30%, #ffffff 0%, #ededed 42%, #c2c2c2 88%); }
+  .disc.place { animation: place .26s cubic-bezier(.34,1.56,.64,1) both; }
+  /* 둘 곳 없음 — 판 가운데 나무판 토스트 */
+  #oToast { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%) scale(.8); opacity: 0; pointer-events: none; z-index: 20; padding: 12px 22px; border-radius: 10px; font-weight: 800; font-size: 16px; color: #f4e6c5; white-space: nowrap; background: linear-gradient(180deg,#6e4f2a,#4a3318); border: 2px solid #2a1c0c; box-shadow: 0 10px 30px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.18); transition: opacity .2s, transform .2s; }
+  #oToast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  #oCtrl { display: flex; gap: 8px; justify-content: center; margin-top: 2px; }
+  #oCtrl .ostart { background: linear-gradient(180deg,#f1d36a,#d9b042); color: #3a2a10; }
+  /* 나무 말풍선 */
+  .obubble { position: absolute; left: 60px; top: -6px; transform: translateY(-100%); z-index: 30; max-width: 240px; background: linear-gradient(180deg,#e8d3a0,#cdb074); color: #3a2a10; font-size: 14px; font-weight: 700; padding: 9px 14px; border-radius: 14px 14px 14px 4px; border: 2px solid #8a6a30; box-shadow: 0 8px 22px rgba(0,0,0,.35); animation: bubblein .2s cubic-bezier(.34,1.56,.64,1) both; word-break: break-word; }
+  .obubble.out { animation: fadeout .35s ease forwards; }
   .qrow { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 9px; font-size: 14px; }
   .qrow.me { background: rgba(78,161,255,.12); }
   .qrow.play { background: rgba(255,255,255,.05); }

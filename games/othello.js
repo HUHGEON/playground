@@ -186,7 +186,7 @@ module.exports = {
         flipped: flipped.map(([fr, fc]) => ({ r: fr, c: fc, d: Math.max(Math.abs(fr - r), Math.abs(fc - c)) })),
       };
       const res = advanceTurn(gs);
-      if (res.passName) room.ctx.notify(room, `${res.passName}님이 둘 곳이 없습니다 (패스)`);
+      if (res.passName) { room.ctx.notify(room, `${res.passName}님이 둘 곳이 없습니다 (패스)`); gs.passSeq = (gs.passSeq || 0) + 1; gs.passName = res.passName; }
       if (res.finished) {
         const sc = score(gs.board);
         const w = gs.winner === 'draw' ? '무승부' : `${gs.winner === 'B' ? '흑 ●' : '백 ○'} 승리`;
@@ -237,6 +237,10 @@ module.exports = {
       waitPos: idx >= 2 ? idx - 1 : 0,
       secondsLeft: room.phase === 'playing' && gs.deadline ? Math.max(0, Math.ceil((gs.deadline - Date.now()) / 1000)) : null,
       lastMove: gs.lastMove,
+      passSeq: gs.passSeq || 0,
+      passName: gs.passName || null,
+      blackColor: gs.players.B?.color || null,
+      whiteColor: gs.players.W?.color || null,
     };
   },
 
