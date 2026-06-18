@@ -223,6 +223,8 @@
   function buildRejoinModal(s) {
     let m = document.getElementById('rejoinModal');
     if (!m) { m = document.createElement('div'); m.id = 'rejoinModal'; m.className = 'rejoin-modal'; document.body.appendChild(m); }
+    const felt = document.getElementById('seotdaFelt');     // 판(펠트) 가운데
+    if (felt) { const r = felt.getBoundingClientRect(); m.style.left = (r.left + r.width / 2 + window.scrollX) + 'px'; m.style.top = (r.top + r.height / 2 + window.scrollY) + 'px'; }
     const timer = s.secondsLeft != null ? '<div class="rjtimer">⏱ ' + s.secondsLeft + '초</div>' : '';
     if (s.canRejoin) {
       m.innerHTML = '<div class="rjtitle">🔁 재경기 합류</div>' +
