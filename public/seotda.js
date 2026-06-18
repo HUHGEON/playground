@@ -124,7 +124,7 @@
     return legend + '<div class="jlist">' + rows + '</div>';
   }
 
-  let timerInt = null, lastHandId = 0, wasMyTurn = false, prevActs = {}, seatByName = {};
+  let timerInt = null, lastHandId = 0, wasMyTurn = false, prevActs = {}, seatByName = {}, lastCarrySeq = null;
 
   // 채팅 말풍선 — 보낸 사람 좌석에 고정(재렌더돼도 그 좌석 따라감)
   let activeBubbles = [];
@@ -162,6 +162,22 @@
     document.body.appendChild(t);
     setTimeout(() => t.classList.add('out'), 950);
     setTimeout(() => { if (t.parentNode) t.remove(); }, 1300);
+  }
+
+  // 동점/재경기 이월 → 판 가운데 "묻고 더블로 가!" 밈 토스트
+  function showCarryToast() {
+    const felt = document.getElementById('seotdaFelt');
+    const t = document.createElement('div');
+    t.className = 'carry-toast';
+    t.innerHTML = '<img src="carry.jpeg" alt="묻고 더블로 가!" draggable="false">';
+    if (felt) {
+      const r = felt.getBoundingClientRect();
+      t.style.left = (r.left + r.width / 2 + window.scrollX) + 'px';
+      t.style.top = (r.top + r.height / 2 + window.scrollY) + 'px';
+    }
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add('out'), 1700);
+    setTimeout(() => { if (t.parentNode) t.remove(); }, 2100);
   }
 
   // 좌석 칸 가운데에 "어떤 베팅을 했는지" 토스트 팝(색 구분)
@@ -211,7 +227,7 @@
       panel.style.display = open ? 'block' : 'none';
       tg.textContent = open ? '📖 족보 숨기기' : '📖 족보 보기';
     };
-    lastHandId = 0; wasMyTurn = false; seatByName = {};
+    lastHandId = 0; wasMyTurn = false; seatByName = {}; lastCarrySeq = null;
     window.onRoomChat = showChatBubble;              // 방 채팅 → 좌석 말풍선
   };
 
@@ -397,6 +413,10 @@
     felt.classList.toggle('myturn', !!s.myTurn);
     if (s.myTurn && !wasMyTurn) showTurnToast();
     wasMyTurn = !!s.myTurn;
+
+    // 동점/재경기 이월 발생 → "묻고 더블로 가!" 토스트(첫 진입 땐 안 띄움)
+    if (lastCarrySeq !== null && (s.carrySeq || 0) > lastCarrySeq) showCarryToast();
+    lastCarrySeq = s.carrySeq || 0;
 
     // 대기/관전자
     const wait = document.getElementById('seotdaWait');

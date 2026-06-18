@@ -142,8 +142,10 @@ function waitingToPlay(room) { return Math.max(0, eligible(room).length - MAX_SE
 function nextHandSeats(room) {
   const gs = room.gs;
   if ((gs.carryPot || 0) > 0 && gs.carrySeats && gs.carrySeats.length) {
-    const seats = gs.carrySeats.filter((s) => room.queue.includes(s) && (gs.chips[s.sessionId] ?? 0) >= gs.ante);
-    if (seats.length >= 2) return seats;
+    // 동점 이월 — 칩 필터 없이 그대로(올인=칩0 유저도 묻힌 판돈 두고 이월 판 참여, 파산처리 X)
+    const seats = gs.carrySeats.filter((s) => room.queue.includes(s));
+    if (seats.length) return seats;     // 1명만 남으면 dealHand의 <2 가드가 묻힌 판돈 지급
+    gs.carryPot = 0; gs.carrySeats = null;   // 동점자 전원 퇴장 → 이월 소멸
   }
   return seatsOf(room);
 }
@@ -385,7 +387,8 @@ function finalizeShowdown(room, contenders) {
 
   // 동점(승자 2명 이상) → 분배가 아니라 판돈 묻고(이월) 다음 판으로
   if (contenders.length > 1 && winners.length > 1) {
-    gs.carryPot = totalPot; gs.carrySeats = h.seats.slice(); gs.rejoin = null;   // 이월 — 이 멤버로만 계속(새 대기인원 X)
+    gs.carryPot = totalPot; gs.carrySeats = winners.slice(); gs.rejoin = null;   // 동점자끼리만 이월 재대결(올인자 포함)
+    gs.carrySeq = (gs.carrySeq || 0) + 1;                                         // "묻고 더블로 가!" 토스트 트리거
     h.result = { tie: true, winners: winners.map((w) => ({ name: w.name, color: w.color })), pot: totalPot, reveals, sole: false };
     room.phase = 'finished';
     room.ctx.notify(room, `🤝 동점(${winners.map((w) => w.name).join(', ')}) — 판돈 ${won(totalPot)} 묻고 다음 판으로 이월!`);
@@ -410,6 +413,7 @@ function executeRedeal(room) {
   const gs = room.gs, h = gs.hand;
   clearActionTimer(h); clearStage(gs);
   gs.carryPot = (gs.carryPot || 0) + h.pot;
+  gs.carrySeq = (gs.carrySeq || 0) + 1;                  // "묻고 더블로 가!" 토스트 트리거(재경기)
   const nonFolded = h.seats.filter((s) => !h.folded.has(s));
   const half = Math.floor(gs.carryPot / 2);
   const cands = h.seats.filter((s) => h.folded.has(s) && (gs.chips[s.sessionId] ?? 0) >= half);
@@ -699,7 +703,7 @@ module.exports = {
       game: 'seotda',
       handId: h ? h.id : 0,
       ante: gs.ante, startChips: gs.startChips,
-      pot: potShown, carryPot: gs.carryPot || 0,
+      pot: potShown, carryPot: gs.carryPot || 0, carrySeq: gs.carrySeq || 0,
       currentBet: h ? h.currentBet : 0,
       players,
       mySeat: seats.indexOf(ws),
