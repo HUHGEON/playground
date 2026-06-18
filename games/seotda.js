@@ -9,6 +9,11 @@ const ANTE        = Number(process.env.SEOTDA_ANTE)  || 500;
 const ACTION_MS   = Number(process.env.SEOTDA_TURN_MS) || 7000;    // 액션 제한(기본 7초) → 초과 시 자동 콜
 const AUTOSTART_MS = Number(process.env.SEOTDA_AUTOSTART_MS) || 5000;  // 판 종료 후 자동 시작(5초)
 const MAX_SEATS   = 5;
+// 방 생성 제약 (서버 권위 검증 — 클라 값은 참고용)
+const ANTE_MIN  = 10,   ANTE_MAX  = 100000;          // 점당(앤티) 범위
+const CHIPS_MIN = 1000, CHIPS_MAX = 100000000;       // 시작 칩 범위 (1천 ~ 1억)
+const CHIPS_ANTE_MULT = 4;                            // 시작 칩은 점당의 4배 이상이어야 (여러 판 가능)
+const LIMITS = { anteMin: ANTE_MIN, anteMax: ANTE_MAX, chipsMin: CHIPS_MIN, chipsMax: CHIPS_MAX, chipsAnteMult: CHIPS_ANTE_MULT };
 
 // ---- 덱 / 카드 ----
 // card = { m: 1~10, v: 0|1 }
@@ -465,11 +470,14 @@ module.exports = {
 
   init(room, opts) {
     opts = opts || {};
-    const ci = (v, lo, hi, dflt) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n >= lo && n <= hi ? n : dflt; };
-    const ante = ci(opts.ante, 10, 1000000, ANTE);                       // 점당(앤티)
-    const startChips = ci(opts.startChips, ante * 4, 1e12, START_CHIPS); // 시작 칩(앤티 4배 이상)
+    // 범위 밖이면 기본값 대신 가까운 한계로 '클램프' (직관적). 시작 칩은 점당의 4배 이상 보장.
+    const clamp = (v, lo, hi, dflt) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.min(Math.max(n, lo), hi) : dflt; };
+    const ante = clamp(opts.ante, ANTE_MIN, ANTE_MAX, ANTE);                         // 점당(앤티)
+    const minChips = Math.max(CHIPS_MIN, ante * CHIPS_ANTE_MULT);                    // 점당의 4배 이상
+    const startChips = clamp(opts.startChips, minChips, CHIPS_MAX, Math.max(START_CHIPS, minChips));  // 시작 칩
     room.gs = { chips: {}, ante, startChips, hand: null, buttonRot: 0, handNo: 0, carryPot: 0, carrySeats: null, rejoin: null, buyinReq: {} };
   },
+  LIMITS,   // 클라이언트 검증용으로 노출
 
   onEnter(room, ws) { ensureChips(room, ws); },
 

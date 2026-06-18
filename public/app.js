@@ -78,17 +78,41 @@
   });
 
   // ---- 방 생성/입장/나가기 ----
+  // 섯다 방 생성 제약 (서버와 동일)
+  var SEOTDA_LIMITS = { anteMin: 10, anteMax: 100000, chipsMin: 1000, chipsMax: 100000000, chipsAnteMult: 4 };
+  function validateSeotdaOpts() {
+    var L = SEOTDA_LIMITS;
+    var ante = parseInt($('optAnte').value, 10);
+    var chips = parseInt($('optStart').value, 10);
+    var hint = $('optHint');
+    var err = null;
+    if (!Number.isFinite(ante) || ante < L.anteMin || ante > L.anteMax)
+      err = '점당은 ' + L.anteMin.toLocaleString() + ' ~ ' + L.anteMax.toLocaleString() + ' 사이여야 해요';
+    else if (!Number.isFinite(chips) || chips < L.chipsMin || chips > L.chipsMax)
+      err = '시작 칩은 ' + L.chipsMin.toLocaleString() + ' ~ ' + L.chipsMax.toLocaleString() + ' 사이여야 해요';
+    else if (chips < ante * L.chipsAnteMult)
+      err = '시작 칩은 점당의 ' + L.chipsAnteMult + '배 이상이어야 해요 (최소 ' + (ante * L.chipsAnteMult).toLocaleString() + ')';
+    if (hint) {
+      hint.classList.toggle('err', !!err);
+      hint.textContent = err || '시작 칩 1,000~1억 · 점당 10~100,000 · 시작 칩은 점당의 4배 이상';
+    }
+    return err ? null : { startChips: chips, ante: ante };
+  }
   function createRoom() {
     if (!selectedGame) return;
-    const msg = { type: 'createRoom', gameType: selectedGame, name: $('roomName').value.trim() };
+    var opts = null;
     if (selectedGame === 'seotda') {
-      msg.opts = { startChips: parseInt($('optStart').value, 10) || 30000, ante: parseInt($('optAnte').value, 10) || 500 };
+      opts = validateSeotdaOpts();
+      if (!opts) return;                              // 범위 벗어나면 생성 막고 안내 표시
     }
+    const msg = { type: 'createRoom', gameType: selectedGame, name: $('roomName').value.trim() };
+    if (opts) msg.opts = opts;
     window.send(msg);
     $('roomName').value = '';
   }
   $('createBtn').addEventListener('click', createRoom);
   $('roomName').addEventListener('keydown', (e) => { if (ENTER_OK(e)) createRoom(); });
+  ['optStart', 'optAnte'].forEach((id) => { var el = $(id); if (el) el.addEventListener('input', validateSeotdaOpts); });
   $('leaveBtn').addEventListener('click', () => window.send({ type: 'leaveRoom' }));
 
   // ---- 채팅 ----

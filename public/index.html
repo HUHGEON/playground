@@ -58,7 +58,10 @@
   .gtag { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #2f3a4a; color: #bcd; }
   .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: #3a4450; color: #c4d0de; }
   .badge.play { background: linear-gradient(180deg, #6a5420, #4a3a17); color: #ffd97a; }
-  #seotdaOpts { display: flex; gap: 10px; margin-top: 9px; }
+  #seotdaOpts { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
+  .optrow { display: flex; gap: 10px; }
+  .opthint { font-size: 11px; color: var(--muted); }
+  .opthint.err { color: #ff8a7a; font-weight: 700; }
   .optfield { flex: 1; font-size: 12px; color: var(--muted); font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
   .optfield input { padding: 9px 11px; border-radius: 10px; border: 1px solid #3a4350; background: rgba(0,0,0,.30); color: #fff; font-size: 14px; font-weight: 700; }
   .createbar { display: flex; gap: 7px; margin-top: 10px; flex-wrap: wrap; }
@@ -336,8 +339,11 @@
           <h3 style="margin-top:16px">새 방 만들기 — 게임 선택</h3>
           <div class="gamepick" id="gamePick"></div>
           <div id="seotdaOpts" style="display:none">
-            <label class="optfield">시작 칩 <input id="optStart" type="number" min="2000" step="1000" value="30000" /></label>
-            <label class="optfield">점당(앤티) <input id="optAnte" type="number" min="10" step="50" value="500" /></label>
+            <div class="optrow">
+              <label class="optfield">시작 칩 <input id="optStart" type="number" min="1000" max="100000000" step="1000" value="30000" /></label>
+              <label class="optfield">점당(앤티) <input id="optAnte" type="number" min="10" max="100000" step="50" value="500" /></label>
+            </div>
+            <div id="optHint" class="opthint">시작 칩 1,000~1억 · 점당 10~100,000 · 시작 칩은 점당의 4배 이상</div>
           </div>
           <div class="createbar">
             <input id="roomName" maxlength="24" placeholder="방 이름 (예: 한판하실분)" autocomplete="off" />
