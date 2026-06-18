@@ -71,14 +71,10 @@ function betToEnd(room, folds = []) {
   S.start(room);
   const h = room.gs.hand;
   ok(h.seats.length === 3, `3인 착석 (got ${h.seats.length})`);
-  // 선 오픈 → 나머지 콜, C는 다이 → 컨텐더 A,B → 멍구사 재경기
+  // 선 오픈 → 나머지 콜, C는 다이 → 컨텐더 A,B → 멍구사 무조건(자동) 재경기
   betToEnd(room, [C]);
-  ok(room.phase === 'redeal', `멍구사 → 재경기 단계 진입 (phase ${room.phase})`);
-  ok(room.gs.hand.redealers.includes(A), `재경기 권리자 = A(멍구사)`);
-  const potAtRedeal = room.gs.hand.pot;
-  S.action(room, A, { type: 'redeal' });
-  ok(room.phase === 'rejoin', `재경기 선언 → 합류 단계 (phase ${room.phase})`);
-  ok(room.gs.carryPot === potAtRedeal, `판돈 묻힘(이월) ${room.gs.carryPot}`);
+  ok(room.phase === 'rejoin', `멍구사 자동 재경기 → 합류 단계 (phase ${room.phase})`);
+  ok(room.gs.carryPot > 0, `판돈 묻힘(이월) ${room.gs.carryPot}`);
   ok(room.gs.rejoin.cands.includes(C), `다이한 C가 합류 후보`);
   const half = room.gs.rejoin.half;
   const cChipsBefore = room.gs.chips['c'];

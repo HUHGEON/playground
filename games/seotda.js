@@ -364,10 +364,10 @@ function showdown(room) {
   ).map((e) => e.ws);
 
   if (redealers.length) {
+    // 구사/멍구사는 무조건 재경기 — 선언/정산 선택 없이 자동 진행
     h.redealers = redealers; h.redealPassed = new Set();
-    room.phase = 'redeal';
-    room.ctx.notify(room, `${redealers.map((w) => w.name).join(', ')}님 구사/멍구사 — 재경기 선언 가능! (안 하면 정상 정산)`);
-    startStageTimer(room, 'redeal', 20000);
+    room.ctx.notify(room, `${redealers.map((w) => w.name).join(', ')}님 구사/멍구사 — 무조건 재경기!`);
+    executeRedeal(room);
     return;
   }
   finalizeShowdown(room, contenders);
