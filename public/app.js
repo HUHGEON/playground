@@ -100,7 +100,7 @@
   function createRoom() {
     if (!selectedGame) return;
     var opts = null;
-    if (selectedGame === 'seotda') {
+    if (selectedGame === 'seotda' || selectedGame === 'poker') {
       opts = validateSeotdaOpts();
       if (!opts) return;                              // 범위 벗어나면 생성 막고 안내 표시
     }
@@ -129,6 +129,9 @@
   }
   $('lobbyChatSend').addEventListener('click', () => sendChatFrom('lobbyChatInput'));
   $('lobbyChatInput').addEventListener('keydown', (e) => { if (ENTER_OK(e)) sendChatFrom('lobbyChatInput'); });
+  // 방 채팅 입력(오른쪽 사이드바)
+  if ($('roomChatSend')) $('roomChatSend').addEventListener('click', () => sendChatFrom('roomChatInput'));
+  if ($('roomChatInput')) $('roomChatInput').addEventListener('keydown', (e) => { if (ENTER_OK(e)) sendChatFrom('roomChatInput'); });
 
   function addChat(scope, name, text, color) {
     const box = scope === 'lobby' ? $('lobbyChat') : $('roomChat');
@@ -180,7 +183,7 @@
       wrap.appendChild(o);
     });
     const opts = $('seotdaOpts');
-    if (opts) opts.style.display = selectedGame === 'seotda' ? 'flex' : 'none';
+    if (opts) opts.style.display = (selectedGame === 'seotda' || selectedGame === 'poker') ? 'flex' : 'none';
   }
 
   function renderLobby(s) {
@@ -232,7 +235,7 @@
       $('roomSub').textContent = '';
       window.onRoomChat = null;
       renderer.init($('roomMain'), $('roomInfo'));     // 게임별 스캐폴드 구축
-      addFeltChatBar($('roomMain'));                   // 판 밑에 채팅 입력
+      if (s.gameType !== 'poker') addFeltChatBar($('roomMain'));   // 포커만 우측 사이드바 채팅, 나머지는 하단 입력바
     }
     $('roomTitle').textContent = `${s.title} · ${s.roomName}`;
     renderer.render(s);

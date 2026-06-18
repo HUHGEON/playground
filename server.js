@@ -14,7 +14,7 @@ const PUBLIC = path.join(__dirname, 'public');
 
 // ---- 게임 모듈 레지스트리 ----
 const GAMES = {};
-for (const mod of [require('./games/othello'), require('./games/seotda')]) GAMES[mod.type] = mod;
+for (const mod of [require('./games/othello'), require('./games/seotda'), require('./games/poker')]) GAMES[mod.type] = mod;
 
 // ---- 정적 파일 서버 ----
 const MIME = {
@@ -300,7 +300,7 @@ function lanAddresses() {
 }
 
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n  🎮 playground 실행 중 (오셀로 · 섯다) — 포트 ${PORT}\n`);
+  console.log(`\n  🎮 playground 실행 중 (오셀로 · 섯다 · 세븐포커) — 포트 ${PORT}\n`);
   console.log(`  로컬:           http://localhost:${PORT}`);
   for (const ip of lanAddresses()) console.log(`  같은 네트워크:  http://${ip}:${PORT}`);
   console.log('');
