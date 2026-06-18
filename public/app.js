@@ -162,6 +162,7 @@
     if (h1) h1.style.display = inRoom ? 'none' : '';
     $('userbar').style.display = inRoom ? 'none' : (myName ? 'flex' : 'none');
     document.body.classList.toggle('inroom', inRoom);
+    if (!inRoom) document.body.classList.remove('game-seotda', 'game-othello');
   }
 
   // ---- 로비 렌더 ----
@@ -193,10 +194,10 @@
       row.className = 'roomrow';
       const badge = r.phase === 'playing' ? '<span class="badge play">진행중</span>' : '<span class="badge">대기중</span>';
       row.innerHTML =
-        `<span class="gicon">${g.emoji || '🎲'}</span>` +
-        `<span class="rname">${esc(r.name)}</span>` +
-        `<span class="gtag">${esc(g.title || r.gameType)}</span>` +
-        `<span class="meta">${r.count}명 · ${esc(r.max || '')} · 방장 ${esc(r.hostName || '-')}</span>${badge}`;
+        `<span class="gicon g-${r.gameType}">${g.emoji || '🎲'}</span>` +
+        `<span class="rinfo"><div class="rname">${esc(r.name)}</div>` +
+        `<div class="meta">${r.count}명 · ${esc(r.max || '')} · 방장 ${esc(r.hostName || '-')}</div></span>` +
+        `<span class="gtag g-${r.gameType}">${esc(g.title || r.gameType)}</span>${badge}`;
       const btn = document.createElement('button');
       btn.textContent = '입장';
       btn.onclick = () => window.send({ type: 'enterRoom', roomId: r.id });
@@ -218,6 +219,8 @@
   // ---- 방 라우팅 ----
   function routeRoom(s) {
     showView('room');
+    document.body.classList.remove('game-seotda', 'game-othello');
+    document.body.classList.add('game-' + s.gameType);   // 게임별 배경
     const renderer = window.RENDERERS[s.gameType];
     if (!renderer) return;
     if (currentRoomId !== s.roomId || currentGame !== s.gameType) {

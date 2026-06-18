@@ -13,6 +13,11 @@
     if (man) s += (s ? ' ' : '') + man.toLocaleString() + '만';
     return s || n.toLocaleString();
   }
+  // 현금 다발 1개(띠지·세로액면) HTML — 더미/날아가는돈 공용
+  function billHTML(type, posStyle) {
+    const numer = type === 'oman' ? '50000' : '10000';
+    return `<span class="wbill ${type}" style="${posStyle}"><span class="strap"><i>${numer}</i></span></span>`;
+  }
 
   // 실제 화투 20장(이미지 기준). 'm-v' 키. v0=윗패(광/열끗/그림), v1=아랫패(띠/피)
   const PNAME = { 1: '송학', 2: '매조', 3: '벚꽃', 4: '흑싸리', 5: '난초', 6: '모란', 7: '홍싸리', 8: '공산', 9: '국화', 10: '단풍' };
@@ -181,7 +186,7 @@
     for (let i = 0; i < 3; i++) {
       const bill = document.createElement('div');
       bill.className = 'money-fly wbill ' + (i === 1 ? 'oman' : 'man');
-      bill.innerHTML = '<i class="den">' + (i === 1 ? '5만' : '1만') + '</i>';
+      bill.innerHTML = '<span class="strap"><i>' + (i === 1 ? '50000' : '10000') + '</i></span>';
       const sx = r1.left + r1.width / 2, sy = r1.top + r1.height / 2;
       bill.style.left = (sx + window.scrollX) + 'px'; bill.style.top = (sy + window.scrollY) + 'px';
       bill.style.setProperty('--dx', (r2.left + r2.width / 2 - sx) + 'px');   // 델타라 스크롤 무관
@@ -194,7 +199,7 @@
   const MONEY_ACTS = ['콜', '삥', '따당', '하프', '풀', '올인'];
 
   R.init = function (main, info) {
-    main.innerHTML = '<div id="seotdaStage"><div id="seotdaFelt"></div></div>';
+    main.innerHTML = '<div id="seotdaStage"><div id="seotdaFelt"><div id="seotdaInner"></div></div></div>';
     if (!window._seotdaFitBound) { window.addEventListener('resize', fitStage); window._seotdaFitBound = true; }
     info.innerHTML = '<div id="seotdaWait"></div>' +
       '<button id="jokboToggle" class="sub" style="width:100%;margin-top:6px">📖 족보 보기</button>' +
@@ -213,6 +218,7 @@
   R.render = function (s) {
     const felt = document.getElementById('seotdaFelt');
     if (!felt) return;
+    const inner = felt.querySelector('#seotdaInner') || felt;
     const _sx = window.scrollX, _sy = window.scrollY;   // 렌더(판 다시 그림)로 인한 스크롤 튐 방지
     const sub = document.getElementById('roomSub');     // 방정보 밑 점당/시작칩
     if (sub) sub.textContent = `점당 ${won(s.ante)} · 시작 ${won(s.startChips)}`;
@@ -222,7 +228,8 @@
     const n = s.players.length || 1;
     const me = s.players.find((p) => p.isMe);
 
-    felt.innerHTML =
+    inner.innerHTML =
+      '<div class="inkmotif tl">梅</div><div class="inkmotif br">蘭</div>' +
       '<div id="seotdaResult"></div>' +
       '<div id="seotdaTable"><div id="potCenter"></div></div>' +
       '<div id="myStatus"></div>' +
@@ -240,10 +247,11 @@
     const pot = s.pot || 0;
     const piles = pot > 0 ? Math.min(BILLS.length, 1 + Math.floor(pot / Math.max(1, s.ante))) : 0;  // 판돈 0이면 다발 없음
     let stack = '';
-    for (let i = 0; i < piles; i++) { const b = BILLS[i]; stack += `<span class="wbill ${b[3]}" style="left:calc(50% + ${b[0]}px);top:calc(50% + ${b[1]}px);transform:translate(-50%,-50%) rotate(${b[2]}deg)"><i class="den">${b[3] === 'oman' ? '5만' : '1만'}</i></span>`; }
+    for (let i = 0; i < piles; i++) { const b = BILLS[i]; stack += billHTML(b[3], `left:calc(50% + ${b[0]}px);top:calc(50% + ${b[1]}px);transform:translate(-50%,-50%) rotate(${b[2]}deg)`); }
     potC.innerHTML =
       (piles ? `<div class="potpile">${stack}</div>` : '') +
-      `<div class="potamt">💵 ${won(pot)}</div>` +
+      `<div class="potamt">₩ ${won(pot)}</div>` +
+      `<div class="potlabel">판돈 POT</div>` +
       ((s.carryPot > 0 && s.phase === 'playing') ? `<div class="potsub">묻힌 ${won(s.carryPot)}</div>` : '') +
       (s.secondsLeft != null ? `<div class="pottimer" id="sTimer">⏱ ${s.secondsLeft}초</div>` : '') +
       `<div id="potCtrl"></div>`;
@@ -323,23 +331,24 @@
       mh.innerHTML = '<div class="ms-line" style="color:var(--muted)">👀 관전 중 — 다음 판을 기다려요</div>';
     }
 
-    // 액션 버튼 (베팅 / 재경기 / 합류)
+    // 액션 버튼 (베팅 / 재경기 / 합류) — 2줄(액션명 + 금액)
     const act = felt.querySelector('#seotdaActions');
-    const mkBtn = (cls, label, send) => {
+    const mkBtn = (cls, name, amount, send) => {
       const b = document.createElement('button');
-      b.className = cls; b.textContent = label;
+      b.className = cls;
+      b.innerHTML = `<span class="blabel">${esc(name)}</span>` + (amount ? `<span class="bamt">${esc(amount)}</span>` : '');
       b.onclick = () => { send(); act.innerHTML = ''; };
       act.appendChild(b);
     };
     if (s.canRedeal) {
-      mkBtn('b-raise', '🔁 재경기 선언', () => window.send({ type: 'redeal' }));
-      mkBtn('b-call', '그냥 끝내기(정산)', () => window.send({ type: 'passRedeal' }));
+      mkBtn('b-raise', '🔁 재경기 선언', null, () => window.send({ type: 'redeal' }));
+      mkBtn('b-call', '그냥 끝내기', '정산', () => window.send({ type: 'passRedeal' }));
     } else if (s.canRejoin) {
-      mkBtn('b-allin', `합류 (절반 ${won(s.rejoinCost)})`, () => window.send({ type: 'rejoin' }));
-      mkBtn('b-die', '빠지기', () => window.send({ type: 'passRejoin' }));
+      mkBtn('b-allin', '합류', '절반 ' + won(s.rejoinCost), () => window.send({ type: 'rejoin' }));
+      mkBtn('b-die', '빠지기', null, () => window.send({ type: 'passRejoin' }));
     } else if (s.myTurn && s.actions) {
       s.actions.forEach((a) => {
-        mkBtn('b-' + a.act, a.label, () => window.send({ type: 'bet', act: a.act }));   // 종류별 색 구분
+        mkBtn('b-' + a.act, a.name || a.label, a.amount, () => window.send({ type: 'bet', act: a.act }));   // 종류별 색 구분
       });
     }
 

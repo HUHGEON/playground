@@ -667,23 +667,23 @@ module.exports = {
       const pay = (target) => Math.min(Math.max(0, target - contrib), chips);   // 실제 지불액(올인 캡)
       const halfPay = pay(h.currentBet + Math.max(1, Math.floor(h.pot / 2)));
       const fullPay = pay(h.currentBet + Math.max(1, h.pot));
-      const k = (n) => '+' + n.toLocaleString();
+      const amt = (n) => '₩' + won(n);
       actions = owe === 0
         ? [
-            { act: 'check', label: '체크' },
-            { act: 'ping',  label: `삥 ${k(pay(h.currentBet + gs.ante))}` },
-            { act: 'half',  label: `하프 ${k(halfPay)}` },
-            { act: 'full',  label: `풀 ${k(fullPay)}` },
-            { act: 'allin', label: `올인 ${chips.toLocaleString()}` },
-            { act: 'die',   label: '다이' },
+            { act: 'check', name: '체크' },
+            { act: 'ping',  name: '삥',  amount: amt(pay(h.currentBet + gs.ante)) },
+            { act: 'half',  name: '하프', amount: amt(halfPay) },
+            { act: 'full',  name: '풀',  amount: amt(fullPay) },
+            { act: 'allin', name: '올인', amount: amt(chips) },
+            { act: 'die',   name: '다이' },
           ]
         : [
-            { act: 'call',  label: `콜 ${k(Math.min(owe, chips))}` },
-            { act: 'ddang', label: `따당 ${k(pay(2 * h.currentBet - gs.ante))}` },
-            { act: 'half',  label: `하프 ${k(halfPay)}` },
-            { act: 'full',  label: `풀 ${k(fullPay)}` },
-            { act: 'allin', label: `올인 ${chips.toLocaleString()}` },
-            { act: 'die',   label: '다이' },
+            { act: 'call',  name: '콜',  amount: amt(Math.min(owe, chips)) },
+            { act: 'ddang', name: '따당', amount: amt(pay(2 * h.currentBet - gs.ante)) },
+            { act: 'half',  name: '하프', amount: amt(halfPay) },
+            { act: 'full',  name: '풀',  amount: amt(fullPay) },
+            { act: 'allin', name: '올인', amount: amt(chips) },
+            { act: 'die',   name: '다이' },
           ];
     }
 
