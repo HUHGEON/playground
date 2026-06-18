@@ -258,7 +258,7 @@
       setTimeout(() => { if (bill.parentNode) bill.remove(); }, 700 + i * 70);
     }
   }
-  const MONEY_ACTS = ['콜', '삥', '따당', '하프', '풀', '올인'];
+  const MONEY_ACTS = ['콜', '삥', '따당', '쿼터', '하프', '올인'];
 
   R.init = function (main, info) {
     main.innerHTML = '<div id="seotdaStage"><div id="seotdaFelt"><div id="seotdaInner"></div></div></div>';

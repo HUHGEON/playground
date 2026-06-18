@@ -123,7 +123,7 @@
     const el = $(id), text = el.value.trim();
     if (!text) return;
     const now = Date.now();
-    if (now - lastChatSent < 500) return;            // 채팅 0.5초 제한(서버와 동일)
+    if (now - lastChatSent < 1000) return;            // 채팅 1초 제한(서버와 동일)
     lastChatSent = now;
     window.send({ type: 'chat', text }); el.value = '';
   }

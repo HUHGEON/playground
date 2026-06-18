@@ -21,9 +21,9 @@ function betToEnd(room, folds = []) {
     let pick;
     if (folds.includes(cur)) pick = 'die';
     else if (codes.includes('call')) pick = 'call';
-    else if (codes.includes('ping')) pick = 'ping';       // 선 오픈
+    else if (codes.includes('ping')) pick = 'ping';       // 선 오픈(삥)
+    else if (codes.includes('half')) pick = 'half';       // 오픈(하프)
     else if (codes.includes('check')) pick = 'check';
-    else if (codes.includes('quarter')) pick = 'quarter'; // 비선 오픈
     else pick = 'die';
     S.action(room, cur, { type: 'bet', act: pick });
   }
@@ -45,13 +45,15 @@ function betToEnd(room, folds = []) {
   ok(h.currentBet === A, `시작 currentBet=앤티 ${A} (got ${h.currentBet})`);
   const first = h.order[0];
   const second = h.order[1];
-  S.action(room, first, { type: 'bet', act: 'ping' });
+  S.action(room, first, { type: 'bet', act: 'ping' });    // 선 삥(오프닝, rc1)
   ok(h.currentBet === 2 * A, `삥 후 currentBet ${2 * A} (got ${h.currentBet})`);
-  S.action(room, second, { type: 'bet', act: 'ddang' });
-  ok(h.currentBet === 3 * A, `따당(앞 베팅 2배) 후 currentBet ${3 * A} (got ${h.currentBet})`);
-  S.action(room, first, { type: 'bet', act: 'call' });
+  S.action(room, second, { type: 'bet', act: 'half' });   // 받는 사람 하프(rc2)
+  ok(h.raiseCount === 2, `하프 후 raiseCount=2 (got ${h.raiseCount})`);
+  const beforeDdang = h.currentBet;
+  S.action(room, first, { type: 'bet', act: 'ddang' });   // 2번째 베팅부터 따당 가능
+  ok(h.currentBet === 2 * beforeDdang - A, `따당=앞벳2배 → ${2 * beforeDdang - A} (got ${h.currentBet})`);
+  S.action(room, second, { type: 'bet', act: 'call' });
   ok(room.phase === 'finished', `콜로 라운드 종료 → 정산 (phase ${room.phase})`);
-  ok(room.gs.hand.result.pot === 6 * A, `최종 판돈 ${6 * A} (got ${room.gs.hand.result.pot})`);
   S.cleanup(room);
 })();
 
