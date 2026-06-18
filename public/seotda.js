@@ -125,6 +125,7 @@
   }
 
   let timerInt = null, lastHandId = 0, wasMyTurn = false, prevActs = {}, seatByName = {}, lastCarrySeq = null;
+  let carryToastUntil = 0, rejoinTimer = null;   // 재경기 모달은 "묻고 더블로 가!" 토스트 끝난 뒤
 
   // 채팅 말풍선 — 보낸 사람 좌석에 고정(재렌더돼도 그 좌석 따라감)
   let activeBubbles = [];
@@ -207,10 +208,20 @@
     });
   }
 
-  // 재경기 합류 — 화면 가운데 모달. cand는 결정 버튼, 자동참여자(동점자/base)는 대기 모드
+  // 재경기 합류 — 화면 가운데 모달. "묻고 더블로 가!" 토스트 끝난 뒤 표시
   function renderRejoinModal(s) {
+    if (rejoinTimer) { clearTimeout(rejoinTimer); rejoinTimer = null; }
+    if (!s.canRejoin && !s.rejoinWaiting) { const m = document.getElementById('rejoinModal'); if (m) m.remove(); return; }
+    const wait = carryToastUntil - Date.now();
+    if (wait > 0) {                                  // 토스트 진행 중 → 끝난 뒤 표시
+      const m = document.getElementById('rejoinModal'); if (m) m.remove();
+      rejoinTimer = setTimeout(() => buildRejoinModal(s), wait + 60);
+      return;
+    }
+    buildRejoinModal(s);
+  }
+  function buildRejoinModal(s) {
     let m = document.getElementById('rejoinModal');
-    if (!s.canRejoin && !s.rejoinWaiting) { if (m) m.remove(); return; }
     if (!m) { m = document.createElement('div'); m.id = 'rejoinModal'; m.className = 'rejoin-modal'; document.body.appendChild(m); }
     const timer = s.secondsLeft != null ? '<div class="rjtimer">⏱ ' + s.secondsLeft + '초</div>' : '';
     if (s.canRejoin) {
@@ -275,6 +286,7 @@
       tg.textContent = open ? '📖 족보 숨기기' : '📖 족보 보기';
     };
     lastHandId = 0; wasMyTurn = false; seatByName = {}; lastCarrySeq = null;
+    carryToastUntil = 0; if (rejoinTimer) { clearTimeout(rejoinTimer); rejoinTimer = null; }
     const rjm = document.getElementById('rejoinModal'); if (rjm) rjm.remove();
     window.onRoomChat = showChatBubble;              // 방 채팅 → 좌석 말풍선
   };
@@ -454,7 +466,7 @@
     wasMyTurn = !!s.myTurn;
 
     // 동점/재경기 이월 발생 → "묻고 더블로 가!" 토스트(첫 진입 땐 안 띄움)
-    if (lastCarrySeq !== null && (s.carrySeq || 0) > lastCarrySeq) showCarryToast();
+    if (lastCarrySeq !== null && (s.carrySeq || 0) > lastCarrySeq) { showCarryToast(); carryToastUntil = Date.now() + 2200; }
     lastCarrySeq = s.carrySeq || 0;
 
     // 대기/관전자
