@@ -26,14 +26,22 @@ function driveCheckCall(room, maxSteps) {
   }
   return steps;
 }
+// 버리기 단계: 각 좌석 0번 카드 버리기 → 3구간 진입
+function doDiscards(room) {
+  const h = room.gs.hand;
+  if (!h || h.stage !== 'discard') return;
+  for (const s of h.seats.slice()) mod.action(room, s, { type: 'discard', idx: 0 });
+}
 
 // ── 1) 전원 체크/콜 → 쇼다운까지, 칩 보존 ──
 (function () {
   const room = makeRoom(4, { ante: 10000000, startChips: 100000000 });
   const before = totalChips(room);
   mod.start(room);
-  ok(room.phase === 'playing', '시작 후 playing');
-  ok(room.gs.hand.street === 3, '3구간부터');
+  ok(room.gs.hand.stage === 'discard', '시작 시 버리기 단계');
+  doDiscards(room);
+  ok(room.phase === 'playing', '버리기 후 playing');
+  ok(room.gs.hand.street === 3, '버리기 후 3구간');
   driveCheckCall(room, 200);
   ok(room.phase === 'finished', '체크/콜만으로 finished 도달');
   ok(room.gs.hand.street === 7, '끝까지 진행해 7구간 도달');
@@ -50,8 +58,9 @@ function driveCheckCall(room, maxSteps) {
   const room = makeRoom(3, { ante: 10000000, startChips: 100000000 });
   const before = totalChips(room);
   mod.start(room);
+  doDiscards(room);
   const h = room.gs.hand;
-  // 선 플레이어 삥 → 나머지 다이
+  // 선 플레이어 레이즈 → 나머지 다이
   const first = h.order[h.turnIdx];
   ok(mod.action(room, first, { type: 'bet', act: 'raise' }), '선 레이즈(오픈) 성공');
   let guard = 0;
@@ -69,6 +78,7 @@ function driveCheckCall(room, maxSteps) {
   const room = makeRoom(3, { ante: 10000000, startChips: 100000000 });
   const before = totalChips(room);
   mod.start(room);
+  doDiscards(room);
   const h = room.gs.hand;
   const first = h.order[h.turnIdx];
   ok(mod.action(room, first, { type: 'bet', act: 'allin' }), '선 올인');

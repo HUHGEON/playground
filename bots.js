@@ -33,6 +33,10 @@ function bot(baseName, sid) {
         setTimeout(() => send({ type: 'bet', act: pick }), 1200 + Math.random() * 1600);
       }
     } else if (m.gameType === 'poker') {
+      if (m.canDiscard) {                           // 버리기 단계 → 무작위 1장 버림
+        setTimeout(() => send({ type: 'discard', idx: Math.floor(Math.random() * 3) }), 900 + Math.random() * 1500);
+        return;
+      }
       if (m.myTurn && m.actions) {                  // 내 차례 → 캐주얼 전략(체크/콜/레이즈/폴드)
         const acts = m.actions.map((a) => a.act);
         const r = Math.random();

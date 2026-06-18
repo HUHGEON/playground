@@ -36,31 +36,41 @@
     img.src = 'cards-trump/' + RANKCODE(card.r) + SUITCODE[card.s] + '.svg';
     img.alt = lbl + sym; img.draggable = false;
     img.onload = () => img.classList.add('ok');
-    img.onerror = () => img.remove();
+    img.onerror = () => { img.remove(); d.classList.add('noimg'); };   // 이미지 없을 때만 CSS 글자 표시
     d.appendChild(img);
     return d;
   }
 
-  // ── 족보표(사이드바) ──
+  // ── 족보표(사이드바) — 실제 카드 예시로 ──
   const PRANK = [
-    ['로열 스트레이트 플러시', 'A♠ K♠ Q♠ J♠ 10♠'],
-    ['스트레이트 플러시', '9♥ 8♥ 7♥ 6♥ 5♥'],
-    ['포카드', '같은 숫자 4장'],
-    ['풀하우스', '트리플 + 페어'],
-    ['플러시', '같은 무늬 5장'],
-    ['스트레이트', '연속 숫자 5장'],
-    ['트리플', '같은 숫자 3장'],
-    ['투페어', '페어 2개'],
-    ['원페어', '페어 1개'],
-    ['하이카드 (탑)', '가장 높은 카드'],
+    ['로열 스트레이트 플러시', [[14, 0], [13, 0], [12, 0], [11, 0], [10, 0]]],
+    ['스트레이트 플러시', [[9, 1], [8, 1], [7, 1], [6, 1], [5, 1]]],
+    ['포카드', [[14, 0], [14, 1], [14, 2], [14, 3], [13, 0]]],
+    ['풀하우스', [[13, 0], [13, 1], [13, 2], [9, 0], [9, 1]]],
+    ['플러시', [[14, 2], [11, 2], [9, 2], [5, 2], [2, 2]]],
+    ['스트레이트', [[9, 3], [8, 1], [7, 2], [6, 0], [5, 3]]],
+    ['트리플', [[12, 0], [12, 1], [12, 2], [9, 3], [4, 1]]],
+    ['투페어', [[14, 0], [14, 1], [13, 2], [13, 3], [9, 0]]],
+    ['원페어', [[10, 0], [10, 1], [13, 2], [8, 3], [3, 1]]],
+    ['하이카드 (탑)', [[14, 0], [13, 1], [11, 2], [8, 3], [4, 0]]],
   ];
-  function rankPanelHTML() {
-    const legend = '<div class="jlegend">⬆ 위로 갈수록 강함 · 7장 중 베스트 5장</div>';
-    const rows = PRANK.map((r, i) => `<div class="prow"><span class="pex">${10 - i}</span><span class="prk">${esc(r[0])}</span><span style="font-size:11px;color:var(--muted)">${esc(r[1])}</span></div>`).join('');
-    return legend + rows;
+  function buildRankPanel() {
+    const wrap = document.getElementById('pokerRank');
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="jlegend">⬆ 위로 갈수록 강함 · 7장 중 베스트 5장</div>';
+    PRANK.forEach((r, i) => {
+      const row = document.createElement('div'); row.className = 'prow';
+      const cards = document.createElement('div'); cards.className = 'prankcards';
+      r[1].forEach((c) => cards.appendChild(cardEl({ r: c[0], s: c[1] }, { w: 38, h: 54 })));
+      const txt = document.createElement('div'); txt.className = 'prk';
+      txt.innerHTML = `<span class="pex">${10 - i}</span> ${esc(r[0])}`;
+      row.appendChild(cards); row.appendChild(txt);
+      wrap.appendChild(row);
+    });
   }
 
-  let timerInt = null, lastHandId = 0, wasMyTurn = false, prevActs = {}, seatByName = {};
+  let timerInt = null, lastHandId = 0, lastStreet = 0, wasMyTurn = false, prevActs = {}, seatByName = {};
+  let _scale = 1, _dealCards = [];   // 카드 배포 모션용(이번 렌더에 새로 배분된 카드들)
 
   // ── 채팅 말풍선 ──
   let activeBubbles = [];
@@ -130,11 +140,12 @@
   const MONEY_ACTS = ['콜', '레이즈', '올인'];
 
   R.init = function (main, info) {
-    main.innerHTML = '<div id="pokerStage"><div id="pokerFelt"></div></div>';
+    main.innerHTML = '<div id="pokerStage"><div id="pokerFelt"></div></div><div id="pokerBar"></div>';
     if (!window._pokerFitBound) { window.addEventListener('resize', fitStage); window._pokerFitBound = true; }
     info.innerHTML = '<div id="pokerWait"></div>' +
       '<button id="prankToggle" class="sub" style="width:100%;margin-top:6px">📖 족보 보기</button>' +
-      '<div id="pokerRank" style="display:none;margin-top:8px">' + rankPanelHTML() + '</div>';
+      '<div id="pokerRank" style="display:none;margin-top:8px"></div>';
+    buildRankPanel();
     const tg = document.getElementById('prankToggle');
     const panel = document.getElementById('pokerRank');
     if (tg && panel) tg.onclick = () => {
@@ -142,7 +153,7 @@
       panel.style.display = open ? 'block' : 'none';
       tg.textContent = open ? '📖 족보 숨기기' : '📖 족보 보기';
     };
-    lastHandId = 0; wasMyTurn = false; seatByName = {};
+    lastHandId = 0; lastStreet = 0; wasMyTurn = false; seatByName = {};
     window.onRoomChat = showChatBubble;
   };
 
@@ -161,27 +172,34 @@
     if (!felt) return;
     const _sx = window.scrollX, _sy = window.scrollY;
     const sub = document.getElementById('roomSub');
-    if (sub) sub.textContent = `앤티 ${won(s.ante)} · 시작 ${won(s.startChips)}`;
+    if (sub) sub.textContent = `ante ${won(s.ante)} · 시작 금액 ${won(s.startChips)}`;
     const intro = s.phase === 'playing' && s.handId && s.handId !== lastHandId;
-    if (s.phase === 'playing') lastHandId = s.handId;
+    // 카드 배포 애니메이션 신호: 새 판(intro) 또는 새 구간(새 카드 배분) 때 true
+    const dealPulse = s.phase === 'playing' && (intro || s.street !== lastStreet);
+    if (s.phase === 'playing') { lastHandId = s.handId; lastStreet = s.street; }
+    _dealCards = [];                                  // 이번 렌더에 새로 배분된 카드 모음(덱→좌석 모션)
 
     const streetTxt = s.streetLabel || (s.phase === 'finished' ? '정산' : '대기 중');
+    const streetShort = s.stage === 'discard' ? '버리기' : (s.street ? s.street + '구간' : (s.phase === 'finished' ? '정산' : '대기'));   // 헤더용 짧은 표기
 
     felt.innerHTML =
       '<div id="pokerHead">' +
-        '<div><div class="ptitle">세븐 포커</div>' +
-        '<div class="psub">공통 카드 없이 각자 7장 — 오픈 4장 · 히든 3장, 베스트 5장으로 승부</div></div>' +
+        '<div class="phead-left"><button id="pLeave" class="sub pleavebtn">← 나가기</button><div class="ptitle">세븐 포커</div></div>' +
         '<div class="pstats">' +
           `<div class="pstat"><div class="lbl">ANTE</div><div class="val">${won(s.ante)}</div></div>` +
-          `<div class="pstat"><div class="lbl">STREET</div><div class="val">${esc(streetTxt)}</div></div>` +
+          `<div class="pstat"><div class="lbl">STREET</div><div class="val">${esc(streetShort)}</div></div>` +
         '</div></div>' +
       '<div id="pokerTable">' +
         '<div class="feltlayer felt-rim"></div><div class="feltlayer felt-green"></div>' +
         '<div class="feltlayer felt-hi"></div><div class="feltlayer felt-ring1"></div><div class="feltlayer felt-ring2"></div>' +
-        '<div id="pokerResult"></div><div id="pokerPot"></div>' +
-      '</div>' +
-      '<div id="pokerBar"><div class="bar-left"></div><div id="pokerActions"></div></div>' +
-      '<div id="pokerStatus"></div><div id="buyinBox"></div>';
+        '<div id="pokerResult"></div><div id="pokerPot"></div><div id="pokerNotice"></div>' +
+      '</div>';
+
+    const lv = felt.querySelector('#pLeave');
+    if (lv) lv.onclick = () => { if (window.leaveConfirm && !confirm(window.leaveConfirm)) return; window.send({ type: 'leaveRoom' }); };
+    // 액션 바는 펠트 밖(스케일 영향 X) — 화면 하단 고정
+    const barEl = document.getElementById('pokerBar');
+    barEl.innerHTML = '<div class="bar-left"></div><div id="pokerActions"></div>';
 
     const table = felt.querySelector('#pokerTable');
 
@@ -230,7 +248,7 @@
       if (k === 0 && myIdx >= 0) { L = 50; T = 87; }
       else if (lay) { L = lay[k - 1][0]; T = lay[k - 1][1]; }
       else { const a = (2 * Math.PI / N) * k; L = 50 - 38 * Math.sin(a); T = 50 + 36 * Math.cos(a); }
-      const el = seatEl(p, intro, T < 50);          // 위쪽 절반이면 명패 위·카드 아래(중앙 향함)
+      const el = seatEl(p, intro, T < 50, dealPulse); // 위쪽 절반이면 명패 위·카드 아래(중앙 향함)
       el.style.left = L + '%'; el.style.top = T + '%';
       table.appendChild(el);
       seatByName[p.name] = el;
@@ -248,6 +266,7 @@
     // 내 오픈 카드 — 처음부터 4칸, 오픈 카드가 하나씩 채워짐
     if (me && me.inHand) {
       const myOpen = (me.cards || []).filter((c) => c && c.up);
+      const myNewest = (me.cards && me.cards.length) ? me.cards[me.cards.length - 1] : null;
       const box = document.createElement('div'); box.id = 'pokerMyOpen';
       box.innerHTML = '<div class="lbl">MY OPEN CARDS</div>';
       const slots = document.createElement('div'); slots.className = 'slots';
@@ -256,12 +275,18 @@
         const c = myOpen[i];
         if (c) {
           const ce = cardEl(c, { w: 56, h: 80, win: me.win });
-          if (intro) { ce.classList.add('deal'); ce.style.animationDelay = (300 + i * 90) + 'ms'; }
+          if (intro || (dealPulse && c === myNewest)) { ce.classList.add('predeal'); _dealCards.push(ce); }
           slot.appendChild(ce);
         }
         slots.appendChild(slot);
       }
-      box.appendChild(slots); table.appendChild(box);
+      box.appendChild(slots);
+      if (me.handName) {                              // 현재 내 패 — 크게 표시
+        const hd = document.createElement('div'); hd.className = 'myhand';
+        hd.innerHTML = (me.win ? '🏆 ' : '') + '현재 패 · <b>' + esc(me.handName) + '</b>';
+        box.appendChild(hd);
+      }
+      table.appendChild(box);
     }
     repositionBubbles();
 
@@ -293,13 +318,13 @@
     }
 
     // ── 하단 액션 바 ──
-    const barLeft = felt.querySelector('.bar-left');
-    const act = felt.querySelector('#pokerActions');
+    const barLeft = barEl.querySelector('.bar-left');
+    const act = barEl.querySelector('#pokerActions');
     if (s.myTurn && s.actions) {
       const callA = s.actions.find((a) => a.act === 'call');
       barLeft.innerHTML = callA
         ? `<div class="callwrap"><span class="calllbl">콜 금액</span><span class="callamt">${esc(callA.amount || '')}</span></div>`
-        : `<span class="barhint">베팅하거나 체크하세요</span>`;
+        : `<span class="barhint">베팅 / 체크</span>`;
       s.actions.forEach((a) => {
         const b = document.createElement('button');
         b.className = 'b-' + a.act;
@@ -307,31 +332,47 @@
         b.onclick = () => { window.send({ type: 'bet', act: a.act }); act.innerHTML = ''; barLeft.innerHTML = ''; };
         act.appendChild(b);
       });
-    } else if (s.phase === 'playing') {
-      barLeft.innerHTML = `<span class="barhint">상대 차례를 기다리는 중…</span>`;
-    } else {
-      barLeft.innerHTML = `<span class="barhint">${esc(streetTxt)}</span>`;
+    } else {                                          // 내 차례 아님 → 가운데에 안내 채움
+      barLeft.innerHTML = '';
+      let hint;
+      if (s.stage === 'discard') hint = s.myDiscarded ? '다른 플레이어가 카드를 버리는 중…' : '🃏 버릴 카드 1장을 고르세요';
+      else hint = s.phase === 'playing' ? '상대 차례를 기다리는 중…' : streetTxt;
+      act.innerHTML = `<span class="barhint">${esc(hint)}</span>`;
     }
 
-    // ── 관전/재참가(펠트 아래) ──
-    const mh = felt.querySelector('#pokerStatus');
-    if (me) {
-      mh.innerHTML = '';
-    } else if (s.canRequestBuyin) {
-      mh.innerHTML = '<div class="ms-line">💸 칩 부족 — 재참가 가능</div>';
-      const b = document.createElement('button'); b.className = 'gold';
-      b.textContent = `🙋 재참가 요청 (${won(s.buyinAmount)}칩으로)`;
-      b.onclick = () => window.send({ type: 'requestBuyin' });
-      mh.appendChild(b);
-    } else if (s.buyinPending) {
-      mh.innerHTML = '<div class="ms-line" style="color:var(--gold)">⏳ 재참가 요청됨 — 승인 대기…</div>';
-    } else {
-      mh.innerHTML = '<div class="ms-line" style="color:var(--muted)">👀 관전 중 — 다음 판 대기</div>';
-    }
-
-    const bbox = felt.querySelector('#buyinBox');
-    if (bbox && s.iAmApprover && s.buyinRequests && s.buyinRequests.length) {
-      bbox.innerHTML = '<div class="buyin-title">🙋 재참가 요청 — 승인 시 내 칩과 같은 ' + won(s.buyinAmount) + '칩으로 합류</div>';
+    // ── 관전/재참가 — 게임 화면(테이블) 위에 표시 ──
+    const notice = felt.querySelector('#pokerNotice');
+    notice.innerHTML = '';
+    if (s.stage === 'discard' && me) {                // 버리기 단계 → 가운데에 내 3장 선택 패널
+      if (s.canDiscard && me.cards && me.cards.length) {
+        const card = document.createElement('div'); card.className = 'notice-card';
+        card.innerHTML = `<div class="nc-line">🃏 버릴 카드 1장 선택${s.secondsLeft != null ? ' · ' + s.secondsLeft + '초' : ''}</div>`;
+        const row = document.createElement('div'); row.className = 'discardrow';
+        me.cards.forEach((c, i) => {
+          const ce = cardEl(c, { w: 64, h: 90 });
+          ce.classList.add('selectable');
+          ce.onclick = () => { window.send({ type: 'discard', idx: i }); notice.innerHTML = ''; };
+          row.appendChild(ce);
+        });
+        card.appendChild(row); notice.appendChild(card);
+      } else if (s.myDiscarded) {
+        notice.innerHTML = '<div class="notice-card spectate">✅ 버림 완료 — 다른 플레이어 대기 중…</div>';
+      }
+    } else if (!me) {                                 // 파산·관전 중 → 화면에 재참가 버튼
+      if (s.canRequestBuyin) {
+        const card = document.createElement('div'); card.className = 'notice-card';
+        card.innerHTML = `<div class="nc-line">💸 칩 부족 — 재참가 가능 (${won(s.buyinAmount)})</div>`;
+        const b = document.createElement('button'); b.className = 'gold'; b.textContent = '🙋 재참가 요청하기';
+        b.onclick = () => window.send({ type: 'requestBuyin' });
+        card.appendChild(b); notice.appendChild(card);
+      } else if (s.buyinPending) {
+        notice.innerHTML = '<div class="notice-card"><div class="nc-line" style="color:var(--gold)">⏳ 재참가 요청됨 — 승인 대기 중…</div></div>';
+      } else {
+        notice.innerHTML = '<div class="notice-card spectate">👀 관전 중 — 다음 판을 기다려요</div>';
+      }
+    } else if (s.iAmApprover && s.buyinRequests && s.buyinRequests.length) {  // 좌석 보유자 = 승인 가능
+      const card = document.createElement('div'); card.className = 'notice-card';
+      card.innerHTML = `<div class="nc-line">🙋 재참가 요청 — 승인 시 ${won(s.buyinAmount)}로 합류</div>`;
       s.buyinRequests.forEach((nm) => {
         const row = document.createElement('div'); row.className = 'buyin-row';
         row.innerHTML = `<span>${esc(nm)}</span>`;
@@ -340,8 +381,9 @@
         okb.onclick = () => window.send({ type: 'approveBuyin', name: nm });
         const no = document.createElement('button'); no.className = 'danger'; no.style.marginLeft = '6px'; no.textContent = '❌ 거절';
         no.onclick = () => window.send({ type: 'rejectBuyin', name: nm });
-        wrap.append(okb, no); row.appendChild(wrap); bbox.appendChild(row);
+        wrap.append(okb, no); row.appendChild(wrap); card.appendChild(row);
       });
+      notice.appendChild(card);
     }
 
     // 내 차례 토스트
@@ -361,26 +403,50 @@
     }
 
     startTimer(s.secondsLeft);
-    document.getElementById('leaveBtn').disabled = false;
     fitStage();
+    runDealAnimation();                               // 덱→좌석 순차 배포 모션
     if (window.scrollX !== _sx || window.scrollY !== _sy) window.scrollTo(_sx, _sy);
   };
 
+  // 새로 배분된 카드들을 가운데 덱에서 한 장씩 날아오게(순차 딜레이)
+  function runDealAnimation() {
+    const cards = _dealCards; _dealCards = [];
+    if (!cards.length) return;
+    requestAnimationFrame(() => {                     // fitStage(scale 적용) 다음 프레임에 위치 계산
+      const deck = document.getElementById('pokerDeck');
+      if (!deck) { cards.forEach((c) => c.classList.remove('predeal')); return; }
+      const dr = deck.getBoundingClientRect();
+      const dcx = dr.left + dr.width / 2, dcy = dr.top + dr.height / 2;
+      cards.forEach((ce, i) => {
+        const r = ce.getBoundingClientRect();
+        if (!r.width) { ce.classList.remove('predeal'); return; }
+        const dx = (dcx - (r.left + r.width / 2)) / (_scale || 1);
+        const dy = (dcy - (r.top + r.height / 2)) / (_scale || 1);
+        ce.style.setProperty('--dx', dx + 'px');
+        ce.style.setProperty('--dy', dy + 'px');
+        ce.style.animationDelay = (i * 110) + 'ms';   // 한 장씩 순차
+        ce.classList.remove('predeal');
+        ce.classList.add('deal');
+      });
+    });
+  }
+
   // 한 줄 카드 배치(>3장이면 겹침, 아니면 간격)
-  function rowEl(cards, kind, cw, ch, p, intro) {
+  function rowEl(cards, kind, cw, ch, p, intro, dealPulse) {
     const row = document.createElement('div');
     row.className = 'pcardrow ' + kind;
     const overlap = cards.length > 3 ? -Math.round(cw * 0.42) : 4;
+    const newest = (p.cards && p.cards.length) ? p.cards[p.cards.length - 1] : null;   // 이번에 새로 받은 카드
     cards.forEach((c, j) => {
       const ce = cardEl(c, { w: cw, h: ch, win: p.win, hole: kind === 'hidden' && p.isMe && c && !c.hidden });
       if (j > 0) ce.style.marginLeft = overlap + 'px';
-      if (intro) { ce.classList.add('deal'); ce.style.animationDelay = (300 + j * 90) + 'ms'; }
+      if (intro || (dealPulse && c === newest)) { ce.classList.add('predeal'); _dealCards.push(ce); }  // 덱→좌석 모션 대상
       row.appendChild(ce);
     });
     return row;
   }
 
-  function seatEl(p, intro, topHalf) {
+  function seatEl(p, intro, topHalf, dealPulse) {
     const el = document.createElement('div');
     el.className = 'pseat' + (p.isMe ? ' me' : '') + (p.isTurn ? ' turn' : '') + (p.folded ? ' folded' : '') + (p.win ? ' win' : '') + (p.waiting ? ' waiting' : '');
     const cw = p.isMe ? 44 : 40, ch = p.isMe ? 62 : 58;
@@ -393,7 +459,7 @@
     } else if (p.isMe) {
       // 나: 히든 카드만 좌석에(오픈은 가운데 박스로). 내 패라 앞면 + 골드 강조.
       const hidden = (p.cards || []).filter((c) => c && !c.up);
-      if (hidden.length) area.appendChild(rowEl(hidden, 'hidden', cw, ch, p, intro));
+      if (hidden.length) area.appendChild(rowEl(hidden, 'hidden', cw, ch, p, intro, dealPulse));
     } else {
       // 상대: 모든 카드를 한 줄(일렬)로 — 히든 뒷면 + 오픈 앞면
       let cards = [];
@@ -402,7 +468,7 @@
         const hidden = p.cards.filter((c) => !(c && c.up));
         cards = [...hidden, ...open];
       } else if (p.inHand) cards = [{ hidden: true }, { hidden: true }, { hidden: true }];
-      if (cards.length) area.appendChild(rowEl(cards, 'flat', cw, ch, p, intro));
+      if (cards.length) area.appendChild(rowEl(cards, 'flat', cw, ch, p, intro, dealPulse));
     }
 
     // 명패
@@ -416,7 +482,7 @@
       else if (p.folded) badges += '<span class="pbadge die">다이</span>';
     }
     let info = '';
-    if (p.handName) info = (p.win ? '🏆 ' : '') + p.handName;
+    if (p.handName && !p.isMe) info = (p.win ? '🏆 ' : '') + p.handName;   // 내 패는 가운데 크게(myhand), 명패엔 남의 것만
     else if (p.act && !p.folded) info = p.act + (p.contrib ? ' +' + won(p.contrib) : '');
     pill.innerHTML = badges +
       `<div class="pn" style="color:${p.color || '#f4dd9c'}">${esc(p.name)}</div>` +
@@ -457,11 +523,11 @@
       if (!fh) return;
       const availW = stage.clientWidth;
       const topY = stage.getBoundingClientRect().top;
-      const reserveBottom = 80;
-      const availH = window.innerHeight - topY - reserveBottom;
-      let sc = Math.min(availW / fw, availH / fh, 1);
+      const availH = window.innerHeight - topY - 100;   // 하단 고정 바(~96px) 자리 확보 → 한 화면에 맞춤(스크롤 없이)
+      let sc = Math.min(availW / fw, availH / fh, 2.2);
       sc = Math.max(sc, 0.3);
       felt.style.transform = `scale(${sc})`;
+      _scale = sc;
       stage.style.height = Math.ceil(fh * sc) + 'px';
       repositionBubbles();
     });

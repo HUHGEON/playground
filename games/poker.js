@@ -5,13 +5,14 @@
 //  - 베팅: 앤티 → 체크/삥/하프/풀/따당/콜/올인/다이 (섯다와 동일 어휘, 팟리밋식)
 //  - 올인 시 사이드팟 정산. 최대 6인. 칩은 sessionId 보관(재접속 유지).
 // ───────────────────────────────────────────────────────────
-const EOK = 100000000, CHEONMAN = 10000000;            // 억 / 천만
-const START_CHIPS = Number(process.env.POKER_START) || EOK;        // 시작 칩 1억
-const ANTE        = Number(process.env.POKER_ANTE)  || CHEONMAN;   // 앤티 천만
-const ACTION_MS   = Number(process.env.POKER_TURN_MS) || 12000;    // 액션 제한(12초) → 초과 시 자동 콜/체크
+const EOK = 100000000, CHEONMAN = 10000000, BAEKMAN = 1000000;   // 억 / 천만 / 백만
+const START_CHIPS = Number(process.env.POKER_START) || EOK;        // 시작 금액 1억
+const ANTE        = Number(process.env.POKER_ANTE)  || 5 * BAEKMAN; // 기본 ante 500만(5백만원)
+const ACTION_MS   = Number(process.env.POKER_TURN_MS) || 30000;    // 액션 제한(30초) → 초과 시 자동 콜/체크
+const DISCARD_MS  = Number(process.env.POKER_DISCARD_MS) || 60000; // 버리기 단계 제한(1분)
 const AUTOSTART_MS = Number(process.env.POKER_AUTOSTART_MS) || 6000;  // 판 종료 후 자동 시작(6초)
 const MAX_SEATS   = 6;
-const ANTE_MIN  = CHEONMAN,   ANTE_MAX  = 10 * EOK;
+const ANTE_MIN  = BAEKMAN,    ANTE_MAX  = 10 * EOK;     // ante는 백만원 단위(최소 1백만)
 const CHIPS_MIN = EOK,        CHIPS_MAX = 100 * EOK;
 const CHIPS_ANTE_MULT = 4;
 const LIMITS = { anteMin: ANTE_MIN, anteMax: ANTE_MAX, chipsMin: CHIPS_MIN, chipsMax: CHIPS_MAX, chipsAnteMult: CHIPS_ANTE_MULT, eok: EOK, cheonman: CHEONMAN };
@@ -297,25 +298,27 @@ function dealStreet(room, street) {
   const gs = room.gs, h = gs.hand;
   h.street = street;
   const inHand = h.seats.filter((s) => !h.folded.has(s));
-  if (street === 3) {
-    for (const s of inHand) { giveCard(h, s, false); giveCard(h, s, false); giveCard(h, s, true); }   // 히든2 + 오픈1
-    room.ctx.notify(room, `세븐포커 시작! ${inHand.map((s) => s.name).join(', ')} (앤티 ${won(gs.ante)})`);
-  } else if (street <= 6) {
-    for (const s of inHand) giveCard(h, s, true);                                                     // 오픈 1장
+  if (street <= 6) {
+    for (const s of inHand) giveCard(h, s, true);                  // 오픈 1장
     room.ctx.notify(room, `${street}구간 — 오픈 카드 배분`);
   } else {
-    for (const s of inHand) giveCard(h, s, false);                                                    // 7구간 히든 1장
+    for (const s of inHand) giveCard(h, s, false);                 // 7구간 히든 1장
     room.ctx.notify(room, `7구간 — 마지막 히든 카드`);
   }
-  // 새 스트리트 베팅 셋업
+  startStreetBetting(room);
+}
+
+// 현재 스트리트 베팅 시작 (첫 액터 = 오픈 패 가장 강한 사람)
+function startStreetBetting(room) {
+  const gs = room.gs, h = gs.hand;
+  const inHand = h.seats.filter((s) => !h.folded.has(s));
   h.round = new Map();
   h.currentBet = 0;
   const actors = inHand.filter((s) => !h.allin.has(s));
   if (actors.length < 2) {                               // 베팅할 사람 1명 이하 → 베팅 없이 다음 스트리트로
-    if (street >= 7) return showdown(room);
-    return dealStreet(room, street + 1);
+    if (h.street >= 7) return showdown(room);
+    return dealStreet(room, h.street + 1);
   }
-  // 첫 액션 = 오픈 패가 가장 강한 사람(동률이면 좌석 순서)
   const upCardsOf = (s) => h.cards.get(s).filter((x) => x.up).map((x) => x.c);
   let firstWs = actors[0], firstKey = showKey(upCardsOf(actors[0]));
   for (const s of actors.slice(1)) {
@@ -330,6 +333,40 @@ function dealStreet(room, street) {
   startActionTimer(room);
 }
 
+// ── 버리기 단계 (시작 시 3장 받고 1장 버리기, 1분) ──
+function clearDiscardTimer(h) { if (h && h.discardTimer) { clearTimeout(h.discardTimer); h.discardTimer = null; } if (h) h.discardDeadline = null; }
+function startDiscardTimer(room) {
+  const h = room.gs.hand;
+  clearDiscardTimer(h);
+  h.discardDeadline = Date.now() + DISCARD_MS;
+  h.discardTimer = setTimeout(() => {
+    const inHand = h.seats.filter((s) => !h.folded.has(s));
+    for (const s of inHand) if (!h.discarded.has(s)) autoDiscard(room, s);   // 미선택자 자동 버리기
+    proceedAfterDiscard(room);
+    room.ctx.broadcastRoom(room); room.ctx.broadcastLobby();
+  }, DISCARD_MS);
+}
+function autoDiscard(room, ws) {
+  const h = room.gs.hand, arr = h.cards.get(ws);
+  if (!arr || !arr.length) { h.discarded.add(ws); return; }
+  let li = 0;
+  for (let i = 1; i < arr.length; i++) if (arr[i].c.r < arr[li].c.r) li = i;   // 가장 낮은 카드 버림
+  arr.splice(li, 1);
+  h.discarded.add(ws);
+}
+// 모두 버린 뒤 → 오픈 도어 카드 배분 + 3구간 베팅
+function proceedAfterDiscard(room) {
+  const gs = room.gs, h = gs.hand;
+  if (!h || h.stage !== 'discard') return;
+  clearDiscardTimer(h);
+  h.stage = null;
+  const inHand = h.seats.filter((s) => !h.folded.has(s));
+  for (const s of inHand) giveCard(h, s, true);          // 오픈 도어 카드
+  h.street = 3;
+  room.ctx.notify(room, `3구간 — 오픈 카드 배분`);
+  startStreetBetting(room);
+}
+
 function dealHand(room, seats) {
   const gs = room.gs;
   clearAutoStart(gs);
@@ -341,13 +378,17 @@ function dealHand(room, seats) {
     contrib: new Map(), round: new Map(), pot: 0, currentBet: 0, street: 0,
     order: [], needAct: new Set(), turnIdx: 0, deadline: null, timer: null,
     deck, di: 0, lastAct: new Map(), result: null, revealSet: null,
+    stage: null, discarded: new Set(), discardTimer: null, discardDeadline: null,
   };
   h.id = ++gs.handNo;
   gs.hand = h;
   for (const s of seats) h.cards.set(s, []);
   for (const s of seats) put(room, s, gs.ante);          // 앤티
+  for (let r = 0; r < 3; r++) for (const s of seats) giveCard(h, s, false);   // 3장 히든 배분
+  h.stage = 'discard';
   room.phase = 'playing';
-  dealStreet(room, 3);
+  room.ctx.notify(room, `세븐포커 시작! 받은 3장 중 1장 버리기 (앤티 ${won(gs.ante)})`);
+  startDiscardTimer(room);
 }
 
 // ───────────────────────────────────────────────────────────
@@ -464,7 +505,13 @@ module.exports = {
 
   onLeave(room, ws) {
     const gs = room.gs, h = gs.hand;
-    if (room.phase === 'playing' && h && h.seats.includes(ws) && !h.folded.has(ws)) {
+    if (room.phase === 'playing' && h && h.stage === 'discard' && h.seats.includes(ws) && !h.folded.has(ws)) {
+      h.folded.add(ws); h.discarded.add(ws);            // 버리기 단계에 나감 → 다이
+      room.ctx.notify(room, `${ws.name}님이 나가 다이 처리됩니다.`);
+      const alive = h.seats.filter((s) => !h.folded.has(s));
+      if (alive.length <= 1) { proceedAfterDiscard(room); showdown(room); }
+      else if (alive.every((s) => h.discarded.has(s))) proceedAfterDiscard(room);
+    } else if (room.phase === 'playing' && h && h.seats.includes(ws) && !h.folded.has(ws)) {
       h.folded.add(ws); h.needAct.delete(ws);
       room.ctx.notify(room, `${ws.name}님이 나가 다이 처리됩니다.`);
       const alive = h.seats.filter((s) => !h.folded.has(s));
@@ -475,7 +522,7 @@ module.exports = {
     if (gs.buyinReq && gs.buyinReq[ws.sessionId]) delete gs.buyinReq[ws.sessionId];
   },
 
-  cleanup(room) { clearActionTimer(room.gs.hand); clearAutoStart(room.gs); },
+  cleanup(room) { clearActionTimer(room.gs.hand); clearDiscardTimer(room.gs.hand); clearAutoStart(room.gs); },
 
   reattach(room, oldWs, newWs) {
     const gs = room.gs, h = gs.hand;
@@ -484,7 +531,7 @@ module.exports = {
     if (!h) return;
     h.seats = swapArr(h.seats);
     h.order = swapArr(h.order);
-    for (const set of [h.folded, h.allin, h.needAct, h.revealSet]) swapSet(set);
+    for (const set of [h.folded, h.allin, h.needAct, h.revealSet, h.discarded]) swapSet(set);
     for (const map of [h.cards, h.contrib, h.round, h.lastAct]) {
       if (map && map.has(oldWs)) { map.set(newWs, map.get(oldWs)); map.delete(oldWs); }
     }
@@ -524,6 +571,22 @@ module.exports = {
       if (!needRestart(room) || richest(room) !== ws) return false;
       resetAllChips(room);
       scheduleAutoStart(room);
+      return true;
+    }
+
+    // 버리기 단계: 받은 3장 중 1장 버리기
+    if (msg.type === 'discard') {
+      const h = gs.hand;
+      if (room.phase !== 'playing' || !h || h.stage !== 'discard') return false;
+      if (!h.seats.includes(ws) || h.folded.has(ws) || h.discarded.has(ws)) return false;
+      const arr = h.cards.get(ws);
+      const idx = Number(msg.idx);
+      if (!arr || !Number.isInteger(idx) || idx < 0 || idx >= arr.length) return false;
+      arr.splice(idx, 1);
+      h.discarded.add(ws);
+      room.ctx.notify(room, `${ws.name}님 1장 버림`);
+      const inHand = h.seats.filter((s) => !h.folded.has(s));
+      if (inHand.every((s) => h.discarded.has(s))) proceedAfterDiscard(room);
       return true;
     }
 
@@ -587,7 +650,7 @@ module.exports = {
       if (chips <= owe) {
         actions = [allinBtn, { act: 'die', name: '폴드' }];                  // 콜할 칩도 부족 → 올인콜/폴드
       } else if (owe === 0) {
-        actions = [{ act: 'check', name: '체크' }, ...raiseBtn, allinBtn];   // 무베팅 → 체크/레이즈/올인 (폴드 없음)
+        actions = [{ act: 'check', name: '체크' }, ...raiseBtn, allinBtn, { act: 'die', name: '폴드' }];   // 폴드 항상 노출
       } else {
         actions = [{ act: 'call', name: '콜', amount: amt(Math.min(owe, chips)) }, ...raiseBtn, allinBtn, { act: 'die', name: '폴드' }];
       }
@@ -600,12 +663,16 @@ module.exports = {
       pot: h ? h.pot : 0,
       currentBet: h ? h.currentBet : 0,
       street: h ? h.street : 0,
-      streetLabel: h && room.phase === 'playing' ? (STREET_LABEL[h.street] || '') : '',
+      streetLabel: h && room.phase === 'playing' ? (h.stage === 'discard' ? '카드 버리기' : (STREET_LABEL[h.street] || '')) : '',
+      stage: h ? h.stage : null,
+      canDiscard: !!(h && h.stage === 'discard' && h.seats.includes(ws) && !h.folded.has(ws) && !h.discarded.has(ws)),
+      myDiscarded: !!(h && h.discarded && h.discarded.has(ws)),
       players,
       mySeat: seats.indexOf(ws),
       myChips: gs.chips[ws.sessionId] ?? 0,
       myTurn, actions,
-      secondsLeft: (h && h.deadline) ? Math.max(0, Math.ceil((h.deadline - Date.now()) / 1000)) : null,
+      secondsLeft: (h && h.stage === 'discard' && h.discardDeadline) ? Math.max(0, Math.ceil((h.discardDeadline - Date.now()) / 1000))
+        : (h && h.deadline) ? Math.max(0, Math.ceil((h.deadline - Date.now()) / 1000)) : null,
       result: h ? h.result : null,
       canStart: room.host === ws && module.exports.canStart(room),
       autoStartIn: gs.autoStartDeadline ? Math.max(0, Math.ceil((gs.autoStartDeadline - Date.now()) / 1000)) : null,

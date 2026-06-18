@@ -81,21 +81,30 @@
   // 섯다 방 생성 제약 — 입력은 단위(억 / 천만), 서버엔 원화 값으로 전송
   var EOK = 100000000, CHEONMAN = 10000000;
   var SEOTDA_LIMITS = { chipsUnitMin: 1, chipsUnitMax: 100, anteUnitMin: 1, anteUnitMax: 100, chipsAnteMult: 4 };
-  var OPT_HINT = '시작 칩 1~100억 · 점당 1~100천만 · 시작 칩 ≥ 점당×4';
+  // 포커는 '시작 금액 / ante(백만원 단위)', 섯다는 '시작 칩 / 점당(천만원 단위)'
+  function optTerms() {
+    return selectedGame === 'poker'
+      ? { chips: '시작 금액', ante: 'ante', unit: 1000000, word: '백만' }
+      : { chips: '시작 칩', ante: '점당', unit: 10000000, word: '천만' };
+  }
+  function optHintText() {
+    var t = optTerms();
+    return t.chips + ' 1~100억 · ' + t.ante + ' 1~100' + t.word + ' · ' + t.chips + ' ≥ ' + t.ante + '×4';
+  }
   function validateSeotdaOpts() {
-    var L = SEOTDA_LIMITS;
+    var L = SEOTDA_LIMITS, t = optTerms();
     var cU = parseInt($('optStart').value, 10);   // 억 단위
-    var aU = parseInt($('optAnte').value, 10);    // 천만 단위
+    var aU = parseInt($('optAnte').value, 10);    // ante 단위(포커=백만, 섯다=천만)
     var hint = $('optHint');
     var err = null;
     if (!Number.isFinite(cU) || cU < L.chipsUnitMin || cU > L.chipsUnitMax)
-      err = '시작 칩은 1~100억 사이여야 해요';
+      err = t.chips + '은 1~100억 사이여야 해요';
     else if (!Number.isFinite(aU) || aU < L.anteUnitMin || aU > L.anteUnitMax)
-      err = '점당은 1~100천만 사이여야 해요';
-    else if (cU * EOK < aU * CHEONMAN * L.chipsAnteMult)
-      err = '시작 칩은 점당의 4배 이상이어야 해요 (점당 ' + aU + '천만이면 시작 칩 ' + Math.ceil(aU * CHEONMAN * L.chipsAnteMult / EOK) + '억 이상)';
-    if (hint) { hint.classList.toggle('err', !!err); hint.textContent = err || OPT_HINT; }
-    return err ? null : { startChips: cU * EOK, ante: aU * CHEONMAN };
+      err = t.ante + '은 1~100' + t.word + ' 사이여야 해요';
+    else if (cU * EOK < aU * t.unit * L.chipsAnteMult)
+      err = t.chips + '은 ' + t.ante + '의 4배 이상이어야 해요 (' + t.ante + ' ' + aU + t.word + '이면 ' + t.chips + ' ' + Math.ceil(aU * t.unit * L.chipsAnteMult / EOK) + '억 이상)';
+    if (hint) { hint.classList.toggle('err', !!err); hint.textContent = err || optHintText(); }
+    return err ? null : { startChips: cU * EOK, ante: aU * t.unit };
   }
   function createRoom() {
     if (!selectedGame) return;
@@ -183,8 +192,23 @@
       wrap.appendChild(o);
     });
     const opts = $('seotdaOpts');
-    if (opts) opts.style.display = (selectedGame === 'seotda' || selectedGame === 'poker') ? 'flex' : 'none';
+    const showOpts = (selectedGame === 'seotda' || selectedGame === 'poker');
+    if (opts) opts.style.display = showOpts ? 'flex' : 'none';
+    if (showOpts) {
+      var t = optTerms();
+      if ($('optLblStart')) $('optLblStart').textContent = t.chips;
+      if ($('optLblAnte')) $('optLblAnte').textContent = t.ante;
+      if ($('optAnteUnit')) $('optAnteUnit').textContent = t.word + '원';
+      // 게임 전환 시에만 기본값 세팅(로비 갱신 때 사용자 입력 안 건드림). 포커 ante 기본 500만(5백만)
+      if (selectedGame !== lastOptGame) {
+        if ($('optStart')) $('optStart').value = 1;
+        if ($('optAnte')) $('optAnte').value = (selectedGame === 'poker') ? 5 : 1;
+      }
+      if ($('optHint')) { $('optHint').classList.remove('err'); $('optHint').textContent = optHintText(); }
+    }
+    lastOptGame = selectedGame;
   }
+  var lastOptGame = null;
 
   function renderLobby(s) {
     if (currentRoomId !== null) { currentRoomId = null; currentGame = null; $('lobbyChat').innerHTML = ''; }
