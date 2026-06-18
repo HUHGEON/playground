@@ -181,13 +181,10 @@
   }
 
   // 푸쉬알람 — 재참가 승인(과반수 투표) + 재경기 합류 공용
-  function pushZone() {
-    let z = document.getElementById('pushZone');
-    if (!z) { z = document.createElement('div'); z.id = 'pushZone'; document.body.appendChild(z); }
-    return z;
-  }
+  function pushZone() { return document.getElementById('pushZone'); }   // 사이드바(roomInfo)에 위치
   function renderPush(s) {
     const z = pushZone();
+    if (!z) return;
     const want = {};
     (s.buyinRequests || []).forEach((r) => {
       want['buyin-' + r.name] = {
@@ -198,15 +195,6 @@
         onNo: () => window.send({ type: 'rejectBuyin', name: r.name }),
       };
     });
-    if (s.canRejoin) {
-      want['rejoin'] = {
-        title: '🔁 재경기 합류',
-        body: '묻힌 판돈의 절반 <b>' + won(s.rejoinCost) + '</b> 내고<br>이번 재경기 판에 참여할까요?',
-        ok: '합류', no: '빠지기',
-        onOk: () => window.send({ type: 'rejoin' }),
-        onNo: () => window.send({ type: 'passRejoin' }),
-      };
-    }
     Array.from(z.children).forEach((c) => { if (!want[c.dataset.id]) c.remove(); });   // 사라진 카드 제거
     Object.keys(want).forEach((id) => {
       const w = want[id];
@@ -217,6 +205,19 @@
                  : '<div class="pushbtns"><button class="pok">' + w.ok + '</button><button class="pno">' + w.no + '</button></div>');
       if (!w.voted) { card.querySelector('.pok').onclick = w.onOk; card.querySelector('.pno').onclick = w.onNo; }
     });
+  }
+
+  // 재경기 합류 — 화면 가운데 모달(카운트다운, 시간초과 시 서버가 자동 빠지기 처리)
+  function renderRejoinModal(s) {
+    let m = document.getElementById('rejoinModal');
+    if (!s.canRejoin) { if (m) m.remove(); return; }
+    if (!m) { m = document.createElement('div'); m.id = 'rejoinModal'; m.className = 'rejoin-modal'; document.body.appendChild(m); }
+    m.innerHTML = '<div class="rjtitle">🔁 재경기 합류</div>' +
+      '<div class="rjbody">묻힌 판돈의 절반 <b>' + won(s.rejoinCost) + '</b>을 내고<br>이번 재경기 판에 참여하시겠습니까?</div>' +
+      (s.secondsLeft != null ? '<div class="rjtimer">⏱ ' + s.secondsLeft + '초 후 자동 빠지기</div>' : '') +
+      '<div class="rjbtns"><button class="pok">합류</button><button class="pno">빠지기</button></div>';
+    m.querySelector('.pok').onclick = () => window.send({ type: 'rejoin' });
+    m.querySelector('.pno').onclick = () => window.send({ type: 'passRejoin' });
   }
 
   // 좌석 칸 가운데에 "어떤 베팅을 했는지" 토스트 팝(색 구분)
@@ -256,7 +257,8 @@
   R.init = function (main, info) {
     main.innerHTML = '<div id="seotdaStage"><div id="seotdaFelt"><div id="seotdaInner"></div></div></div>';
     if (!window._seotdaFitBound) { window.addEventListener('resize', fitStage); window._seotdaFitBound = true; }
-    info.innerHTML = '<div id="seotdaWait"></div>' +
+    info.innerHTML = '<div id="pushZone"></div>' +
+      '<div id="seotdaWait"></div>' +
       '<button id="jokboToggle" class="sub" style="width:100%;margin-top:6px">📖 족보 보기</button>' +
       '<div id="jokboPanel" style="display:none;margin-top:8px">' + jokboTableHTML() + '</div>';
     const tg = document.getElementById('jokboToggle');
@@ -267,7 +269,7 @@
       tg.textContent = open ? '📖 족보 숨기기' : '📖 족보 보기';
     };
     lastHandId = 0; wasMyTurn = false; seatByName = {}; lastCarrySeq = null;
-    const pz = document.getElementById('pushZone'); if (pz) pz.innerHTML = '';
+    const rjm = document.getElementById('rejoinModal'); if (rjm) rjm.remove();
     window.onRoomChat = showChatBubble;              // 방 채팅 → 좌석 말풍선
   };
 
@@ -437,8 +439,8 @@
     document.getElementById('leaveBtn').disabled = false;
     window.leaveConfirm = (s.phase === 'playing' && me) ? '판 진행 중 나가면 다이(기권) 처리됩니다. 나가시겠어요?' : null;
 
-    // 재참가 승인(과반수) + 재경기 합류 → 푸쉬알람
-    renderPush(s);
+    renderPush(s);              // 재참가 승인(과반수) → 사이드바 푸쉬알람
+    renderRejoinModal(s);       // 재경기 합류 → 화면 가운데 모달
 
     // 내 차례 강조: 판 테두리 번쩍 + 중앙 토스트(직전엔 아니었다가 내 차례가 됨)
     felt.classList.toggle('myturn', !!s.myTurn);
