@@ -43,7 +43,7 @@
       '<div class="oavatar" style="border-color:' + (color || '#ecc659') + '">' + avatar(name) + '</div>' +
       '<div class="oinfo"><div class="oname">' + window.esc(name) +
         ' <span class="osym ' + discCls + '">' + sym + (isMe ? ' (나)' : '') + '</span></div>' +
-        '<div class="ostatus">' + status + '</div></div>' +
+        '<div class="ostatus">' + status + (isTurn && s.secondsLeft != null ? ' <span class="osecs">' + s.secondsLeft + '초</span>' : '') + '</div></div>' +
       '<div class="oscore"><span class="disc-mini ' + discCls + '"></span><span class="oscorenum">' + sc + '</span></div>';
   }
 
@@ -92,7 +92,9 @@
     if (lm) lastSeq = lm.seq;
     firstState = false;
 
-    setTimer(s.secondsLeft, myTurn, s.phase);
+    // 턴 카운트다운 — 레벨바 연속 감소 + 남은 초 표시
+    if (s.phase === 'playing' && s.secondsLeft != null) startOCountdown(s.secondsLeft);
+    else stopOCountdown();
 
     // 둘 곳 없음(패스) → 판 가운데 나무판 토스트
     if (s.passSeq && s.passSeq !== lastPassSeq) {
@@ -139,9 +141,11 @@
     host._t = setTimeout(() => { host.className = ''; }, 2200);
   }
 
-  // 채팅 → 보낸 사람 패널 위 나무 말풍선 (없으면 하단)
+  // 채팅 → 활성 2인(상/하 패널) 채팅만 나무 말풍선. 대기/관전자 채팅은 채팅창에만(말풍선 X)
   function showOBubble(name, text) {
-    const host = document.getElementById(name && name === topName ? 'oTop' : 'oBot');
+    let host = null;
+    if (name && name === topName) host = document.getElementById('oTop');
+    else if (name && name === botName) host = document.getElementById('oBot');
     if (!host) return;
     const b = document.createElement('div');
     b.className = 'obubble';
@@ -151,11 +155,22 @@
     setTimeout(() => { if (b.parentNode) b.remove(); }, 3200);
   }
 
-  function setTimer(secs, mine, phase) {
-    if (timerInt) { clearInterval(timerInt); timerInt = null; }
-    if (phase !== 'playing' || secs == null) return;
-    // 타이머는 패널 레벨바로 표현되므로 별도 텍스트 없음 (레벨바는 render마다 갱신)
+  // 턴 카운트다운 — 현재 차례 패널의 레벨바를 매초 줄이고(.olevelfill는 CSS transition으로 부드럽게) 남은 초 갱신
+  function startOCountdown(secs) {
+    stopOCountdown();
+    let s = secs;
+    const tick = () => {
+      const fill = document.querySelector('.opanel.turn .olevelfill');
+      const secsEl = document.querySelector('.opanel.turn .osecs');
+      if (fill) fill.style.width = Math.max(0, Math.min(100, s / 30 * 100)) + '%';
+      if (secsEl) secsEl.textContent = s + '초';
+      if (s <= 0) { stopOCountdown(); return; }
+      s -= 1;
+    };
+    tick();
+    timerInt = setInterval(tick, 1000);
   }
+  function stopOCountdown() { if (timerInt) { clearInterval(timerInt); timerInt = null; } }
 
   window.RENDERERS = window.RENDERERS || {};
   window.RENDERERS.othello = R;
