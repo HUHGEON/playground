@@ -8,6 +8,27 @@ const mkRoom = () => {
 };
 const ok = (cond, msg) => console.log((cond ? '✅' : '❌') + ' ' + msg);
 
+// 턴 기반으로 쇼다운까지 베팅(새 룰: 선만 체크/삥). folds = 다이할 플레이어들.
+function betToEnd(room, folds = []) {
+  let guard = 0;
+  while (room.phase === 'playing' && guard++ < 30) {
+    const h = room.gs.hand;
+    const cur = h.order[h.turnIdx];
+    if (!cur) break;
+    const st = S.state(room, cur);
+    if (!st.actions) break;
+    const codes = st.actions.map((a) => a.act);
+    let pick;
+    if (folds.includes(cur)) pick = 'die';
+    else if (codes.includes('call')) pick = 'call';
+    else if (codes.includes('ping')) pick = 'ping';       // 선 오픈
+    else if (codes.includes('check')) pick = 'check';
+    else if (codes.includes('quarter')) pick = 'quarter'; // 비선 오픈
+    else pick = 'die';
+    S.action(room, cur, { type: 'bet', act: pick });
+  }
+}
+
 // ── 1) 베팅 모델: 삥 → 따당 → 콜 ──
 (() => {
   console.log('\n[베팅 모델]');
@@ -48,12 +69,8 @@ const ok = (cond, msg) => console.log((cond ? '✅' : '❌') + ' ' + msg);
   S.start(room);
   const h = room.gs.hand;
   ok(h.seats.length === 3, `3인 착석 (got ${h.seats.length})`);
-  // 모두 체크하되 C는 다이 → 컨텐더 A,B
-  const order = h.order.slice();
-  for (const w of order) {
-    if (w === C) S.action(room, w, { type: 'bet', act: 'die' });
-    else S.action(room, w, { type: 'bet', act: 'check' });
-  }
+  // 선 오픈 → 나머지 콜, C는 다이 → 컨텐더 A,B → 멍구사 재경기
+  betToEnd(room, [C]);
   ok(room.phase === 'redeal', `멍구사 → 재경기 단계 진입 (phase ${room.phase})`);
   ok(room.gs.hand.redealers.includes(A), `재경기 권리자 = A(멍구사)`);
   const potAtRedeal = room.gs.hand.pot;
@@ -82,17 +99,17 @@ const ok = (cond, msg) => console.log((cond ? '✅' : '❌') + ' ' + msg);
   // 2인 분배순 [s0c0,s1c0,s0c1,s1c1]: P=2+3=5끗, Q=5+10=5끗 → 동점
   room.gs._forceDeck = [V(2, 0), V(5, 0), V(3, 1), V(10, 1)];
   S.start(room);
-  const order = room.gs.hand.order.slice();
-  for (const w of order) S.action(room, w, { type: 'bet', act: 'check' });
+  betToEnd(room);    // 선 삥 → 콜 → 쇼다운 → 동점
   ok(room.phase === 'finished', `동점 → 라운드 종료 (phase ${room.phase})`);
   ok(room.gs.hand.result.tie === true, `결과가 동점(tie)`);
-  const keep = room.gs.startChips - room.gs.ante;
-  ok(room.gs.chips['tp'] === keep && room.gs.chips['tq'] === keep, `동점 → 칩 변동 없음(둘 다 ${keep})`);
-  ok(room.gs.carryPot === 2 * room.gs.ante, `판돈 ${2 * room.gs.ante} 묻힘(이월) (got ${room.gs.carryPot})`);
-  // 다음 판 시작 → 이월분 유지(같은 멤버)
+  ok(room.gs.chips['tp'] === room.gs.chips['tq'], `동점 → 두 사람 칩 동일(분배 안 함)`);
+  const carried = room.gs.carryPot;
+  ok(carried > 0, `판돈 묻힘(이월) ${carried}`);
+  ok(room.gs.carrySeats.length === 2, `동점자 2명만 이월 재대결`);
+  // 다음 판 시작 → 이월분 유지(동점자끼리 재대결)
   const ante = room.gs.ante;
   S.start(room);
-  ok(room.gs.carryPot === 2 * ante, `다음 판에도 묻힌 판돈 유지 (got ${room.gs.carryPot})`);
+  ok(room.gs.carryPot === carried, `다음 판에도 묻힌 판돈 유지 (got ${room.gs.carryPot})`);
   ok(room.gs.hand.pot === 2 * ante, `새 판 앤티 ${2 * ante} (이월분 별도)`);
   S.cleanup(room);
 })();

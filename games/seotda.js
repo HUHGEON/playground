@@ -206,6 +206,7 @@ function put(room, ws, amount) {
 // 레이즈(목표 contrib까지). 실제로 베팅이 올라갔을 때만 라운드 재오픈(캡된 언더레이즈는 콜 취급)
 function raiseTo(room, ws, target) {
   const h = room.gs.hand;
+  target = Math.min(target, room.gs.startChips);       // 한 판 총 기여 상한(맥스)
   const prevBet = h.currentBet;
   put(room, ws, target - (h.contrib.get(ws) || 0));
   const my = h.contrib.get(ws) || 0;
@@ -226,28 +227,36 @@ function applyAction(room, ws, act) {
   const owe = oweOf(h, ws);
   const chips = gs.chips[ws.sessionId];
 
+  const isSeon = ws === h.order[0];                    // 선(첫 베팅자)
+  const called = h.calledSet && h.calledSet.has(ws);   // 이미 콜/체크함 → 리레이즈 불가
   if (act === 'die') {
     h.folded.add(ws); h.needAct.delete(ws);
     room.ctx.notify(room, `${ws.name}님 다이`);
   } else if (act === 'check') {
-    if (owe !== 0) return false;
-    h.needAct.delete(ws);
+    if (owe !== 0 || !isSeon || h.currentBet !== gs.ante) return false;   // 체크 = 선의 첫 베팅만
+    h.calledSet.add(ws); h.needAct.delete(ws);
     room.ctx.notify(room, `${ws.name}님 체크`);
   } else if (act === 'call') {
     if (owe <= 0) return false;
     const paid = put(room, ws, owe);
-    h.needAct.delete(ws);
+    h.calledSet.add(ws); h.needAct.delete(ws);
     room.ctx.notify(room, `${ws.name}님 콜 (+${won(paid)})`);
   } else if (act === 'ping') {
-    // 삥 = 기본(앤티)만큼 첫 베팅 — 아직 아무도 안 올렸을 때만
-    if (owe !== 0 || h.currentBet !== gs.ante) return false;
+    // 삥 = 기본(앤티)만큼 첫 베팅 — 선의 첫 베팅(아직 아무도 안 올렸을 때)만
+    if (owe !== 0 || !isSeon || h.currentBet !== gs.ante) return false;
     raiseTo(room, ws, h.currentBet + gs.ante);
     room.ctx.notify(room, `${ws.name}님 삥`);
+  } else if (called) {
+    return false;                                      // 콜/체크한 사람은 콜/다이만(위에서 처리)
   } else if (act === 'ddang') {
     // 따당 = 앞 베팅(스테이크)의 2배. stake = currentBet-ante → 2*stake
     if (owe <= 0) return false;
     raiseTo(room, ws, 2 * h.currentBet - gs.ante);
     room.ctx.notify(room, `${ws.name}님 따당`);
+  } else if (act === 'quarter') {
+    // 쿼터 = 바닥 판돈의 25%만큼 레이즈
+    raiseTo(room, ws, h.currentBet + Math.max(1, Math.floor(h.pot / 4)));
+    room.ctx.notify(room, `${ws.name}님 쿼터`);
   } else if (act === 'half') {
     // 하프 = 바닥 판돈의 절반만큼 레이즈
     raiseTo(room, ws, h.currentBet + Math.max(1, Math.floor(h.pot / 2)));
@@ -257,19 +266,23 @@ function applyAction(room, ws, act) {
     raiseTo(room, ws, h.currentBet + Math.max(1, h.pot));
     room.ctx.notify(room, `${ws.name}님 풀`);
   } else if (act === 'allin') {
+    // 맥스 = 한 판 상한(시작칩)까지. 가진 돈이 상한보다 적으면 전부(올인)
     const before = h.contrib.get(ws) || 0;
-    put(room, ws, chips);
+    const remaining = Math.max(0, gs.startChips - before);
+    const isMax = chips > remaining;                   // 칩이 상한 잔여보다 많으면 맥스(전부 아님)
+    put(room, ws, Math.min(chips, remaining));
     const my = h.contrib.get(ws) || 0;
     if (my > h.currentBet) { h.currentBet = my; h.needAct = new Set(h.seats.filter((s) => !h.folded.has(s) && !h.allin.has(s) && s !== ws)); }
     h.needAct.delete(ws);
-    room.ctx.notify(room, `${ws.name}님 올인! (${won(my - before)})`);
+    if (h.lastAct) h.lastAct.set(ws, isMax ? '맥스' : '올인');
+    room.ctx.notify(room, `${ws.name}님 ${isMax ? '맥스' : '올인'}! (${won(my - before)})`);
   } else {
     return false;
   }
 
-  // 마지막 베팅 기록(좌석에 표시용)
-  const ACTLABEL = { die: '다이', check: '체크', call: '콜', ping: '삥', ddang: '따당', half: '하프', full: '풀', allin: '올인' };
-  if (h.lastAct) h.lastAct.set(ws, ACTLABEL[act] || act);
+  // 마지막 베팅 기록(좌석에 표시용) — allin은 위에서 맥스/올인 구분해 기록함
+  const ACTLABEL = { die: '다이', check: '체크', call: '콜', ping: '삥', ddang: '따당', quarter: '쿼터', half: '하프', full: '풀' };
+  if (h.lastAct && ACTLABEL[act]) h.lastAct.set(ws, ACTLABEL[act]);
 
   // 종료 판정
   const alive = h.seats.filter((s) => !h.folded.has(s));
@@ -456,6 +469,7 @@ function dealHand(room, seats) {
     contrib: new Map(), pot: 0, currentBet: gs.ante,
     order: [], needAct: new Set(), turnIdx: 0, deadline: null, timer: null,
     result: null, reveals: null, entries: null, lastAct: new Map(),
+    calledSet: new Set(),   // 콜/체크한 사람 → 그 라운드 리레이즈 불가(콜/다이만)
   };
   h.id = ++gs.handNo;
   gs.hand = h;                                      // put()이 참조하므로 분배 전에 연결
@@ -545,7 +559,7 @@ module.exports = {
     h.order = swapArr(h.order);
     if (h.redealers) h.redealers = swapArr(h.redealers);
     if (h.entries) h.entries.forEach((e) => { if (e.ws === oldWs) e.ws = newWs; });
-    for (const set of [h.folded, h.allin, h.needAct, h.redealPassed]) swapSet(set);
+    for (const set of [h.folded, h.allin, h.needAct, h.redealPassed, h.calledSet]) swapSet(set);
     for (const map of [h.cards, h.contrib, h.lastAct]) {
       if (map && map.has(oldWs)) { map.set(newWs, map.get(oldWs)); map.delete(oldWs); }
     }
@@ -669,26 +683,29 @@ module.exports = {
       const chips = gs.chips[ws.sessionId];
       const contrib = h.contrib.get(ws) || 0;
       const pay = (target) => Math.min(Math.max(0, target - contrib), chips);   // 실제 지불액(올인 캡)
-      const halfPay = pay(h.currentBet + Math.max(1, Math.floor(h.pot / 2)));
-      const fullPay = pay(h.currentBet + Math.max(1, h.pot));
       const amt = (n) => '₩' + won(n);
-      actions = owe === 0
-        ? [
-            { act: 'check', name: '체크' },
-            { act: 'ping',  name: '삥',  amount: amt(pay(h.currentBet + gs.ante)) },
-            { act: 'half',  name: '하프', amount: amt(halfPay) },
-            { act: 'full',  name: '풀',  amount: amt(fullPay) },
-            { act: 'allin', name: '올인', amount: amt(chips) },
-            { act: 'die',   name: '다이' },
-          ]
-        : [
-            { act: 'call',  name: '콜',  amount: amt(Math.min(owe, chips)) },
-            { act: 'ddang', name: '따당', amount: amt(pay(2 * h.currentBet - gs.ante)) },
-            { act: 'half',  name: '하프', amount: amt(halfPay) },
-            { act: 'full',  name: '풀',  amount: amt(fullPay) },
-            { act: 'allin', name: '올인', amount: amt(chips) },
-            { act: 'die',   name: '다이' },
-          ];
+      const A = {
+        check:   { act: 'check', name: '체크' },
+        ping:    { act: 'ping',  name: '삥',  amount: amt(pay(h.currentBet + gs.ante)) },
+        call:    { act: 'call',  name: '콜',  amount: amt(Math.min(owe, chips)) },
+        ddang:   { act: 'ddang', name: '따당', amount: amt(pay(2 * h.currentBet - gs.ante)) },
+        quarter: { act: 'quarter', name: '쿼터', amount: amt(pay(h.currentBet + Math.max(1, Math.floor(h.pot / 4)))) },
+        half:    { act: 'half',  name: '하프', amount: amt(pay(h.currentBet + Math.max(1, Math.floor(h.pot / 2)))) },
+        full:    { act: 'full',  name: '풀',  amount: amt(pay(h.currentBet + Math.max(1, h.pot))) },
+        allin:   (() => { const rem = Math.max(0, gs.startChips - contrib); const isMax = chips > rem;
+                          return { act: 'allin', name: isMax ? '맥스' : '올인', amount: amt(Math.min(chips, rem)) }; })(),
+        die:     { act: 'die',   name: '다이' },
+      };
+      const isSeon = ws === h.order[0];
+      const called = h.calledSet && h.calledSet.has(ws);   // 콜/체크함 → 콜/다이만
+      if (called) {
+        actions = owe > 0 ? [A.call, A.die] : [A.die];
+      } else if (owe === 0) {
+        actions = isSeon ? [A.check, A.ping, A.quarter, A.half, A.full, A.allin, A.die]   // 선 첫 베팅
+                         : [A.quarter, A.half, A.full, A.allin, A.die];                   // 비선·낼것 없음 → 베팅/다이
+      } else {
+        actions = [A.call, A.ddang, A.quarter, A.half, A.full, A.allin, A.die];
+      }
     }
 
     // 단계별 안내/버튼

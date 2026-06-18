@@ -469,7 +469,7 @@
 
   // 베팅 종류별 색 구분용 클래스 suffix (한글 라벨 → 코드)
   function actCls(a) {
-    return { '체크': 'check', '삥': 'ping', '콜': 'call', '따당': 'ddang', '하프': 'half', '풀': 'full', '올인': 'allin', '다이': 'die' }[a] || 'call';
+    return { '체크': 'check', '삥': 'ping', '콜': 'call', '따당': 'ddang', '쿼터': 'quarter', '하프': 'half', '풀': 'full', '올인': 'allin', '맥스': 'allin', '다이': 'die' }[a] || 'call';
   }
   function seatEl(p, dealIdx, intro, n) {
     const big = true;                                // 모든 좌석 동일 크기(큰 카드)
