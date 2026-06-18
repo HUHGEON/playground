@@ -510,7 +510,17 @@ module.exports = {
   },
   LIMITS,   // 클라이언트 검증용으로 노출
 
-  onEnter(room, ws) { ensureChips(room, ws); },
+  onEnter(room, ws) {
+    ensureChips(room, ws);
+    // 새 사람이 들어오면(빈 자리 채울 수 있음) 대기 중인 재참가 요청은 취소 — 그 사람이 자리 차지
+    const gs = room.gs;
+    if (gs.buyinReq && Object.keys(gs.buyinReq).length) {
+      const names = Object.values(gs.buyinReq).map((r) => r.name).join(', ');
+      gs.buyinReq = {};
+      room.ctx.notify(room, `${ws.name}님 입장 — 빈 자리는 새 참가자에게. ${names}님 재참가 요청은 취소됩니다.`);
+      if (betweenHands(room) && module.exports.canStart(room)) scheduleAutoStart(room);
+    }
+  },
 
   canStart(room) {
     const pending = room.gs.buyinReq && Object.keys(room.gs.buyinReq).length > 0;   // 재참가 요청 처리 전엔 시작 보류
