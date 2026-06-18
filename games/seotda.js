@@ -158,11 +158,15 @@ function minActiveChips(room) {
   const vals = room.queue.map((s) => gs.chips[s.sessionId] ?? 0).filter((v) => v >= gs.ante);
   return vals.length ? Math.min(...vals) : gs.startChips;
 }
-// 현재 방에 남아있는 재참가 요청자 이름들
-function buyinReqNames(room) {
+// 재참가 투표권자 = 활성(칩 ≥ 앤티) 플레이어
+function buyinVoters(room) {
   const gs = room.gs;
-  if (!gs.buyinReq) return [];
-  return Object.keys(gs.buyinReq).map((sid) => gs.buyinReq[sid]).filter((nm) => room.queue.some((s) => s.name === nm));
+  return room.queue.filter((s) => (gs.chips[s.sessionId] ?? 0) >= gs.ante);
+}
+// 요청자 제외 투표권자 과반수
+function buyinMajority(room, requester) {
+  const n = buyinVoters(room).filter((s) => s !== requester).length;
+  return Math.floor(n / 2) + 1;
 }
 
 function ensureChips(room, ws) {
@@ -598,33 +602,49 @@ module.exports = {
       return true;
     }
 
-    // 파산자 재참가 요청 (판 사이에만) — 최소 칩 보유자에게 감
+    // 파산자 재참가 요청 (판 사이에만) — 판에 있는 비파산 전원에게 감(과반수 승인)
     if (msg.type === 'requestBuyin') {
       if (!betweenHands(room) || !room.queue.includes(ws)) return false;
       if ((gs.chips[ws.sessionId] ?? 0) >= gs.ante) return false;     // 칩 충분하면 불필요
       if (waitingToPlay(room) > 0 || (gs.carryPot || 0) > 0) return false;  // 대기인원 있거나 묻힌 판돈 중엔 불가
       gs.buyinReq = gs.buyinReq || {};
       if (gs.buyinReq[ws.sessionId]) return false;
-      gs.buyinReq[ws.sessionId] = ws.name;
+      gs.buyinReq[ws.sessionId] = { name: ws.name, approvers: new Set(), rejecters: new Set() };
       clearAutoStart(gs);                                            // 요청 중엔 자동시작 보류
-      room.ctx.notify(room, `${ws.name}님이 재참가를 요청했습니다 — 칩이 가장 적은 분이 승인/거절할 수 있어요.`);
+      const need = buyinMajority(room, ws);
+      room.ctx.notify(room, `${ws.name}님이 재참가를 요청했습니다 — 판에 있는 분 ${need}명 이상 승인하면 합류.`);
       return true;
     }
-    // 재참가 승인/거절 — "칩이 가장 적은(=활성 최소) 사람"만 가능
+    // 재참가 승인/거절 — 비파산(칩 ≥ 앤티) 누구나 투표, 과반수 승인 시 합류
     if (msg.type === 'approveBuyin' || msg.type === 'rejectBuyin') {
       if (!betweenHands(room)) return false;
       const myc = gs.chips[ws.sessionId] ?? 0;
-      if (!(myc >= gs.ante && myc === minActiveChips(room))) return false;
+      if (myc < gs.ante) return false;                               // 비파산만 투표
       const target = room.queue.find((s) => s.name === String(msg.name || ''));
-      if (!target || !gs.buyinReq || !gs.buyinReq[target.sessionId]) return false;
+      const req = target && gs.buyinReq && gs.buyinReq[target.sessionId];
+      if (!req || target === ws) return false;
+      const majority = buyinMajority(room, target);
       if (msg.type === 'approveBuyin') {
-        gs.chips[target.sessionId] = myc;                            // 최소 칩 보유자와 동일 금액
-        room.ctx.notify(room, `${ws.name}님이 ${target.name}님 재참가 승인 — ${myc.toLocaleString()} 칩으로 합류!`);
+        req.rejecters.delete(ws.sessionId); req.approvers.add(ws.sessionId);
+        if (req.approvers.size >= majority) {                        // 과반 승인 → 합류
+          const amt = minActiveChips(room);
+          gs.chips[target.sessionId] = amt;
+          room.ctx.notify(room, `과반수 승인! ${target.name}님 재참가 — ${won(amt)} 칩으로 합류!`);
+          delete gs.buyinReq[target.sessionId];
+        } else {
+          room.ctx.notify(room, `${ws.name}님이 ${target.name}님 재참가 승인 (${req.approvers.size}/${majority})`);
+        }
       } else {
-        room.ctx.notify(room, `${ws.name}님이 ${target.name}님 재참가 요청을 거절했습니다.`);
+        req.approvers.delete(ws.sessionId); req.rejecters.add(ws.sessionId);
+        const voters = buyinVoters(room).filter((s) => s !== target).length;
+        if (req.rejecters.size > voters - majority) {                // 승인 불가능 → 거절 종료
+          room.ctx.notify(room, `${target.name}님 재참가 거절됨 (과반 미달).`);
+          delete gs.buyinReq[target.sessionId];
+        } else {
+          room.ctx.notify(room, `${ws.name}님이 ${target.name}님 재참가 거절 (반대 ${req.rejecters.size})`);
+        }
       }
-      delete gs.buyinReq[target.sessionId];
-      if (!Object.keys(gs.buyinReq).length && betweenHands(room) && module.exports.canStart(room)) scheduleAutoStart(room);  // 남은 요청 없으면 자동시작 재개
+      if (!Object.keys(gs.buyinReq).length && betweenHands(room) && module.exports.canStart(room)) scheduleAutoStart(room);
       return true;
     }
     // 1명 빼고 다 파산 → 승리자(최다 칩)가 게임 재시작
@@ -737,12 +757,18 @@ module.exports = {
       needRestart: needRestart(room),                    // 1명 빼고 다 파산
       canRestartGame: needRestart(room) && richest(room) === ws,   // 승리자만 재시작 버튼
       isHost: room.host === ws,
-      // 파산자 재참가 (판 사이에만): 요청은 파산자가, 승인은 칩 최소 보유자가
+      // 파산자 재참가 (판 사이에만): 요청은 파산자가, 승인은 판에 있는 비파산 전원 과반수
       canRequestBuyin: betweenHands(room) && room.queue.includes(ws) && (gs.chips[ws.sessionId] ?? 0) < gs.ante && !(gs.buyinReq && gs.buyinReq[ws.sessionId]) && waitingToPlay(room) === 0 && (gs.carryPot || 0) === 0,
       buyinPending: !!(gs.buyinReq && gs.buyinReq[ws.sessionId]),
       buyinAmount: minActiveChips(room),
-      iAmApprover: betweenHands(room) && (gs.chips[ws.sessionId] ?? 0) >= gs.ante && (gs.chips[ws.sessionId] ?? 0) === minActiveChips(room),
-      buyinRequests: (betweenHands(room) && (gs.chips[ws.sessionId] ?? 0) >= gs.ante && (gs.chips[ws.sessionId] ?? 0) === minActiveChips(room)) ? buyinReqNames(room) : [],
+      iAmApprover: betweenHands(room) && (gs.chips[ws.sessionId] ?? 0) >= gs.ante,
+      buyinRequests: (betweenHands(room) && (gs.chips[ws.sessionId] ?? 0) >= gs.ante)
+        ? Object.keys(gs.buyinReq || {}).filter((sid) => sid !== ws.sessionId).map((sid) => {
+            const req = gs.buyinReq[sid];
+            const target = room.queue.find((q) => q.sessionId === sid);
+            return { name: req.name, approvals: req.approvers.size, needed: target ? buyinMajority(room, target) : 1, voted: req.approvers.has(ws.sessionId) || req.rejecters.has(ws.sessionId) };
+          })
+        : [],
       // 게임 중/대기 중에 들어온 사람: 빈 자리 있으면 다음 판 합류, 아니면 대기열에서 관전
       waiting: room.queue.filter((s) => !seats.includes(s)).map((s) => ({
         name: s.name, color: s.color, chips: gs.chips[s.sessionId] ?? 0,

@@ -296,6 +296,19 @@
   .carry-toast.out { animation: carryout .4s ease forwards; }
   @keyframes carrypop { from { opacity: 0; transform: translate(-50%,-50%) scale(.5) rotate(-6deg); } to { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0); } }
   @keyframes carryout { to { opacity: 0; transform: translate(-50%,-50%) scale(1.12); } }
+  /* 푸쉬알람 (재참가 승인·재경기 합류) */
+  #pushZone { position: fixed; top: 14px; right: 14px; z-index: 200; display: flex; flex-direction: column; gap: 10px; width: 290px; max-width: 92vw; pointer-events: none; }
+  .pushcard { pointer-events: auto; background: linear-gradient(180deg, rgba(40,46,58,.97), rgba(24,28,38,.97)); border: 1px solid rgba(255,255,255,.13); border-radius: 14px; padding: 13px 15px; box-shadow: 0 14px 40px rgba(0,0,0,.55); backdrop-filter: blur(8px); animation: pushin .35s cubic-bezier(.34,1.5,.64,1) both; }
+  @keyframes pushin { from { opacity: 0; transform: translateX(115%); } to { opacity: 1; transform: translateX(0); } }
+  .pushtitle { font-size: 13px; font-weight: 800; color: #f0d77a; margin-bottom: 5px; }
+  .pushbody { font-size: 13px; color: #e9edf4; line-height: 1.5; }
+  .pushbody b { color: #fff; }
+  .pushmeta { color: #8fc1b1; font-weight: 700; }
+  .pushbtns { display: flex; gap: 8px; margin-top: 11px; }
+  .pushbtns button { flex: 1; padding: 9px; font-size: 13px; font-weight: 700; }
+  .pushbtns .pok { background: linear-gradient(180deg,#37b366,#2a8f50); }
+  .pushbtns .pno { background: linear-gradient(180deg,#c0492f,#9a3b2f); }
+  .pushvoted { margin-top: 10px; font-size: 12px; color: #8fc1b1; font-weight: 700; }
 
   /* 내 차례 — 펠트 글로우 (프레임 shimmer는 유지) */
   #seotdaFelt.myturn #seotdaInner { animation: feltglow 1.1s ease-in-out infinite; }

@@ -180,6 +180,45 @@
     setTimeout(() => { if (t.parentNode) t.remove(); }, 2100);
   }
 
+  // 푸쉬알람 — 재참가 승인(과반수 투표) + 재경기 합류 공용
+  function pushZone() {
+    let z = document.getElementById('pushZone');
+    if (!z) { z = document.createElement('div'); z.id = 'pushZone'; document.body.appendChild(z); }
+    return z;
+  }
+  function renderPush(s) {
+    const z = pushZone();
+    const want = {};
+    (s.buyinRequests || []).forEach((r) => {
+      want['buyin-' + r.name] = {
+        title: '🙋 재참가 요청',
+        body: '<b>' + esc(r.name) + '</b>님이 판에 다시 들어오고 싶어해요<br><span class="pushmeta">승인 ' + r.approvals + ' / ' + r.needed + ' (과반)</span>',
+        voted: r.voted, ok: '승인', no: '거절',
+        onOk: () => window.send({ type: 'approveBuyin', name: r.name }),
+        onNo: () => window.send({ type: 'rejectBuyin', name: r.name }),
+      };
+    });
+    if (s.canRejoin) {
+      want['rejoin'] = {
+        title: '🔁 재경기 합류',
+        body: '묻힌 판돈의 절반 <b>' + won(s.rejoinCost) + '</b> 내고<br>이번 재경기 판에 참여할까요?',
+        ok: '합류', no: '빠지기',
+        onOk: () => window.send({ type: 'rejoin' }),
+        onNo: () => window.send({ type: 'passRejoin' }),
+      };
+    }
+    Array.from(z.children).forEach((c) => { if (!want[c.dataset.id]) c.remove(); });   // 사라진 카드 제거
+    Object.keys(want).forEach((id) => {
+      const w = want[id];
+      let card = z.querySelector('[data-id="' + CSS.escape(id) + '"]');
+      if (!card) { card = document.createElement('div'); card.className = 'pushcard'; card.dataset.id = id; z.appendChild(card); }
+      card.innerHTML = '<div class="pushtitle">' + w.title + '</div><div class="pushbody">' + w.body + '</div>' +
+        (w.voted ? '<div class="pushvoted">✓ 투표 완료 — 결과 대기 중</div>'
+                 : '<div class="pushbtns"><button class="pok">' + w.ok + '</button><button class="pno">' + w.no + '</button></div>');
+      if (!w.voted) { card.querySelector('.pok').onclick = w.onOk; card.querySelector('.pno').onclick = w.onNo; }
+    });
+  }
+
   // 좌석 칸 가운데에 "어떤 베팅을 했는지" 토스트 팝(색 구분)
   function showActToast(seatEl, act) {
     if (!seatEl) return;
@@ -228,6 +267,7 @@
       tg.textContent = open ? '📖 족보 숨기기' : '📖 족보 보기';
     };
     lastHandId = 0; wasMyTurn = false; seatByName = {}; lastCarrySeq = null;
+    const pz = document.getElementById('pushZone'); if (pz) pz.innerHTML = '';
     window.onRoomChat = showChatBubble;              // 방 채팅 → 좌석 말풍선
   };
 
@@ -280,21 +320,28 @@
       5: [[13, 60], [13, 17], [87, 17], [87, 60]],   // 좌(상·하)·우(상·하)
     };
     const table = felt.querySelector('#seotdaTable');
-    const myIdx = me ? s.players.indexOf(me) : -1;
-    const orderedSeated = myIdx >= 0 ? s.players.slice(myIdx).concat(s.players.slice(0, myIdx)) : s.players.slice();
-    // 빈 자리에 대기 인원을 '대기중'으로 채움(최대 5칸)
-    const slots = Math.max(0, 5 - orderedSeated.length);
-    const waitList = (s.waiting || []).filter((w) => w.name !== s.yourName).slice(0, slots)
+    const myName = s.yourName;
+    // 나는 항상 6시 — 앉아있으면 좌석, 파산/관전이면 파산 슬롯(사라지지 않음)
+    let meEntry = null;
+    if (me) meEntry = me;
+    else if (myName) meEntry = { name: myName, color: s.yourColor || '#fff', chips: s.myChips ?? 0, isMe: true, waiting: true, bankrupt: (s.myChips ?? 0) < s.ante };
+    // 나 제외 좌석(시계방향)
+    let others;
+    if (me) { const i = s.players.indexOf(me); others = s.players.slice(i + 1).concat(s.players.slice(0, i)); }
+    else others = s.players.slice();
+    // 빈 자리에 대기/파산 인원(나 제외, 최대 5칸)
+    const freeSlots = Math.max(0, 5 - (meEntry ? 1 : 0) - others.length);
+    const waitOthers = (s.waiting || []).filter((w) => w.name !== myName).slice(0, freeSlots)
       .map((w) => ({ name: w.name, color: w.color, chips: w.chips, waiting: true, bankrupt: w.chips < s.ante }));
-    const ordered = orderedSeated.concat(waitList);
+    const ordered = (meEntry ? [meEntry] : []).concat(others, waitOthers);
     const N = ordered.length || 1;
     const dealN = s.players.length || 1;
-    const lay = (myIdx >= 0 && LAYOUTS[N]) ? LAYOUTS[N] : null;
+    const lay = (meEntry && LAYOUTS[N]) ? LAYOUTS[N] : null;
     seatByName = {};
     ordered.forEach((p, k) => {
       const el = seatEl(p, s.players.indexOf(p), intro, dealN);
       let L, T;
-      if (k === 0 && myIdx >= 0) { L = 50; T = 83; }                 // 나 = 6시(하단)
+      if (k === 0 && meEntry) { L = 50; T = 83; }                    // 나 = 6시(하단)
       else if (lay) { L = lay[k - 1][0]; T = lay[k - 1][1]; }
       else { const a = (2 * Math.PI / N) * k; L = 50 - 39 * Math.sin(a); T = 50 + 37 * Math.cos(a); }
       el.style.left = L + '%'; el.style.top = T + '%';
@@ -359,10 +406,7 @@
     if (s.canRedeal) {
       mkBtn('b-raise', '🔁 재경기 선언', null, () => window.send({ type: 'redeal' }));
       mkBtn('b-call', '그냥 끝내기', '정산', () => window.send({ type: 'passRedeal' }));
-    } else if (s.canRejoin) {
-      mkBtn('b-allin', '합류', '절반 ' + won(s.rejoinCost), () => window.send({ type: 'rejoin' }));
-      mkBtn('b-die', '빠지기', null, () => window.send({ type: 'passRejoin' }));
-    } else if (s.myTurn && s.actions) {
+    } else if (s.myTurn && s.actions) {   // s.canRejoin(합류)은 푸쉬알람으로 처리
       s.actions.forEach((a) => {
         mkBtn('b-' + a.act, a.name || a.label, a.amount, () => window.send({ type: 'bet', act: a.act }));   // 종류별 색 구분
       });
@@ -393,21 +437,8 @@
     document.getElementById('leaveBtn').disabled = false;
     window.leaveConfirm = (s.phase === 'playing' && me) ? '판 진행 중 나가면 다이(기권) 처리됩니다. 나가시겠어요?' : null;
 
-    // 재참가 승인/거절 박스 (칩 최소 보유자에게만)
-    const bbox = felt.querySelector('#buyinBox');
-    if (bbox && s.iAmApprover && s.buyinRequests && s.buyinRequests.length) {
-      bbox.innerHTML = '<div class="buyin-title">🙋 재참가 요청 — 승인하면 내 칩과 같은 ' + won(s.buyinAmount) + '칩으로 합류</div>';
-      s.buyinRequests.forEach((nm) => {
-        const row = document.createElement('div'); row.className = 'buyin-row';
-        row.innerHTML = `<span>${esc(nm)}</span>`;
-        const wrap = document.createElement('span');
-        const ok = document.createElement('button'); ok.className = 'gold'; ok.textContent = '✅ 승인';
-        ok.onclick = () => window.send({ type: 'approveBuyin', name: nm });
-        const no = document.createElement('button'); no.className = 'danger'; no.style.marginLeft = '6px'; no.textContent = '❌ 거절';
-        no.onclick = () => window.send({ type: 'rejectBuyin', name: nm });
-        wrap.append(ok, no); row.appendChild(wrap); bbox.appendChild(row);
-      });
-    }
+    // 재참가 승인(과반수) + 재경기 합류 → 푸쉬알람
+    renderPush(s);
 
     // 내 차례 강조: 판 테두리 번쩍 + 중앙 토스트(직전엔 아니었다가 내 차례가 됨)
     felt.classList.toggle('myturn', !!s.myTurn);
@@ -475,7 +506,7 @@
     const big = true;                                // 모든 좌석 동일 크기(큰 카드)
     const el = document.createElement('div');
     if (p.waiting) {                                 // 빈 자리: 대기중(칩 있음) 또는 파산(칩 부족)
-      el.className = 'seat waiting' + (p.bankrupt ? ' bust' : '');
+      el.className = 'seat waiting' + (p.bankrupt ? ' bust' : '') + (p.isMe ? ' me' : '');
       el.innerHTML =
         `<div class="cards"><span class="emptycard">${p.bankrupt ? '💸' : '🪑'}</span></div>` +
         `<div class="namebar"><span class="nm" style="color:${p.color}">${esc(p.name)}</span></div>` +
