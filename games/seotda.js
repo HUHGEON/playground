@@ -513,7 +513,8 @@ module.exports = {
   onEnter(room, ws) { ensureChips(room, ws); },
 
   canStart(room) {
-    return (room.phase === 'lobby' || room.phase === 'finished') && eligible(room).length >= 2;
+    const pending = room.gs.buyinReq && Object.keys(room.gs.buyinReq).length > 0;   // 재참가 요청 처리 전엔 시작 보류
+    return (room.phase === 'lobby' || room.phase === 'finished') && eligible(room).length >= 2 && !pending;
   },
 
   start(room) {
