@@ -177,7 +177,7 @@
     if (h1) h1.style.display = inRoom ? 'none' : '';
     $('userbar').style.display = inRoom ? 'none' : (myName ? 'flex' : 'none');
     document.body.classList.toggle('inroom', inRoom);
-    if (!inRoom) { document.body.classList.remove('game-seotda', 'game-othello'); window.leaveConfirm = null; }
+    if (!inRoom) { document.body.classList.remove('game-seotda', 'game-othello', 'game-poker'); window.leaveConfirm = null; }
   }
 
   // ---- 로비 렌더 ----
@@ -249,7 +249,7 @@
   // ---- 방 라우팅 ----
   function routeRoom(s) {
     showView('room');
-    document.body.classList.remove('game-seotda', 'game-othello');
+    document.body.classList.remove('game-seotda', 'game-othello', 'game-poker');
     document.body.classList.add('game-' + s.gameType);   // 게임별 배경
     const renderer = window.RENDERERS[s.gameType];
     if (!renderer) return;
