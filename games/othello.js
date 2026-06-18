@@ -4,7 +4,7 @@
 //  - 2인 대국 + 승자 잔류 대기열(나머지는 관전)
 // ───────────────────────────────────────────────────────────
 const SIZE = 8;
-const TURN_MS = Number(process.env.OTHELLO_TURN_MS) || 30000;   // 착수 제한(기본 30초)
+const TURN_MS = Number(process.env.OTHELLO_TURN_MS) || 20000;   // 착수 제한(기본 20초)
 const DIRS = [
   [-1, -1], [-1, 0], [-1, 1],
   [0, -1],           [0, 1],

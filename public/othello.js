@@ -38,7 +38,7 @@
     else if (s.phase !== 'playing') status = '대기 중';
     else if (isTurn) status = isMe ? '🟢 내 차례 — 둘 곳 클릭' : '🟢 두는 중…';
     else status = '⏳ 대기 중';
-    const prog = (isTurn && s.secondsLeft != null) ? Math.max(6, Math.min(100, Math.round(s.secondsLeft / 30 * 100))) : 0;
+    const prog = (isTurn && s.secondsLeft != null) ? Math.max(6, Math.min(100, Math.round(s.secondsLeft / 20 * 100))) : 0;
     return '<div class="olevel"><div class="olevelfill" style="width:' + prog + '%"></div></div>' +
       '<div class="oavatar" style="border-color:' + (color || '#ecc659') + '">' + avatar(name) + '</div>' +
       '<div class="oinfo"><div class="oname">' + window.esc(name) +
@@ -162,7 +162,7 @@
     const tick = () => {
       const fill = document.querySelector('.opanel.turn .olevelfill');
       const secsEl = document.querySelector('.opanel.turn .osecs');
-      if (fill) fill.style.width = Math.max(0, Math.min(100, s / 30 * 100)) + '%';
+      if (fill) fill.style.width = Math.max(0, Math.min(100, s / 20 * 100)) + '%';
       if (secsEl) secsEl.textContent = s + '초';
       if (s <= 0) { stopOCountdown(); return; }
       s -= 1;
