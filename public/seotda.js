@@ -139,6 +139,11 @@
   }
   function repositionBubbles() { activeBubbles.forEach(positionBubble); }
   function showChatBubble(name, text) {
+    // 같은 사람 이전 말풍선 즉시 제거 → 겹침 방지, 항상 최신 1개만
+    activeBubbles = activeBubbles.filter((x) => {
+      if (x.name === name) { if (x.timer) clearTimeout(x.timer); if (x.el.parentNode) x.el.remove(); return false; }
+      return true;
+    });
     const el = document.createElement('div');
     el.className = 'chat-bubble';
     el.textContent = text;
@@ -147,7 +152,7 @@
     positionBubble(b);
     activeBubbles.push(b);
     setTimeout(() => el.classList.add('out'), 3400);
-    setTimeout(() => { el.remove(); activeBubbles = activeBubbles.filter((x) => x !== b); }, 3800);
+    b.timer = setTimeout(() => { el.remove(); activeBubbles = activeBubbles.filter((x) => x !== b); }, 3800);
   }
 
   function showTurnToast() {

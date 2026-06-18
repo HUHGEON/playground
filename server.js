@@ -17,7 +17,11 @@ const GAMES = {};
 for (const mod of [require('./games/othello'), require('./games/seotda')]) GAMES[mod.type] = mod;
 
 // ---- 정적 파일 서버 ----
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
+const MIME = {
+  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml',
+};
+const IMG_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
 const httpServer = http.createServer((req, res) => {
   let urlPath = req.url.split('?')[0];           // 쿼리스트링 제거(캐시버스팅 ?v= 등 허용)
   if (urlPath === '/') urlPath = '/index.html';
@@ -25,9 +29,11 @@ const httpServer = http.createServer((req, res) => {
   if (!filePath.startsWith(PUBLIC)) { res.writeHead(403); return res.end('forbidden'); }
   fs.readFile(filePath, (err, data) => {
     if (err) { res.writeHead(404); return res.end('not found'); }
+    const ext = path.extname(filePath);
     res.writeHead(200, {
-      'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',   // 개발 중 옛 페이지 캐시 방지
+      'Content-Type': MIME[ext] || 'application/octet-stream',
+      // 이미지(카드·밈)는 캐시해 빠르게, 코드/HTML은 항상 최신
+      'Cache-Control': IMG_EXT.has(ext) ? 'public, max-age=604800' : 'no-cache, no-store, must-revalidate',
     });
     res.end(data);
   });
