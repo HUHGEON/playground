@@ -60,7 +60,7 @@
   .owin-card.lose { background: linear-gradient(180deg,rgba(52,24,24,.97),rgba(30,14,14,.97)); border-color: #c0492f; color: #e6b8b0; }
   .owin-card.lose .owin-title { color: #ff8a7a; }
   .owin-card.spec, .owin-card.draw { background: linear-gradient(180deg,rgba(30,40,48,.97),rgba(18,26,32,.97)); border-color: #9a7d3a; color: #d8e0e6; }
-  @keyframes oWinPop { from { opacity: 0; transform: translate(-50%,-50%) scale(.6); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
+  @keyframes oWinPop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
   #oCtrl { display: flex; gap: 8px; justify-content: center; margin-top: 2px; }
   #oCtrl .ostart { background: linear-gradient(180deg,#f1d36a,#d9b042); color: #3a2a10; }
   /* 나무 말풍선 */
