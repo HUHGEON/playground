@@ -10,7 +10,7 @@
     main.innerHTML =
       '<div id="oTop" class="opanel"></div>' +
       '<div id="oResult"></div>' +
-      '<div id="oBoardWrap"><div id="oFrame"><div class="ocorner tl"></div><div class="ocorner tr"></div><div class="ocorner bl"></div><div class="ocorner br"></div><div id="board"></div></div><div id="oToast"></div></div>' +
+      '<div id="oBoardWrap"><div id="oFrame"><div class="ocorner tl"></div><div class="ocorner tr"></div><div class="ocorner bl"></div><div class="ocorner br"></div><div id="board"></div></div><div id="oToast"></div><div id="oWinPanel"></div></div>' +
       '<div id="oBot" class="opanel"></div>' +
       '<div class="btnrow" id="oCtrl"></div>';
     info.innerHTML = '<h3>대기열 (승자 잔류 · 패자 후순위)</h3><div id="queue"></div>';
@@ -50,10 +50,13 @@
   R.render = function (s) {
     const $ = (id) => document.getElementById(id);
     const myRole = s.yourRole;
-    myTurn = s.phase === 'playing' && myRole === s.turn;
+    // 내 색은 닉네임 기준으로 판별 — yourRole은 판 종료 시 'seated'로 바뀌어 좌석이 뒤집히는 버그가 있어 사용 X
+    const myName = s.yourName;
+    const myColor = myName && myName === s.blackName ? 'B' : (myName && myName === s.whiteName ? 'W' : null);
+    myTurn = s.phase === 'playing' && myColor != null && myColor === s.turn;
 
-    // 하단 = 내 좌석(관전이면 흑), 상단 = 상대
-    const botSeat = myRole === 'W' ? 'W' : 'B';
+    // 하단 = 항상 내 좌석(내 색 고정, 관전이면 흑), 상단 = 상대
+    const botSeat = myColor === 'W' ? 'W' : 'B';
     const topSeat = botSeat === 'B' ? 'W' : 'B';
     topName = topSeat === 'B' ? (s.blackName || '') : (s.whiteName || '');
     botName = botSeat === 'B' ? (s.blackName || '') : (s.whiteName || '');
@@ -61,15 +64,26 @@
     const danger = myTurn && s.secondsLeft != null && s.secondsLeft <= 5;   // 내 차례 5초 이하 → 빨강 번쩍
     oTop.className = 'opanel' + (s.phase === 'playing' && s.turn === topSeat ? ' turn' : '');
     oBot.className = 'opanel' + (s.phase === 'playing' && s.turn === botSeat ? ' turn' : '') + (danger ? ' danger' : '');
-    oTop.innerHTML = panelHTML(s, topSeat, myRole === topSeat);
-    oBot.innerHTML = panelHTML(s, botSeat, myRole === botSeat);
+    oTop.innerHTML = panelHTML(s, topSeat, myColor === topSeat);
+    oBot.innerHTML = panelHTML(s, botSeat, myColor === botSeat);
 
-    // 결과 배너
+    // 결과 — 판 위에 승리/패배/관전 패널 (관점별)
     const resEl = $('oResult');
+    const winPanel = $('oWinPanel');
     if (s.phase === 'finished') {
-      const txt = s.winner === 'draw' ? '무승부' : ((s.winner === 'B' ? `흑(${s.blackName || '흑'})` : `백(${s.whiteName || '백'})`) + ' 승');
-      resEl.innerHTML = '<span class="opill">🏆 ' + window.esc(txt) + ' · ' + s.score.B + ':' + s.score.W + '</span>';
-    } else resEl.innerHTML = '';
+      // myColor(닉네임 기준, 위에서 계산) → 승자/패자/관전 구분
+      const winnerName = s.winner === 'B' ? (s.blackName || '흑') : (s.whiteName || '백');
+      const scoreLine = '● ' + s.score.B + ' : ' + s.score.W + ' ○';
+      let cls, emoji, title;
+      if (s.winner === 'draw') { cls = 'draw'; emoji = '🤝'; title = '무승부'; }
+      else if (myColor && myColor === s.winner) { cls = 'win'; emoji = '🏆'; title = '승리!'; }
+      else if (myColor) { cls = 'lose'; emoji = '😢'; title = '패배'; }
+      else { cls = 'spec'; emoji = '🏆'; title = window.esc(winnerName) + ' 승리'; }
+      if (winPanel) winPanel.innerHTML =
+        '<div class="owin-card ' + cls + '"><div class="owin-emoji">' + emoji + '</div>' +
+        '<div class="owin-title">' + title + '</div><div class="owin-sub">' + scoreLine + '</div></div>';
+      resEl.innerHTML = '';
+    } else { if (winPanel) winPanel.innerHTML = ''; resEl.innerHTML = ''; }
 
     // 보드
     const lm = s.lastMove;

@@ -48,10 +48,25 @@
   /* 둘 곳 없음 — 판 가운데 나무판 토스트 */
   #oToast { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%) scale(.8); opacity: 0; pointer-events: none; z-index: 20; padding: 12px 22px; border-radius: 10px; font-weight: 800; font-size: 16px; color: #f4e6c5; white-space: nowrap; background: linear-gradient(180deg,#6e4f2a,#4a3318); border: 2px solid #2a1c0c; box-shadow: 0 10px 30px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.18); transition: opacity .2s, transform .2s; }
   #oToast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  /* 결과 패널 — 판 가운데 (승리/패배/관전·관점별) */
+  #oWinPanel { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 25; pointer-events: none; }
+  #oWinPanel:empty { display: none; }
+  .owin-card { text-align: center; padding: 20px 38px; border-radius: 18px; border: 2px solid; box-shadow: 0 16px 50px rgba(0,0,0,.6); animation: oWinPop .35s cubic-bezier(.34,1.5,.64,1) both; }
+  .owin-emoji { font-size: 44px; line-height: 1; }
+  .owin-title { font-size: 28px; font-weight: 800; margin-top: 6px; font-family: 'Space Grotesk', sans-serif; }
+  .owin-sub { font-size: 15px; margin-top: 5px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; opacity: .9; }
+  .owin-card.win { background: linear-gradient(180deg,rgba(60,46,16,.97),rgba(40,30,8,.97)); border-color: #f1d36a; color: #f6e4a0; }
+  .owin-card.win .owin-title { color: #ffe066; }
+  .owin-card.lose { background: linear-gradient(180deg,rgba(52,24,24,.97),rgba(30,14,14,.97)); border-color: #c0492f; color: #e6b8b0; }
+  .owin-card.lose .owin-title { color: #ff8a7a; }
+  .owin-card.spec, .owin-card.draw { background: linear-gradient(180deg,rgba(30,40,48,.97),rgba(18,26,32,.97)); border-color: #9a7d3a; color: #d8e0e6; }
+  @keyframes oWinPop { from { opacity: 0; transform: translate(-50%,-50%) scale(.6); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
   #oCtrl { display: flex; gap: 8px; justify-content: center; margin-top: 2px; }
   #oCtrl .ostart { background: linear-gradient(180deg,#f1d36a,#d9b042); color: #3a2a10; }
   /* 나무 말풍선 */
-  .obubble { position: absolute; left: 16px; top: -6px; transform: translateY(-100%); z-index: 30; max-width: 240px; background: linear-gradient(180deg,#e8d3a0,#cdb074); color: #3a2a10; font-size: 14px; font-weight: 700; padding: 9px 14px; border-radius: 14px 14px 14px 4px; border: 2px solid #8a6a30; box-shadow: 0 8px 22px rgba(0,0,0,.35); animation: bubblein .2s cubic-bezier(.34,1.56,.64,1) both; word-break: break-word; }
+  /* 시작점을 아바타 원 꼭대기(중심 x)에 고정 → 왼쪽 끝 안 움직이고 오른쪽으로만 늘어남 */
+  @keyframes oBubbleIn { from { opacity: 0; transform: translateY(-100%) scale(.82); } to { opacity: 1; transform: translateY(-100%) scale(1); } }
+  .obubble { position: absolute; left: 40px; top: 12px; transform: translateY(-100%); transform-origin: bottom left; z-index: 30; max-width: 240px; background: linear-gradient(180deg,#e8d3a0,#cdb074); color: #3a2a10; font-size: 14px; font-weight: 700; padding: 9px 14px; border-radius: 14px 14px 14px 4px; border: 2px solid #8a6a30; box-shadow: 0 8px 22px rgba(0,0,0,.35); animation: oBubbleIn .2s cubic-bezier(.34,1.56,.64,1) both; word-break: break-word; }
   .obubble.out { animation: fadeout .35s ease forwards; }
   .qrow { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 9px; font-size: 14px; }
   .qrow.me { background: rgba(78,161,255,.12); }
