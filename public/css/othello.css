@@ -11,6 +11,9 @@
   /* 플레이어 패널(틸) */
   .opanel { position: relative; display: flex; align-items: center; gap: 13px; padding: 14px 16px 11px; border-radius: 13px; background: linear-gradient(180deg,#317063,#1d4f46); border: 2px solid #9a7d3a; box-shadow: 0 8px 22px rgba(0,0,0,.4); }
   .opanel.turn { border-color: #f6df84; box-shadow: 0 0 0 1px #f6df84, 0 0 20px rgba(246,223,132,.4), 0 8px 22px rgba(0,0,0,.4); }
+  /* 내 차례 5초 이하 — 빨강 번쩍번쩍 */
+  @keyframes oDangerBlink { 0%,49% { border-color:#ff3b3b; box-shadow:0 0 0 2px #ff3b3b, 0 0 24px rgba(255,59,59,.75), 0 8px 22px rgba(0,0,0,.4); } 50%,100% { border-color:#5a1414; box-shadow:0 0 0 1px rgba(255,59,59,.18), 0 8px 22px rgba(0,0,0,.4); } }
+  .opanel.danger { animation: oDangerBlink .5s steps(1,end) infinite; }
   .olevel { position: absolute; left: 14px; right: 14px; top: 6px; height: 4px; border-radius: 99px; background: rgba(0,0,0,.32); overflow: hidden; }
   .olevelfill { height: 100%; background: linear-gradient(90deg,#e8c558,#f6df84); border-radius: 99px; transition: width 1s linear; }
   .oavatar { width: 48px; height: 48px; border-radius: 50%; flex: none; margin-top: 3px; display: flex; align-items: center; justify-content: center; font-size: 24px; background: rgba(0,0,0,.25); border: 2px solid #ecc659; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
@@ -48,7 +51,7 @@
   #oCtrl { display: flex; gap: 8px; justify-content: center; margin-top: 2px; }
   #oCtrl .ostart { background: linear-gradient(180deg,#f1d36a,#d9b042); color: #3a2a10; }
   /* 나무 말풍선 */
-  .obubble { position: absolute; left: 60px; top: -6px; transform: translateY(-100%); z-index: 30; max-width: 240px; background: linear-gradient(180deg,#e8d3a0,#cdb074); color: #3a2a10; font-size: 14px; font-weight: 700; padding: 9px 14px; border-radius: 14px 14px 14px 4px; border: 2px solid #8a6a30; box-shadow: 0 8px 22px rgba(0,0,0,.35); animation: bubblein .2s cubic-bezier(.34,1.56,.64,1) both; word-break: break-word; }
+  .obubble { position: absolute; left: 16px; top: -6px; transform: translateY(-100%); z-index: 30; max-width: 240px; background: linear-gradient(180deg,#e8d3a0,#cdb074); color: #3a2a10; font-size: 14px; font-weight: 700; padding: 9px 14px; border-radius: 14px 14px 14px 4px; border: 2px solid #8a6a30; box-shadow: 0 8px 22px rgba(0,0,0,.35); animation: bubblein .2s cubic-bezier(.34,1.56,.64,1) both; word-break: break-word; }
   .obubble.out { animation: fadeout .35s ease forwards; }
   .qrow { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 9px; font-size: 14px; }
   .qrow.me { background: rgba(78,161,255,.12); }

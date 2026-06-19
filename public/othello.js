@@ -38,7 +38,7 @@
     else if (s.phase !== 'playing') status = '대기 중';
     else if (isTurn) status = isMe ? '🟢 내 차례 — 둘 곳 클릭' : '🟢 두는 중…';
     else status = '⏳ 대기 중';
-    const prog = (isTurn && s.secondsLeft != null) ? Math.max(6, Math.min(100, Math.round(s.secondsLeft / 20 * 100))) : 0;
+    const prog = (isTurn && s.secondsLeft != null) ? Math.max(6, Math.min(100, Math.round(s.secondsLeft / 30 * 100))) : 0;
     return '<div class="olevel"><div class="olevelfill" style="width:' + prog + '%"></div></div>' +
       '<div class="oavatar" style="border-color:' + (color || '#ecc659') + '">' + avatar(name) + '</div>' +
       '<div class="oinfo"><div class="oname">' + window.esc(name) +
@@ -58,8 +58,9 @@
     topName = topSeat === 'B' ? (s.blackName || '') : (s.whiteName || '');
     botName = botSeat === 'B' ? (s.blackName || '') : (s.whiteName || '');
     const oTop = $('oTop'), oBot = $('oBot');
+    const danger = myTurn && s.secondsLeft != null && s.secondsLeft <= 5;   // 내 차례 5초 이하 → 빨강 번쩍
     oTop.className = 'opanel' + (s.phase === 'playing' && s.turn === topSeat ? ' turn' : '');
-    oBot.className = 'opanel' + (s.phase === 'playing' && s.turn === botSeat ? ' turn' : '');
+    oBot.className = 'opanel' + (s.phase === 'playing' && s.turn === botSeat ? ' turn' : '') + (danger ? ' danger' : '');
     oTop.innerHTML = panelHTML(s, topSeat, myRole === topSeat);
     oBot.innerHTML = panelHTML(s, botSeat, myRole === botSeat);
 
@@ -161,17 +162,22 @@
     stopOCountdown();
     let s = secs;
     const tick = () => {
-      const fill = document.querySelector('.opanel.turn .olevelfill');
-      const secsEl = document.querySelector('.opanel.turn .osecs');
-      if (fill) fill.style.width = Math.max(0, Math.min(100, s / 20 * 100)) + '%';
+      const turnPanel = document.querySelector('.opanel.turn');
+      const fill = turnPanel && turnPanel.querySelector('.olevelfill');
+      const secsEl = turnPanel && turnPanel.querySelector('.osecs');
+      if (fill) fill.style.width = Math.max(0, Math.min(100, s / 30 * 100)) + '%';
       if (secsEl) secsEl.textContent = s + '초';
+      if (turnPanel) turnPanel.classList.toggle('danger', myTurn && s <= 5);   // 내 차례 5초 이하 → 빨강 번쩍
       if (s <= 0) { stopOCountdown(); return; }
       s -= 1;
     };
     tick();
     timerInt = setInterval(tick, 1000);
   }
-  function stopOCountdown() { if (timerInt) { clearInterval(timerInt); timerInt = null; } }
+  function stopOCountdown() {
+    if (timerInt) { clearInterval(timerInt); timerInt = null; }
+    document.querySelectorAll('.opanel.danger').forEach((p) => p.classList.remove('danger'));
+  }
 
   R.meta = { chat: 'felt' };                        // 방 생성 옵션 없음, 채팅은 판 하단 바
 
