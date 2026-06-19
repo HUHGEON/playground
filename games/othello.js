@@ -135,28 +135,46 @@ function applyOn(board, r, c, p) {                 // 보드 복제 후 착수(�
   nb[r][c] = p; for (const [fr, fc] of f) nb[fr][fc] = p;
   return nb;
 }
-function evalBoard(board, me) {                    // 위치가중치 + 기동성 + (종반)돌수
-  const o = opp(me); let pos = 0, my = 0, op = 0;
+// 강화 평가: 위치가중치 + 기동성(국면별) + frontier(노출 돌) + 코너점유 + 종반 돌수
+function evalBoard(board, me) {
+  const o = opp(me);
+  let pos = 0, my = 0, op = 0, myF = 0, opF = 0;
   for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
     const v = board[r][c];
-    if (v === me) { pos += POS_W[r][c]; my++; } else if (v === o) { pos -= POS_W[r][c]; op++; }
+    if (!v) continue;
+    let front = false;
+    for (const [dr, dc] of DIRS) { const nr = r + dr, nc = c + dc; if (inBounds(nr, nc) && !board[nr][nc]) { front = true; break; } }
+    if (v === me) { pos += POS_W[r][c]; my++; if (front) myF++; }
+    else { pos -= POS_W[r][c]; op++; if (front) opF++; }
   }
+  // 코너 점유 추가 보너스(매우 중요)
+  let corner = 0;
+  for (const [r, c] of [[0, 0], [0, 7], [7, 0], [7, 7]]) { if (board[r][c] === me) corner += 35; else if (board[r][c] === o) corner -= 35; }
   const mob = legalMoves(board, me).length - legalMoves(board, o).length;
-  let s = pos + mob * 8;
-  if (64 - my - op <= 14) s += (my - op) * 16;     // 종반엔 돌 수 비중↑
+  const empties = 64 - my - op;
+  let s = pos + corner + (opF - myF) * 8;     // frontier 적을수록(상대 많을수록) 유리
+  if (empties > 12) s += mob * 16;            // 초·중반: 기동성 최우선
+  else s += mob * 5 + (my - op) * 24;         // 종반: 돌 수 비중↑
   return s;
 }
+// 이동순서: 위치가중치 높은 수 먼저 평가 → 알파베타 가지치기 효율↑(더 깊이 탐색 가능)
+function ordered(moves) { return moves.sort((a, b) => POS_W[b[0]][b[1]] - POS_W[a[0]][a[1]]); }
+// 시간제한 탐색용 전역(반복심화 중단 신호). 고정깊이 호출은 _deadline=Infinity로 중단 안 함.
+let _nodes = 0, _deadline = Infinity, _aborted = false;
 function minimax(board, me, toMove, depth, alpha, beta) {
+  if (_aborted) return 0;
+  if ((++_nodes & 4095) === 0 && Date.now() > _deadline) { _aborted = true; return 0; }   // 시간초과 중단
   if (depth <= 0) return evalBoard(board, me);
   const moves = legalMoves(board, toMove);
   const o = opp(toMove);
   if (!moves.length) {
     if (!legalMoves(board, o).length) {            // 양쪽 다 못 둠 → 종국 확정 점수
       const sc = score(board), my = me === 'B' ? sc.B : sc.W, op = me === 'B' ? sc.W : sc.B;
-      return (my > op ? 100000 : my < op ? -100000 : 0) + (my - op);
+      return (my > op ? 1e6 : my < op ? -1e6 : 0) + (my - op);
     }
     return minimax(board, me, o, depth - 1, alpha, beta);   // 패스
   }
+  ordered(moves);
   const maxing = toMove === me;
   let best = maxing ? -Infinity : Infinity;
   for (const [r, c] of moves) {
@@ -167,20 +185,49 @@ function minimax(board, me, toMove, depth, alpha, beta) {
   }
   return best;
 }
-// 난이도: 쉬움=랜덤 / 보통=깊이3(종반 8) / 어려움=깊이5(종반 10까지 완전탐색)
-function bestMove(board, me, level) {
-  const moves = legalMoves(board, me);
-  if (!moves.length) return null;
-  if (level === 'easy') return moves[Math.floor(Math.random() * moves.length)];
-  const sc = score(board), empties = 64 - sc.B - sc.W;
-  const depth = level === 'hard' ? (empties <= 10 ? empties : 5) : (empties <= 8 ? empties : 3);
+// 고정 깊이 탐색(쉬움/보통). _deadline=Infinity → 중단 없음.
+function searchFixed(board, me, depth) {
+  _deadline = Infinity; _aborted = false;
+  const moves = ordered(legalMoves(board, me));
   let best = moves[0], bestV = -Infinity, a = -Infinity;
-  for (const [r, c] of moves) {
-    const v = minimax(applyOn(board, r, c, me), me, opp(me), depth - 1, a, Infinity);
-    if (v > bestV) { bestV = v; best = [r, c]; }
+  for (const mv of moves) {
+    const v = minimax(applyOn(board, mv[0], mv[1], me), me, opp(me), depth - 1, a, Infinity);
+    if (v > bestV) { bestV = v; best = mv; }
     if (v > a) a = v;
   }
   return best;
+}
+// 시간제한 반복심화(어려움). budgetMs 안에서 갈 수 있는 만큼 깊이↑.
+function searchTimed(board, me, budgetMs) {
+  const moves = ordered(legalMoves(board, me));
+  if (moves.length <= 1) return moves[0];
+  _deadline = Date.now() + budgetMs;
+  let best = moves[0];
+  for (let depth = 3; depth <= 30; depth++) {
+    _aborted = false;
+    let bm = null, bv = -Infinity, a = -Infinity;
+    for (const mv of moves) {
+      const v = minimax(applyOn(board, mv[0], mv[1], me), me, opp(me), depth - 1, a, Infinity);
+      if (_aborted) break;
+      if (v > bv) { bv = v; bm = mv; }
+      if (v > a) a = v;
+    }
+    if (_aborted) break;                            // 이 깊이 미완 → 직전 깊이 결과 유지
+    best = bm;
+    moves.splice(moves.indexOf(bm), 1); moves.unshift(bm);   // 다음 깊이 위해 최선수 앞으로
+    if (Math.abs(bv) >= 1e6) break;                 // 승부 확정 → 더 볼 필요 없음
+    if (Date.now() > _deadline) break;
+  }
+  return best;
+}
+// 난이도: 쉬움=깊이2 / 보통=깊이4(종반 ≤9 완전탐색) / 어려움=5초 반복심화(보통 8~12수)
+function bestMove(board, me, level) {
+  const moves = legalMoves(board, me);
+  if (!moves.length) return null;
+  if (level === 'hard') return searchTimed(board, me, 4500);
+  const sc = score(board), empties = 64 - sc.B - sc.W;
+  const depth = level === 'easy' ? 2 : (empties <= 9 ? empties : 4);
+  return searchFixed(board, me, depth);
 }
 
 module.exports = {
