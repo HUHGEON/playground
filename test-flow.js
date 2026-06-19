@@ -73,16 +73,18 @@ function betToEnd(room, folds = []) {
   ok(h.seats.length === 3, `3인 착석 (got ${h.seats.length})`);
   // 선 오픈 → 나머지 콜, C는 다이 → 컨텐더 A,B → 멍구사 무조건(자동) 재경기
   betToEnd(room, [C]);
+  S._flushReveal(room);                          // 패 공개 대기 → 재경기 진행
   ok(room.phase === 'rejoin', `멍구사 자동 재경기 → 합류 단계 (phase ${room.phase})`);
   ok(room.gs.carryPot > 0, `판돈 묻힘(이월) ${room.gs.carryPot}`);
   ok(room.gs.rejoin.cands.includes(C), `다이한 C가 합류 후보`);
   const half = room.gs.rejoin.half;
+  const carryBefore = room.gs.carryPot;
   const cChipsBefore = room.gs.chips['c'];
   S.action(room, C, { type: 'rejoin' });
   ok(room.phase === 'playing', `합류 완료 → 재딜 시작 (phase ${room.phase})`);
   ok(room.gs.hand.seats.length === 3, `재딜에 A,B,C 모두 착석 (got ${room.gs.hand.seats.length})`);
   ok(room.gs.chips['c'] === cChipsBefore - half - room.gs.ante, `C 칩 = 직전 - 절반(${half}) - 앤티`);
-  ok(room.gs.carryPot === potAtRedeal + half, `묻힌 판돈 += 합류 절반 (${room.gs.carryPot})`);
+  ok(room.gs.carryPot === carryBefore + half, `묻힌 판돈 += 합류 절반 (${room.gs.carryPot})`);
   S.cleanup(room);
 })();
 
@@ -98,6 +100,7 @@ function betToEnd(room, folds = []) {
   room.gs._forceDeck = [V(2, 0), V(5, 0), V(3, 1), V(10, 1)];
   S.start(room);
   betToEnd(room);    // 선 삥 → 콜 → 쇼다운 → 동점
+  S._flushReveal(room);                          // 패 공개 대기 → 이월 처리
   ok(room.phase === 'finished', `동점 → 라운드 종료 (phase ${room.phase})`);
   ok(room.gs.hand.result.tie === true, `결과가 동점(tie)`);
   ok(room.gs.chips['tp'] === room.gs.chips['tq'], `동점 → 두 사람 칩 동일(분배 안 함)`);

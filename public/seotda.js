@@ -126,6 +126,7 @@
 
   let timerInt = null, lastHandId = 0, wasMyTurn = false, prevActs = {}, seatByName = {}, lastCarrySeq = null;
   let carryToastUntil = 0, rejoinTimer = null;   // 재경기 모달은 "묻고 더블로 가!" 토스트 끝난 뒤
+  let introUntil = 0, introTimer = null, lastState = null;   // 패 받고 ~1.2초 동안 버튼/턴토스트 보류(섞기 먼저)
 
   // 채팅 말풍선 — 보낸 사람 좌석에 고정(재렌더돼도 그 좌석 따라감)
   let activeBubbles = [];
@@ -294,6 +295,7 @@
     };
     lastHandId = 0; wasMyTurn = false; seatByName = {}; lastCarrySeq = null;
     carryToastUntil = 0; if (rejoinTimer) { clearTimeout(rejoinTimer); rejoinTimer = null; }
+    introUntil = 0; lastState = null; if (introTimer) { clearTimeout(introTimer); introTimer = null; }
     const rjm = document.getElementById('rejoinModal'); if (rjm) rjm.remove();
     window.onRoomChat = showChatBubble;              // 방 채팅 → 좌석 말풍선
   };
@@ -305,8 +307,11 @@
     const _sx = window.scrollX, _sy = window.scrollY;   // 렌더(판 다시 그림)로 인한 스크롤 튐 방지
     const sub = document.getElementById('roomSub');     // 방정보 밑 점당/시작칩
     if (sub) sub.textContent = `점당 ${won(s.ante)} · 시작 ${won(s.startChips)}`;
+    lastState = s;
     const intro = s.phase === 'playing' && s.handId && s.handId !== lastHandId;
+    if (intro) { introUntil = Date.now() + 1200; wasMyTurn = false; }   // 패 받고 ~1.2초 동안 버튼/턴토스트 보류
     if (s.phase === 'playing') lastHandId = s.handId;
+    const introHold = Date.now() < introUntil;          // 보류 구간(섞기·딜링만 보임)
 
     const n = s.players.length || 1;
     const me = s.players.find((p) => p.isMe);
@@ -393,6 +398,16 @@
     if (s.needRestart) {
       res.textContent = s.canRestartGame ? '💀 한 명 빼고 전원 파산 — 당신이 승리! 게임을 재시작하세요'
         : '💀 한 명 빼고 전원 파산 — 승리자의 재시작을 기다리는 중…';
+    } else if (s.result && s.result.redeal) {
+      // 재경기 전 패 공개 페이즈 — 상대도 사유(구사/멍구사·동점)를 보게 잠시 노출
+      const secs = s.secondsLeft != null ? ` (${s.secondsLeft}초)` : '';
+      if (s.result.tie) {
+        const names = (s.result.winners || []).map((w) => esc(w.name)).join(', ');
+        res.innerHTML = `🤝 <b>동점</b> (${names}) — 패 공개 중… 묻고 재경기${secs}`;
+      } else {
+        const names = (s.result.redealers || []).map(esc).join(', ');
+        res.innerHTML = `🔁 <b>구사·멍구사</b> — ${names}님! 패 공개 중… 묻고 재경기${secs}`;
+      }
     } else if (s.stage === 'redeal') {
       res.innerHTML = `🔁 <b>구사·멍구사</b> — ${(s.redealerNames || []).map(esc).join(', ')}님 재경기 결정 중…`;
     } else if (s.stage === 'rejoin') {
@@ -433,7 +448,7 @@
     if (s.canRedeal) {
       mkBtn('b-raise', '🔁 재경기 선언', null, () => window.send({ type: 'redeal' }));
       mkBtn('b-call', '그냥 끝내기', '정산', () => window.send({ type: 'passRedeal' }));
-    } else if (s.myTurn && s.actions) {   // s.canRejoin(합류)은 푸쉬알람으로 처리
+    } else if (s.myTurn && s.actions && !introHold) {   // 보류 구간엔 버튼 숨김(섞기 먼저). 합류는 푸쉬알람
       s.actions.forEach((a) => {
         mkBtn('b-' + a.act, a.name || a.label, a.amount, () => window.send({ type: 'bet', act: a.act }));   // 종류별 색 구분
       });
@@ -467,10 +482,14 @@
     renderPush(s);              // 재참가 승인(과반수) → 사이드바 푸쉬알람
     renderRejoinModal(s);       // 재경기 합류 → 화면 가운데 모달
 
-    // 내 차례 강조: 판 테두리 번쩍 + 중앙 토스트(직전엔 아니었다가 내 차례가 됨)
-    felt.classList.toggle('myturn', !!s.myTurn);
-    if (s.myTurn && !wasMyTurn) showTurnToast();
-    wasMyTurn = !!s.myTurn;
+    // 내 차례 강조: 판 테두리 번쩍 + 중앙 토스트 — 보류 구간(introHold)엔 미룸(섞기 끝난 뒤)
+    if (!introHold) {
+      felt.classList.toggle('myturn', !!s.myTurn);
+      if (s.myTurn && !wasMyTurn) showTurnToast();
+      wasMyTurn = !!s.myTurn;
+    } else {
+      felt.classList.remove('myturn');
+    }
 
     // 동점/재경기 이월 발생 → "묻고 더블로 가!" 토스트(첫 진입 땐 안 띄움)
     if (lastCarrySeq !== null && (s.carrySeq || 0) > lastCarrySeq) { showCarryToast(); carryToastUntil = Date.now() + 2200; }
@@ -493,6 +512,12 @@
 
     // 섞기 연출
     if (intro) playShuffle(felt);
+
+    // 보류 구간이면 끝나는 시점에 한 번 더 렌더 → 버튼/당신차례 토스트 표시
+    if (introHold) {
+      if (introTimer) clearTimeout(introTimer);
+      introTimer = setTimeout(() => { introTimer = null; if (lastState) R.render(lastState); }, introUntil - Date.now() + 30);
+    }
 
     fitStage();                                      // 고정 판을 화면에 맞춰 스케일(말풍선 재고정 포함)
 
