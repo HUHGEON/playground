@@ -184,7 +184,7 @@ function broadcastLobby() { for (const ws of clients) if (ws.joined && !ws.roomI
 function addBots(room) {
   const mod = GAMES[room.gameType];
   room.singleplayer = true;
-  room.bots = SBOT.createBots(SBOT.botCount(room.gameType, mod.maxPlayers), PALETTE);
+  room.bots = SBOT.createBots(SBOT.botCount(room.gameType, mod.maxPlayers), PALETTE, room.botLevel);
   for (const bot of room.bots) {
     room.queue.push(bot);
     if (mod.onEnter) mod.onEnter(room, bot);

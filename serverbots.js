@@ -3,7 +3,6 @@
 //  별도 프로세스/웹소켓 없이 서버가 직접 봇의 수를 둔다(scheduleBots in server.js).
 //  결정 로직은 bots.js(외부 연습봇)와 동일.
 // ───────────────────────────────────────────────────────────
-const BOT_NAMES = ['철수', '영희', '민수', '지은', '태호', '하늘', '바다'];
 let seq = 0;
 
 // 봇전에서 채울 봇 수 = 좌석 다 채우기(나 빼고 나머지). maxPlayers-1.
@@ -12,12 +11,14 @@ function botCount(gameType, maxPlayers) {
 }
 
 // ws처럼 보이는 봇 객체(서버의 broadcastRoom/notify가 ws.send를 호출해도 무해하게).
-function createBots(count, palette) {
+// 이름 = 난이도별(초급/중급/고급)봇 + 여러 명이면 번호(1,2,3…).
+function createBots(count, palette, level) {
+  const prefix = level === 'easy' ? '🤖초급봇' : level === 'hard' ? '🤖고급봇' : '🤖중급봇';
   const bots = [];
   for (let i = 0; i < count; i++) {
     seq++;
     bots.push({
-      name: '🤖' + BOT_NAMES[i % BOT_NAMES.length] + (i >= BOT_NAMES.length ? i : ''),
+      name: prefix + (count > 1 ? i + 1 : ''),       // 여러 명일 때만 번호
       color: palette[(seq * 3) % palette.length],
       sessionId: 'sbot-' + seq,
       isBot: true, joined: true, roomId: null,
