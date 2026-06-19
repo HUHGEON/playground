@@ -820,6 +820,56 @@ module.exports = {
     return { count: room.queue.length, max: `최대 ${MAX_SEATS}인` };
   },
 
+  // ---- 봇전: 자기 패(evalHand) 세기에 따라 베팅 ----
+  botWants(room, ws) {
+    const h = room.gs.hand;
+    return room.phase === 'playing' && h && h.order[h.turnIdx] === ws && !h.folded.has(ws) && !h.allin.has(ws);
+  },
+  bot(room, ws) {
+    const gs = room.gs, h = gs.hand;
+    if (!h || h.order[h.turnIdx] !== ws) return null;
+    const acts = (module.exports.state(room, ws).actions || []).map((a) => a.act);
+    if (!acts.length) return null;
+    const has = (a) => acts.includes(a);
+    const A = (a) => ({ type: 'bet', act: a });
+    const ev = evalHand(h.cards.get(ws));
+    const sc = ev.score, special = !!ev.special;
+    const level = room.botLevel || 'normal';
+    const r = Math.random();
+    if (level === 'easy') {                 // 쉬움: 패 거의 안 봄
+      if (has('check')) return A('check');
+      return (has('call') && r < 0.8) ? A('call') : A('die');
+    }
+    const bluff = level === 'hard' ? 0.05 : 0.09;
+    const looseCall = level === 'hard' ? 0.4 : 0.6;
+    if (sc >= 800) {                        // 땡 이상 — 적극 레이즈
+      if (has('half') && r < (level === 'hard' ? 0.75 : 0.6)) return A('half');
+      if (has('ddang')) return A('ddang');
+      if (has('quarter') && r < 0.4) return A('quarter');
+      if (has('ping')) return A('ping');
+      if (has('call')) return A('call');
+      if (has('check')) return A('check');
+      return A('die');
+    }
+    if (sc >= 700 || sc >= 7 || special) {  // 중간족보/7~9끗/특수패 — 콜·가끔 레이즈
+      if (has('half') && r < 0.25) return A('half');
+      if (has('ping') && r < 0.35) return A('ping');
+      if (has('call')) return A('call');
+      if (has('check')) return A('check');
+      return A('die');
+    }
+    if (sc >= 4) {                          // 4~6끗 — 체크/싼 콜
+      if (has('half') && r < bluff) return A('half');
+      if (has('check')) return A('check');
+      if (has('call')) return r < looseCall ? A('call') : A('die');
+      return A('die');
+    }
+    if (has('half') && r < bluff) return A('half');   // 약패 — 가끔 블러프
+    if (has('check')) return A('check');
+    if (has('call')) return r < looseCall * 0.4 ? A('call') : A('die');
+    return A('die');
+  },
+
   // 테스트/검증용 내부 노출
   _eval: evalHand,
   _winner: determineWinner,

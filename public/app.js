@@ -114,14 +114,22 @@
     return { ok: !err, vals: err ? null : vals };
   }
 
-  // 방 모드 — 'multi'(기본) | 'single'(봇전)
+  // 방 모드 — 'multi'(기본) | 'single'(봇전) + 봇 난이도
   var selectedMode = 'multi';
+  var selectedLevel = 'normal';
   (function wireMode() {
-    var pick = $('modePick'); if (!pick) return;
+    var pick = $('modePick'), lvl = $('levelPick'); if (!pick) return;
     pick.querySelectorAll('.modebtn').forEach(function (b) {
       b.addEventListener('click', function () {
         selectedMode = b.dataset.mode;
         pick.querySelectorAll('.modebtn').forEach(function (x) { x.classList.toggle('on', x === b); });
+        if (lvl) lvl.style.display = selectedMode === 'single' ? 'flex' : 'none';   // 봇전일 때만 난이도
+      });
+    });
+    if (lvl) lvl.querySelectorAll('.levelbtn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        selectedLevel = b.dataset.level;
+        lvl.querySelectorAll('.levelbtn').forEach(function (x) { x.classList.toggle('on', x === b); });
       });
     });
   })();
@@ -132,7 +140,7 @@
     if (!r.ok) return;                                // 범위 벗어나면 생성 막고 안내 표시
     const msg = { type: 'createRoom', gameType: selectedGame, name: $('roomName').value.trim() };
     if (r.vals) msg.opts = r.vals;
-    if (selectedMode === 'single') msg.singleplayer = true;   // 봇전
+    if (selectedMode === 'single') { msg.singleplayer = true; msg.botLevel = selectedLevel; }   // 봇전 + 난이도
     window.send(msg);
     $('roomName').value = '';
   }

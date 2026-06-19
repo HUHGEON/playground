@@ -35,6 +35,15 @@
             <button type="button" class="modebtn on" data-mode="multi"><span class="mem">👥</span>멀티<small>친구랑 같이</small></button>
             <button type="button" class="modebtn" data-mode="single"><span class="mem">🤖</span>봇전<small>나 vs 봇</small></button>
           </div>
+          <!-- 봇 난이도 (봇전일 때만) -->
+          <div class="levelpick" id="levelPick" style="display:none">
+            <span class="lvlabel">봇 난이도</span>
+            <div class="lvbtns">
+              <button type="button" class="levelbtn" data-level="easy">🙂 쉬움</button>
+              <button type="button" class="levelbtn on" data-level="normal">😎 보통</button>
+              <button type="button" class="levelbtn" data-level="hard">🔥 어려움</button>
+            </div>
+          </div>
           <!-- 방 생성 옵션: 선택한 게임 렌더러의 meta.options로 app.js가 동적 생성 -->
           <div id="seotdaOpts" style="display:none"></div>
           <div class="createbar">

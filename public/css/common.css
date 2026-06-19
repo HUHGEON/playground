@@ -88,6 +88,13 @@
   .modepick .modebtn small { font-size: 10px; font-weight: 600; opacity: .65; }
   .modepick .modebtn:hover { filter: brightness(1.12); transform: none; }
   .modepick .modebtn.on { border-color: #d9a441; background: rgba(217,164,65,.16); color: #f1e9da; box-shadow: 0 0 0 2px rgba(217,164,65,.28) inset; }
+  /* 봇 난이도 */
+  .levelpick { display: flex; flex-direction: column; gap: 6px; margin-bottom: 9px; }
+  .levelpick .lvlabel { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .5px; }
+  .levelpick .lvbtns { display: flex; gap: 6px; }
+  .levelpick .levelbtn { flex: 1; padding: 8px; border-radius: 10px; border: 1px solid #3a4350; background: rgba(0,0,0,.22); color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 700; box-shadow: none; transition: .15s; }
+  .levelpick .levelbtn:hover { filter: brightness(1.12); transform: none; }
+  .levelpick .levelbtn.on { border-color: #d9a441; background: rgba(217,164,65,.16); color: #f1e9da; box-shadow: 0 0 0 2px rgba(217,164,65,.28) inset; }
   .empty { color: #8c8170; font-size: 13px; padding: 10px; text-align: center; }
   .orow { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 9px; font-size: 14px; }
   .orow.me { background: rgba(217,164,65,.12); }

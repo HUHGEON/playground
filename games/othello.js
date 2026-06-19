@@ -118,6 +118,71 @@ function roleOf(room, ws) {
   return isActive(room, ws) ? 'seated' : 'S';
 }
 
+// ───────── 봇 AI: 미니맥스 + 알파베타 가지치기 + 위치 가중치 ─────────
+const POS_W = [
+  [120, -20, 20, 5, 5, 20, -20, 120],
+  [-20, -40, -5, -5, -5, -5, -40, -20],
+  [20, -5, 15, 3, 3, 15, -5, 20],
+  [5, -5, 3, 3, 3, 3, -5, 5],
+  [5, -5, 3, 3, 3, 3, -5, 5],
+  [20, -5, 15, 3, 3, 15, -5, 20],
+  [-20, -40, -5, -5, -5, -5, -40, -20],
+  [120, -20, 20, 5, 5, 20, -20, 120],
+];
+function applyOn(board, r, c, p) {                 // 보드 복제 후 착수(원본 불변)
+  const nb = board.map((row) => row.slice());
+  const f = flips(nb, r, c, p);
+  nb[r][c] = p; for (const [fr, fc] of f) nb[fr][fc] = p;
+  return nb;
+}
+function evalBoard(board, me) {                    // 위치가중치 + 기동성 + (종반)돌수
+  const o = opp(me); let pos = 0, my = 0, op = 0;
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    const v = board[r][c];
+    if (v === me) { pos += POS_W[r][c]; my++; } else if (v === o) { pos -= POS_W[r][c]; op++; }
+  }
+  const mob = legalMoves(board, me).length - legalMoves(board, o).length;
+  let s = pos + mob * 8;
+  if (64 - my - op <= 14) s += (my - op) * 16;     // 종반엔 돌 수 비중↑
+  return s;
+}
+function minimax(board, me, toMove, depth, alpha, beta) {
+  if (depth <= 0) return evalBoard(board, me);
+  const moves = legalMoves(board, toMove);
+  const o = opp(toMove);
+  if (!moves.length) {
+    if (!legalMoves(board, o).length) {            // 양쪽 다 못 둠 → 종국 확정 점수
+      const sc = score(board), my = me === 'B' ? sc.B : sc.W, op = me === 'B' ? sc.W : sc.B;
+      return (my > op ? 100000 : my < op ? -100000 : 0) + (my - op);
+    }
+    return minimax(board, me, o, depth - 1, alpha, beta);   // 패스
+  }
+  const maxing = toMove === me;
+  let best = maxing ? -Infinity : Infinity;
+  for (const [r, c] of moves) {
+    const v = minimax(applyOn(board, r, c, toMove), me, o, depth - 1, alpha, beta);
+    if (maxing) { if (v > best) best = v; if (best > alpha) alpha = best; }
+    else { if (v < best) best = v; if (best < beta) beta = best; }
+    if (beta <= alpha) break;                       // 알파베타 가지치기
+  }
+  return best;
+}
+// 난이도: 쉬움=랜덤 / 보통=깊이3(종반 8) / 어려움=깊이5(종반 10까지 완전탐색)
+function bestMove(board, me, level) {
+  const moves = legalMoves(board, me);
+  if (!moves.length) return null;
+  if (level === 'easy') return moves[Math.floor(Math.random() * moves.length)];
+  const sc = score(board), empties = 64 - sc.B - sc.W;
+  const depth = level === 'hard' ? (empties <= 10 ? empties : 5) : (empties <= 8 ? empties : 3);
+  let best = moves[0], bestV = -Infinity, a = -Infinity;
+  for (const [r, c] of moves) {
+    const v = minimax(applyOn(board, r, c, me), me, opp(me), depth - 1, a, Infinity);
+    if (v > bestV) { bestV = v; best = [r, c]; }
+    if (v > a) a = v;
+  }
+  return best;
+}
+
 module.exports = {
   type: 'othello',
   title: '오셀로',
@@ -244,5 +309,17 @@ module.exports = {
 
   lobbyInfo(room) {
     return { count: room.queue.length, max: '2인 + 관전' };
+  },
+
+  // ---- 봇전: 내 차례면 미니맥스로 최선수 ----
+  botWants(room, ws) {
+    return room.phase === 'playing' && colorOf(room.gs, ws) === room.gs.turn;
+  },
+  bot(room, ws) {
+    const gs = room.gs;
+    const color = colorOf(gs, ws);
+    if (room.phase !== 'playing' || color !== gs.turn) return null;
+    const mv = bestMove(gs.board, color, room.botLevel || 'normal');
+    return mv ? { type: 'move', r: mv[0], c: mv[1] } : null;
   },
 };

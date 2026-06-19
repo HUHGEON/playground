@@ -184,20 +184,30 @@ function clearBotTimers(room) {
   for (const bot of (room.bots || [])) if (bot._actTimer) { clearTimeout(bot._actTimer); bot._actTimer = null; }
 }
 // 각 봇이 둘 게 있으면 잠시 뒤 자동으로 둔다(broadcastRoom마다 호출 → 이벤트 구동).
+// 게임 모듈의 botWants(싼 차례 체크)/bot(실제 수 계산)을 쓰고, 없으면 serverbots.decide 폴백.
+function botWants(mod, room, bot) {
+  if (mod.botWants) return mod.botWants(room, bot);
+  const st = mod.state(room, bot); st.phase = room.phase;
+  return !!SBOT.decide(room.gameType, st);
+}
+function botMove(mod, room, bot) {
+  if (mod.bot) return mod.bot(room, bot);
+  const st = mod.state(room, bot); st.phase = room.phase;
+  return SBOT.decide(room.gameType, st);
+}
 function scheduleBots(room) {
   if (!room || !room.bots || !room.bots.length || !rooms.has(room.id)) return;
   const mod = GAMES[room.gameType];
   for (const bot of room.bots) {
     if (bot._actTimer) continue;                   // 이미 예약됨
-    const st = mod.state(room, bot); st.phase = room.phase;
-    if (!SBOT.decide(room.gameType, st)) continue; // 지금 둘 게 없음
+    if (!botWants(mod, room, bot)) continue;        // 지금 둘 게 없음
     bot._actTimer = setTimeout(() => {
       bot._actTimer = null;
       if (!rooms.has(room.id)) return;
-      const st2 = mod.state(room, bot); st2.phase = room.phase;
-      const a2 = SBOT.decide(room.gameType, st2);
-      if (a2 && mod.action(room, bot, a2)) { broadcastRoom(room); broadcastLobby(); }
-    }, 700 + Math.random() * 1100);
+      if (!botWants(mod, room, bot)) { scheduleBots(room); return; }
+      const action = botMove(mod, room, bot);
+      if (action && mod.action(room, bot, action)) { broadcastRoom(room); broadcastLobby(); }
+    }, 600 + Math.random() * 900);
   }
 }
 
@@ -270,7 +280,11 @@ wss.on('connection', (ws) => {
       const room = makeRoom('r' + (++roomSeq), name, gameType, opts);
       rooms.set(room.id, room);
       enterRoom(ws, room);
-      if (msg.singleplayer) addBots(room);           // 봇전: 나머지 좌석 봇으로 채움
+      if (msg.singleplayer) {                         // 봇전: 나머지 좌석 봇으로 채움
+        const lv = ['easy', 'normal', 'hard'].includes(msg.botLevel) ? msg.botLevel : 'normal';
+        room.botLevel = lv;
+        addBots(room);
+      }
 
     } else if (msg.type === 'enterRoom') {
       if (!ws.joined || ws.roomId) return;

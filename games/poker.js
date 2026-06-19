@@ -475,6 +475,41 @@ function maybeTransferHost(room) {
 
 const STREET_LABEL = { 3: '3구간 (오픈)', 4: '4구간', 5: '5구간', 6: '6구간', 7: '7구간 (히든)' };
 
+// ───────── 봇 AI: 현재 핸드 평가 + 몬테카를로 승률 ─────────
+function cmpEval(a, b) {                            // a가 더 세면 +, 약하면 -
+  if (a.cat !== b.cat) return a.cat - b.cat;
+  const n = Math.max(a.tb.length, b.tb.length);
+  for (let i = 0; i < n; i++) { const x = a.tb[i] || 0, y = b.tb[i] || 0; if (x !== y) return x - y; }
+  return 0;
+}
+// 내 카드는 전부, 상대는 오픈카드만 알고 나머지를 무작위로 채워 7장 만들어 승률 추정.
+function winProb(h, me, iters) {
+  const meCards = h.cards.get(me).map((x) => x.c);
+  const opps = h.seats.filter((s) => s !== me && !h.folded.has(s));
+  if (!opps.length) return 1;
+  const known = meCards.slice();
+  const oppUp = opps.map((s) => {
+    const up = h.cards.get(s).filter((x) => x.up).map((x) => x.c);
+    known.push(...up); return up;
+  });
+  const meNeed = Math.max(0, 7 - meCards.length);
+  const seen = new Set(known.map((c) => c.r * 4 + c.s));
+  const deck = buildDeck().filter((c) => !seen.has(c.r * 4 + c.s));
+  let wins = 0;
+  for (let it = 0; it < iters; it++) {
+    shuffle(deck); let di = 0;
+    const myBest = evalBest(meCards.concat(deck.slice(di, di + meNeed))); di += meNeed;
+    let win = true;
+    for (const up of oppUp) {
+      const need = Math.max(0, 7 - up.length);
+      const ob = evalBest(up.concat(deck.slice(di, di + need))); di += need;
+      if (cmpEval(ob, myBest) > 0) { win = false; break; }
+    }
+    if (win) wins++;
+  }
+  return wins / iters;
+}
+
 // ───────────────────────────────────────────────────────────
 module.exports = {
   type: 'poker',
@@ -693,6 +728,51 @@ module.exports = {
 
   lobbyInfo(room) {
     return { count: room.queue.length, max: `최대 ${MAX_SEATS}인` };
+  },
+
+  // ---- 봇전: 버리기는 최저카드, 베팅은 몬테카를로 승률 기반 ----
+  botWants(room, ws) {
+    const h = room.gs.hand;
+    if (room.phase !== 'playing' || !h) return false;
+    if (h.stage === 'discard') return h.seats.includes(ws) && !h.folded.has(ws) && !h.discarded.has(ws);
+    return h.order[h.turnIdx] === ws && !h.folded.has(ws) && !h.allin.has(ws) && h.needAct.has(ws);
+  },
+  bot(room, ws) {
+    const gs = room.gs, h = gs.hand;
+    if (!h) return null;
+    const level = room.botLevel || 'normal';
+    if (h.stage === 'discard') {                   // 버리기 단계
+      if (!h.seats.includes(ws) || h.folded.has(ws) || h.discarded.has(ws)) return null;
+      const arr = h.cards.get(ws);
+      if (!arr || !arr.length) return { type: 'discard', idx: 0 };
+      if (level === 'easy') return { type: 'discard', idx: Math.floor(Math.random() * arr.length) };
+      let li = 0; for (let i = 1; i < arr.length; i++) if (arr[i].c.r < arr[li].c.r) li = i;   // 최저 카드 버림
+      return { type: 'discard', idx: li };
+    }
+    if (h.order[h.turnIdx] !== ws) return null;
+    const acts = (module.exports.state(room, ws).actions || []).map((a) => a.act);
+    if (!acts.length) return null;
+    const has = (a) => acts.includes(a);
+    const A = (a) => ({ type: 'bet', act: a });
+    const r = Math.random();
+    if (level === 'easy') {                         // 쉬움: 승률 계산 안 함
+      if (has('check')) return r < 0.72 ? A('check') : (has('raise') ? A('raise') : A('check'));
+      return r < 0.6 ? A('call') : (r < 0.85 ? A('die') : (has('raise') ? A('raise') : A('call')));
+    }
+    const eq = winProb(h, ws, level === 'hard' ? 240 : 70);
+    const callT = level === 'hard' ? 0.40 : 0.34;
+    const raiseT = level === 'hard' ? 0.62 : 0.56;
+    if (has('check')) {
+      if (eq > raiseT && has('raise') && r < (level === 'hard' ? 0.7 : 0.5)) return A('raise');
+      if (eq > 0.45 && has('raise') && r < 0.2) return A('raise');
+      return A('check');
+    }
+    if (eq > raiseT + 0.12 && has('raise') && r < 0.5) return A('raise');
+    if (has('call') && eq > callT) return A('call');
+    if (has('call') && eq > callT - 0.08 && r < 0.4) return A('call');     // 마진 콜
+    if (has('allin') && !has('call') && eq > 0.5) return A('allin');       // 콜 칩 부족인데 승률 좋음 → 올인
+    if (eq < 0.22 && has('raise') && r < (level === 'hard' ? 0.04 : 0.06)) return A('raise');  // 가끔 블러프
+    return A('die');
   },
 
   // 테스트/검증용 노출
