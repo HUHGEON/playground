@@ -173,6 +173,8 @@
   }
   function stopOCountdown() { if (timerInt) { clearInterval(timerInt); timerInt = null; } }
 
+  R.meta = { chat: 'felt' };                        // 방 생성 옵션 없음, 채팅은 판 하단 바
+
   window.RENDERERS = window.RENDERERS || {};
   window.RENDERERS.othello = R;
 })();

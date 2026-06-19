@@ -533,6 +533,19 @@
     });
   }
 
+  // 게임 메타 — app.js가 방생성 옵션 폼/채팅 위치를 게임 무관하게 처리(드롭인)
+  R.meta = {
+    chat: 'sidebar',                               // 채팅 입력: 우측 사이드바
+    options: {
+      fields: [
+        { key: 'startChips', label: '시작 금액', unit: '억',    mul: 100000000, min: 1, max: 100, def: 1 },
+        { key: 'ante',       label: 'ante',     unit: '백만원', mul: 1000000,   min: 1, max: 100, def: 5 },
+      ],
+      hint: '시작 금액 1~100억 · ante 1~100백만 · 시작 금액 ≥ ante×4',
+      validate: (v) => v.startChips >= v.ante * 4 ? null : '시작 금액은 ante의 4배 이상이어야 해요',
+    },
+  };
+
   window.RENDERERS = window.RENDERERS || {};
   window.RENDERERS.poker = R;
 })();

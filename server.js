@@ -13,8 +13,15 @@ const PORT = process.env.PORT || 45678;
 const PUBLIC = path.join(__dirname, 'public');
 
 // ---- 게임 모듈 레지스트리 ----
+// games/ 폴더의 *.js 를 자동 로드 → 새 게임은 파일만 추가하면 등록됨(server.js 수정 불필요).
+// 로비 표시 순서: 모듈의 order(작을수록 앞), 없으면 뒤. 동률은 type 알파벳순.
 const GAMES = {};
-for (const mod of [require('./games/othello'), require('./games/seotda'), require('./games/poker')]) GAMES[mod.type] = mod;
+fs.readdirSync(path.join(__dirname, 'games'))
+  .filter((f) => f.endsWith('.js'))
+  .map((f) => require('./games/' + f))
+  .filter((mod) => mod && mod.type)
+  .sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.type.localeCompare(b.type))
+  .forEach((mod) => { GAMES[mod.type] = mod; });
 
 // ---- 정적 파일 서버 ----
 const MIME = {

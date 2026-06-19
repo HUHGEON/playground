@@ -1,0 +1,114 @@
+/* ============================================================
+   공통: 로비·방 셸·채팅·오버레이 + 게임별 배경/태그색
+   (playground — 게임별 CSS. index.html 에서 <link>로 로드)
+   ============================================================ */
+  :root {
+    --cell: min(10vw, 56px);
+    --bg: #0e1116; --panel: rgba(34,40,52,.72); --panel-brd: rgba(255,255,255,.07);
+    --txt: #e9edf4; --muted: #8b9bb0; --accent: #4ea1ff; --green: #2ea05a; --gold: #ffd54a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; gap: 14px; padding: 20px 12px 48px;
+    font-family: "Pretendard", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+    color: #f1e9da; -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: break-word;
+    /* 로비 — 따뜻한 다크 허브 */
+    background:
+      radial-gradient(1200px 700px at 50% -12%, #2a2118 0%, transparent 58%),
+      radial-gradient(900px 600px at 88% 116%, #16241c 0%, transparent 55%),
+      #131009;
+  }
+  /* 섯다 — 한지·먹 고급 도박장 */
+  body.game-seotda { color: #efe6d4; background:
+      radial-gradient(900px 700px at 18% 8%, rgba(40,70,90,.16) 0%, transparent 55%),
+      radial-gradient(800px 700px at 84% 92%, rgba(80,40,90,.16) 0%, transparent 55%),
+      radial-gradient(700px 500px at 60% 50%, #14110d 0%, #0a0807 80%); }
+  /* 세븐포커 — Monte Carlo 다크 럭셔리 */
+  body.game-poker { color: #efe7d2; background: radial-gradient(circle at 50% 16%, #181410 0%, #070806 70%); }
+  /* 오셀로 — 클래식 우드 */
+  body.game-othello { color: #f0e6d2; background:
+      radial-gradient(900px 700px at 50% -5%, #5a4730 0%, #3a2c1c 58%, #281d11 100%); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 99px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  h1 { margin: 2px 0 0; font-size: 38px; font-weight: 800; letter-spacing: -1px; color: #f1e9da; }
+  h1 .gr { color: #d9a441; }
+  h1 small { font-size: 13px; color: #9a8f7d; letter-spacing: 3px; font-weight: 600; margin-left: 8px; white-space: nowrap; vertical-align: middle; }
+  h3 { margin: 0 0 12px; font-size: 13px; color: #8c8170; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  .layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .panel { background: linear-gradient(180deg, rgba(40,34,25,.85), rgba(28,23,16,.85)); border: 1px solid rgba(255,255,255,.07); border-radius: 18px; padding: 18px; min-width: 240px; backdrop-filter: blur(8px); box-shadow: 0 12px 30px rgba(0,0,0,.30); }
+  button { background: linear-gradient(180deg, #37b366, #2a8f50); color: #fff; border: none; padding: 10px 18px; border-radius: 11px; cursor: pointer; font-size: 14px; font-weight: 700; box-shadow: 0 4px 12px rgba(28,140,72,.30); transition: transform .08s, filter .15s, box-shadow .15s; }
+  button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  button:active { transform: translateY(0); filter: brightness(.96); }
+  button:disabled { background: #2a313c; color: #6f8198; cursor: not-allowed; box-shadow: none; transform: none; filter: none; }
+  button.sub { background: linear-gradient(180deg, #46505e, #38414b); box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+  button.danger { background: linear-gradient(180deg, #c0492f, #9a3b2f); box-shadow: 0 4px 12px rgba(160,60,40,.30); }
+  button.gold { background: linear-gradient(180deg, #e8b13a, #c98e1c); color: #2a1c00; box-shadow: 0 4px 12px rgba(200,150,20,.35); }
+
+  #userbar { background: var(--panel); border: 1px solid var(--panel-brd); padding: 7px 8px 7px 16px; border-radius: 999px; display: none; align-items: center; gap: 10px; }
+  input { font-family: inherit; }
+  input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(78,161,255,.20); }
+
+  /* 로비 */
+  #lobbyView { display: none; }
+  .roomrow { display: flex; align-items: center; gap: 13px; padding: 14px 16px; border-radius: 16px; background: linear-gradient(180deg, rgba(40,34,25,.85), rgba(28,23,16,.85)); border: 1px solid rgba(255,255,255,.07); box-shadow: 0 8px 22px rgba(0,0,0,.28); margin-bottom: 10px; transition: border-color .15s, transform .1s; }
+  .roomrow:hover { border-color: rgba(217,164,65,.4); transform: translateY(-1px); }
+  .roomrow .gicon { width: 46px; height: 46px; border-radius: 13px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+  .roomrow .gicon.g-seotda { background: rgba(60,160,100,.18); } .roomrow .gicon.g-othello { background: rgba(120,150,200,.18); } .roomrow .gicon.g-poker { background: rgba(220,180,60,.18); }
+  .roomrow .rinfo { flex: 1; min-width: 0; }
+  .roomrow .rname { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .roomrow .meta { font-size: 12px; color: #9a8f7d; margin-top: 3px; }
+  .roomrow button { padding: 9px 18px; font-size: 13px; color: #1a1308; background: linear-gradient(180deg,#e6b54e,#cf962f); box-shadow: 0 4px 12px rgba(200,150,40,.3); }
+  .gtag { font-size: 11px; font-weight: 700; padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+  .gtag.g-seotda { background: rgba(60,160,100,.18); color: #7fd9a8; } .gtag.g-othello { background: rgba(120,150,200,.18); color: #9fc2f0; } .gtag.g-poker { background: rgba(220,180,60,.18); color: #f0d77a; }
+  .badge { font-size: 11px; font-weight: 700; padding: 5px 11px; border-radius: 999px; white-space: nowrap; background: #3a4450; color: #c4d0de; }
+  .badge.play { background: linear-gradient(180deg, #6a5420, #4a3a17); color: #ffd97a; }
+  #seotdaOpts { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
+  .optrow { display: flex; gap: 10px; }
+  .opthint { font-size: 11px; color: var(--muted); }
+  .opthint.err { color: #ff8a7a; font-weight: 700; }
+  .optfield { flex: 1; font-size: 12px; color: var(--muted); font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
+  .optfield input { padding: 9px 11px; border-radius: 10px; border: 1px solid #3a4350; background: rgba(0,0,0,.30); color: #fff; font-size: 14px; font-weight: 700; }
+  .unitwrap { display: flex; align-items: stretch; }
+  .unitwrap input { flex: 1; min-width: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .unit { display: flex; align-items: center; padding: 0 11px; background: rgba(255,213,74,.10); border: 1px solid #3a4350; border-left: none; border-radius: 0 10px 10px 0; font-size: 13px; font-weight: 800; color: var(--gold); white-space: nowrap; }
+  .createbar { display: flex; gap: 7px; margin-top: 10px; flex-wrap: wrap; }
+  .createbar input { flex: 1; min-width: 120px; padding: 10px 12px; border-radius: 10px; border: 1px solid #3a4350; background: rgba(0,0,0,.30); color: #fff; font-size: 14px; }
+  .gamepick { display: flex; gap: 6px; margin-bottom: 9px; }
+  .gamepick .opt { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #3a4350; background: rgba(0,0,0,.22); cursor: pointer; text-align: center; font-weight: 700; transition: .15s; }
+  .gamepick .opt .em { font-size: 22px; display: block; margin-bottom: 3px; }
+  .gamepick .opt.on { border-color: #d9a441; background: rgba(217,164,65,.16); box-shadow: 0 0 0 2px rgba(217,164,65,.28) inset; }
+  .empty { color: #8c8170; font-size: 13px; padding: 10px; text-align: center; }
+  .orow { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 9px; font-size: 14px; }
+  .orow.me { background: rgba(217,164,65,.12); }
+  .oname { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ostat { font-size: 12px; color: #8c8170; }
+  .ostat.playing { color: #ffd97a; } .ostat.seated { color: #7ee0a6; }
+
+  /* 방 공통 셸 */
+  #roomView { display: none; width: 100%; max-width: 1180px; }
+  body.inroom { padding-top: 12px; padding-bottom: 18px; }
+  #roomTopbar { position: relative; text-align: center; margin-bottom: 6px; }
+  #leaveBtn { position: fixed; left: 14px; top: 18px; z-index: 12; padding: 9px 15px; }
+  #roomTitle { font-size: 16px; font-weight: 700; }
+  #roomSub { font-size: 12px; color: var(--gold); font-weight: 700; margin-top: 2px; }
+  #status { font-size: 13px; min-height: 18px; color: var(--muted); text-align: center; }
+  .btnrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .log { font-size: 12px; color: var(--muted); max-height: 120px; overflow-y: auto; line-height: 1.65; }
+
+  /* 채팅 */
+  .chatbox { font-size: 13px; color: #dde4ee; width: 100%; height: 160px; overflow-y: auto; overflow-x: hidden; overflow-wrap: anywhere; word-break: break-word; line-height: 1.6; margin-bottom: 9px; }
+  .chatbox > div { padding: 1px 0; }
+  .chatbox .nick { color: #6fb0ff; font-weight: 700; }
+  .chatbar { display: flex; gap: 7px; }
+  .chatbar input { flex: 1; min-width: 0; padding: 9px 11px; border-radius: 10px; border: 1px solid #3a4350; background: rgba(0,0,0,.30); color: #fff; font-size: 13px; }
+  .chatbar button { padding: 9px 13px; font-size: 13px; }
+
+  /* 닉네임 오버레이 */
+  #overlay { position: fixed; inset: 0; background: rgba(8,10,14,.80); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  #overlay .box { background: linear-gradient(180deg, rgba(40,47,60,.95), rgba(28,33,44,.95)); border: 1px solid var(--panel-brd); padding: 30px 28px; border-radius: 18px; display: flex; flex-direction: column; gap: 14px; width: 320px; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
+  #overlay h2 { margin: 0; font-size: 19px; font-weight: 800; text-align: center; }
+  #overlay input { padding: 12px 14px; border-radius: 11px; border: 1px solid #3a4350; background: rgba(0,0,0,.30); color: #fff; font-size: 15px; text-align: center; }

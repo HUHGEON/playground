@@ -585,6 +585,19 @@
     setTimeout(() => { if (fx.parentNode) fx.remove(); }, 1080);
   }
 
+  // 게임 메타 — app.js가 방생성 옵션 폼/채팅 위치를 게임 무관하게 처리(드롭인)
+  R.meta = {
+    chat: 'felt',                                  // 채팅 입력: 판 하단 바
+    options: {                                     // 방 생성 옵션(원화=단위값×mul)
+      fields: [
+        { key: 'startChips', label: '시작 칩', unit: '억',    mul: 100000000, min: 1, max: 100, def: 1 },
+        { key: 'ante',       label: '점당',   unit: '천만원', mul: 10000000,  min: 1, max: 100, def: 1 },
+      ],
+      hint: '시작 칩 1~100억 · 점당 1~100천만 · 시작 칩 ≥ 점당×4',
+      validate: (v) => v.startChips >= v.ante * 4 ? null : '시작 칩은 점당의 4배 이상이어야 해요',
+    },
+  };
+
   window.RENDERERS = window.RENDERERS || {};
   window.RENDERERS.seotda = R;
 })();

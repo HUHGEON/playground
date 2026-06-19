@@ -1,0 +1,152 @@
+/* ============================================================
+   세븐포커 — Monte Carlo 다크 럭셔리
+   (playground — 게임별 CSS. index.html 에서 <link>로 로드)
+   ============================================================ */
+  /* ===== 세븐포커 — Monte Carlo 디자인 ===== */
+  @keyframes seatPulse { 0%,100% { opacity:.55; } 50% { opacity:1; } }
+  /* 우측 사이드바 채팅 입력 — meta.chat:'sidebar' 게임에서만 표시(app.js가 body.chat-sidebar 토글) */
+  #roomChatBar { display: none; }
+  body.chat-sidebar #roomChatBar { display: flex; }
+  /* 포커: 전체 너비 사용(1180 제한 해제) — 좌우 막힘 제거 */
+  body.game-poker #roomView { max-width: none; }
+  /* 포커: 게임은 왼쪽, 채팅·족보는 오른쪽 사이드바 */
+  body.game-poker .layout { flex-wrap: nowrap; justify-content: flex-start; align-items: flex-start; gap: 16px; }
+  body.game-poker #roomMain { flex: 1 1 0; min-width: 0; align-items: stretch; gap: 0; }
+  body.game-poker .layout > .col:last-child { flex: 0 0 270px; }
+  /* 포커: 위쪽 방 제목바·고정 나가기버튼 숨김(헤더 안에 나가기 버튼 둠) → 테이블 공간 확보 */
+  body.game-poker #roomTopbar { display: none; }
+  body.game-poker #leaveBtn { display: none; }
+  #pokerHead .phead-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  #pokerHead .pleavebtn { padding: 8px 14px; font-size: 13px; flex: none; }
+  #pokerHead .pstats { flex: none; white-space: nowrap; }
+  #pokerHead .pstat { white-space: nowrap; }
+  /* 재참가/관전 안내 — 게임 화면(테이블) 위에 표시 */
+  #pokerNotice { position: absolute; left: 50%; top: 60%; transform: translate(-50%,-50%); z-index: 9; display: flex; flex-direction: column; align-items: center; }
+  #pokerNotice:empty { display: none; }
+  .notice-card { background: rgba(8,12,10,.9); border: 1px solid rgba(227,196,106,.6); border-radius: 14px; padding: 14px 18px; box-shadow: 0 10px 30px rgba(0,0,0,.6); text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; min-width: 210px; }
+  .notice-card .nc-line { font-size: 14px; color: #efe7d2; font-weight: 700; }
+  .notice-card.spectate { color: #bfae8a; font-size: 14px; font-weight: 700; }
+  .notice-card .buyin-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; font-weight: 700; }
+  .notice-card .buyin-row button { padding: 6px 12px; font-size: 13px; }
+  #pokerStage { width: 100%; display: flex; justify-content: center; align-items: flex-start; overflow: hidden; }
+  #pokerFelt { position: relative; flex: 0 0 940px; width: 940px; transform-origin: top center; will-change: transform; border-radius: 16px 16px 0 0; overflow: hidden; box-shadow: 0 22px 60px rgba(0,0,0,.55); font-family: 'Manrope', sans-serif; }
+
+  /* 헤더 */
+  #pokerHead { display: flex; align-items: center; justify-content: space-between; padding: 9px 26px; background: #0c0a08; }
+  #pokerHead .ptitle { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif; font-size: 23px; font-weight: 800; letter-spacing: -.5px; color: #f4dd9c; }
+  #pokerHead .psub { font-size: 12px; color: rgba(244,221,156,.55); margin-top: 3px; }
+  #pokerHead .pstats { display: flex; gap: 24px; text-align: right; }
+  #pokerHead .pstat .lbl { font-size: 10px; letter-spacing: 2px; color: rgba(244,221,156,.5); font-weight: 700; }
+  #pokerHead .pstat .val { font-size: 15px; font-weight: 800; color: #f6e9c2; margin-top: 2px; }
+
+  /* 테이블 + 중첩 타원 펠트 */
+  #pokerTable { position: relative; width: 940px; height: 660px; background: radial-gradient(circle at 50% 20%, #16110d 0%, #070907 70%); }
+  .feltlayer { position: absolute; border-radius: 50%; pointer-events: none; }
+  .felt-rim   { left: 70px; top: 100px; width: 800px; height: 460px; background: linear-gradient(160deg,#4e3120,#2a160b 65%,#160a05); box-shadow: inset 0 0 0 3px rgba(227,196,106,.35), inset 0 -8px 18px rgba(0,0,0,.6), 0 18px 44px rgba(0,0,0,.6); }
+  .felt-green { left: 100px; top: 128px; width: 740px; height: 404px; background: radial-gradient(ellipse 56% 60% at 50% 38%, #34b072 0%, #1a8a52 40%, #0c4429 100%); box-shadow: inset 0 0 0 2px rgba(227,196,106,.7), inset 0 0 80px rgba(0,0,0,.5); }
+  .felt-hi    { left: 165px; top: 172px; width: 610px; height: 316px; background: radial-gradient(ellipse 60% 60% at 50% 32%, rgba(255,255,255,.13), transparent 60%); }
+  .felt-ring1 { left: 194px; top: 194px; width: 552px; height: 272px; border: 1.5px solid rgba(227,196,106,.45); }
+  .felt-ring2 { left: 210px; top: 210px; width: 520px; height: 240px; border: 1px solid rgba(227,196,106,.24); }
+
+  /* POT */
+  #pokerPot { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  #pokerPot .potpill { display: flex; align-items: center; gap: 9px; padding: 6px 18px; border-radius: 999px; background: rgba(6,28,16,.82); border: 1px solid rgba(227,196,106,.65); box-shadow: 0 0 16px rgba(227,196,106,.18); }
+  #pokerPot .potpill .lbl { font-size: 10px; letter-spacing: 2px; color: rgba(244,221,156,.75); font-weight: 700; }
+  #pokerPot .potpill .val { font-size: 16px; font-weight: 800; color: #f6e9c2; }
+  #pokerPot .streetlabel { font-size: 11px; letter-spacing: 1px; color: rgba(244,221,156,.6); font-weight: 700; }
+  #pokerPot .pottimer { font-size: 13px; font-weight: 800; color: #fff; }
+  #pokerPotCtrl { margin-top: 2px; }
+  #pokerPotCtrl button { padding: 9px 18px; font-size: 13px; background: linear-gradient(#f1d585,#d6ad4f); color: #241405; border: 1px solid #c19a3e; box-shadow: 0 2px 10px rgba(227,196,106,.25); }
+  #pokerPotCtrl button:disabled { background: #2a2620; color: #8a8170; border-color: rgba(227,196,106,.2); box-shadow: none; }
+
+  /* 결과 배너 */
+  #pokerResult { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); z-index: 7; white-space: nowrap; }
+  #pokerResult:not(:empty) { font-size: 14px; font-weight: 800; color: #241405; padding: 7px 20px; background: linear-gradient(#f1d585,#d6ad4f); border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+
+  /* 카드 뭉치(덱) — POT 아래 */
+  #pokerDeck { position: absolute; left: 50%; top: 205px; transform: translateX(-50%); width: 52px; height: 72px; z-index: 4; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+
+  /* 내 오픈 카드 — 가운데 박스(칸)에 */
+  #pokerMyOpen { position: absolute; left: 50%; top: 322px; transform: translateX(-50%); z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  #pokerMyOpen .lbl { font-size: 10px; letter-spacing: 3px; color: rgba(244,221,156,.55); font-weight: 700; }
+  #pokerMyOpen .slots { display: flex; gap: 12px; }
+  #pokerMyOpen .myhand { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -.3px; color: #f4dd9c; margin-top: 5px; text-shadow: 0 2px 8px rgba(0,0,0,.6); }
+  #pokerMyOpen .myhand b { color: #fff; }
+  .openslot { width: 62px; height: 88px; border-radius: 9px; border: 1.5px dashed rgba(227,196,106,.5); background: rgba(0,0,0,.18); box-shadow: inset 0 0 14px rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; }
+
+  /* 좌석 */
+  .pseat { position: absolute; transform: translate(-50%,-50%); z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 8px; width: max-content; }
+  .pcards-area { display: flex; flex-direction: column; align-items: center; }
+  .pcardrow { display: flex; }
+  .pcardrow.hidden { margin-top: 6px; opacity: .94; }
+  .pseat .pname-pill { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 106px; padding: 7px 18px; border-radius: 16px; background: radial-gradient(120% 150% at 50% 0%,#20242b,#0a0c0f); border: 1px solid rgba(227,196,106,.9); box-shadow: 0 5px 14px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.12); }
+  .pseat .pn { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif; font-size: 13.5px; font-weight: 700; letter-spacing: 0; color: #f4dd9c; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pseat .pc { font-size: 13px; font-weight: 700; color: #efe7d2; }
+  .pseat .pi { font-size: 11px; font-weight: 800; color: #f0d77a; min-height: 0; }
+  .pseat .pi:empty { display: none; }
+  .pseat.folded { opacity: .42; filter: grayscale(.55); }
+  .pseat.turn .pname-pill { box-shadow: 0 0 0 2px rgba(240,216,140,.95), 0 0 22px 5px rgba(240,216,140,.55), 0 5px 14px rgba(0,0,0,.6); }
+  .pseat.win .pname-pill { box-shadow: 0 0 0 2px #f0d77a, 0 0 26px 6px rgba(240,215,122,.7); }
+  .pseat.waiting .pname-pill { border-style: dashed; opacity: .75; }
+  .pseat .pbadge { position: absolute; font: 700 11px 'Manrope', sans-serif; display: flex; align-items: center; justify-content: center; }
+  .pbadge.host { top: -10px; right: -10px; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #e6dfce); color: #3a2a12; box-shadow: 0 2px 5px rgba(0,0,0,.5); z-index: 3; }
+  .pbadge.allin { top: -9px; left: -9px; padding: 2px 7px; border-radius: 999px; background: #7a1f1f; color: #ffd0d0; }
+  .pbadge.die { top: -9px; left: -9px; padding: 2px 7px; border-radius: 999px; background: #333; color: #aaa; }
+  .pbadge.bust { top: -9px; left: -9px; padding: 2px 7px; border-radius: 999px; background: #7a1f1f; color: #ffd0d0; }
+  .emptyseat { width: 40px; height: 58px; border-radius: 7px; border: 1.5px dashed rgba(227,196,106,.4); display: flex; align-items: center; justify-content: center; font-size: 20px; opacity: .55; }
+
+  /* 트럼프 카드 — SVG 이미지(cards-trump/AS.svg) 위, Monte Carlo 뒷면 */
+  .tcard { position: relative; width: 40px; height: 58px; border-radius: 7px; background: linear-gradient(158deg,#ffffff,#f0ede4); border: 1px solid rgba(0,0,0,.16); box-shadow: 0 4px 9px rgba(0,0,0,.45); flex: none; overflow: hidden; font-family: 'Manrope', sans-serif; }
+  .tcard .cface { position: absolute; inset: 0; display: none; }   /* 평소엔 숨김(SVG가 글자 제공). 이미지 실패 시만 표시 */
+  .tcard.noimg .cface { display: block; }
+  .tcard .cr { position: absolute; top: 4px; left: 5px; font-size: 13px; font-weight: 800; line-height: 1; letter-spacing: -.5px; }
+  .tcard .cs { position: absolute; top: 17px; left: 5px; font-size: 10px; line-height: 1; }
+  .tcard .cpip { position: absolute; left: 50%; top: 52%; transform: translate(-50%,-50%); font-size: 22px; opacity: .9; }
+  .tcard.red { color: #c8102e; } .tcard.blk { color: #16161a; }
+  .tcard img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; opacity: 1; display: block; }
+  /* Monte Carlo 뒷면 — 네이비 + 골드 교차 해치 */
+  .tcard.back { background: #0f2e54; background-image: repeating-linear-gradient(45deg, rgba(227,196,106,.22) 0 4px, transparent 4px 10px), repeating-linear-gradient(-45deg, rgba(227,196,106,.22) 0 4px, transparent 4px 10px); border: 1px solid #c7a44a; box-shadow: inset 0 0 0 2px rgba(227,196,106,.45), 0 4px 9px rgba(0,0,0,.45); }
+  .tcard.hole { box-shadow: 0 0 0 1.5px rgba(240,216,140,.85), 0 4px 9px rgba(0,0,0,.5); }
+  .tcard.win { box-shadow: 0 0 0 2px var(--gold), 0 4px 12px rgba(255,200,0,.55); }
+  /* 카드 배포 — 가운데 덱에서 한 장씩 날아와 놓이는 모션 (--dx/--dy = 덱까지의 오프셋) */
+  .tcard.predeal { opacity: 0; }
+  .tcard.deal { animation: tdeal .42s cubic-bezier(.25,1.2,.5,1) both; }
+  @keyframes tdeal {
+    from { transform: translate(var(--dx, 0px), var(--dy, -120px)) scale(.5) rotate(-10deg); opacity: 0; }
+    25% { opacity: 1; }
+    to { transform: translate(0, 0) scale(1) rotate(0); opacity: 1; }
+  }
+  /* 버릴 카드 선택 — 호버 시 테두리 하이라이트 */
+  .discardrow { display: flex; gap: 12px; margin-top: 4px; }
+  .tcard.selectable { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+  .tcard.selectable:hover { transform: translateY(-10px); box-shadow: 0 0 0 3px #f4dd9c, 0 10px 22px rgba(0,0,0,.6); }
+
+  /* 하단 액션 바 */
+  #pokerBar { position: sticky; bottom: 0; z-index: 20; width: 100%; height: 96px; background: linear-gradient(#161210,#08060a); border-top: 1px solid rgba(227,196,106,.28); border-radius: 0 0 16px 16px; display: flex; align-items: center; padding: 0 26px; box-shadow: 0 -8px 24px rgba(0,0,0,.5); }
+  #pokerBar .bar-left { position: absolute; left: 26px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 12px; }
+  #pokerBar .callwrap { display: flex; flex-direction: column; gap: 2px; }
+  #pokerBar .calllbl { font-size: 11px; color: rgba(244,221,156,.6); letter-spacing: .5px; }
+  #pokerBar .callamt { font-size: 25px; font-weight: 800; color: #f6e9c2; }
+  #pokerBar .barhint { font-size: 16px; color: rgba(244,221,156,.6); }
+  #pokerActions { flex: 1; display: flex; gap: 13px; flex-wrap: nowrap; justify-content: center; align-items: center; }
+  #pokerActions button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font: 800 18px -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif; border-radius: 10px; width: 122px; height: 62px; padding: 0; cursor: pointer; box-shadow: none; }
+  #pokerActions button .blabel { font-size: 18px; line-height: 1.15; }
+  #pokerActions button .bamt { font-size: 12.5px; font-weight: 600; opacity: .85; }
+  /* 폴드/다이 = 고스트, 콜/체크 = 골드 아웃라인, 레이즈류 = 골드 채움 */
+  #pokerActions .b-die   { color: #ddd3c1; background: transparent; border: 1px solid rgba(255,255,255,.2); }
+  #pokerActions .b-check, #pokerActions .b-call { color: #f6e9c2; background: transparent; border: 1px solid #e3c46a; }
+  #pokerActions .b-raise, #pokerActions .b-allin { color: #241405; background: linear-gradient(#f1d585,#d6ad4f); border: 1px solid #c19a3e; box-shadow: 0 2px 10px rgba(227,196,106,.25); }
+  #pokerActions .b-allin { background: linear-gradient(#f3c969,#e0a838); }
+  #pokerActions button:hover { filter: brightness(1.07); }
+  #pokerBar .barpills { display: flex; gap: 7px; }
+  #pokerBar .barpill { font-size: 11px; font-weight: 600; color: rgba(244,221,156,.82); padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(227,196,106,.45); }
+
+  /* 관전/재참가 박스(펠트 아래) */
+  #pokerStatus { text-align: center; margin-top: 10px; }
+  #pokerStatus .ms-line { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: #efe7d2; }
+
+  /* 족보 사이드패널(포커) */
+  #pokerRank .prow { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 6px; border-radius: 8px; background: rgba(255,255,255,.04); margin-bottom: 5px; }
+  #pokerRank .prankcards { display: flex; gap: 2px; }
+  #pokerRank .prk { font-size: 12px; font-weight: 700; color: #eaf0f8; }
+  #pokerRank .pex { font-size: 12px; font-weight: 800; color: var(--gold); margin-right: 3px; }
