@@ -404,6 +404,7 @@ function showdown(room) {
     if (w) gs.chips[w.sessionId] += h.pot;
     h.revealSet = new Set();
     h.result = { sole: true, winners: w ? [{ name: w.name, color: w.color, amount: h.pot }] : [], pot: h.pot, reveals: null };
+    if (w && room.bots && room.bots.length && Math.random() < 0.5) room.ctx.botSay(room, w.isBot ? '쉽노ㅋ' : 'ㅈ같노 ㅋ');
     finishHand(room);
     return;
   }
@@ -422,6 +423,13 @@ function showdown(room) {
     for (const w of winners) { let g = share; if (rem > 0) { g++; rem--; } winAmt.set(w, (winAmt.get(w) || 0) + g); }
   }
   for (const [s, amt] of winAmt) gs.chips[s.sessionId] += amt;
+
+  // 봇전 도발: 최다 획득자가 봇이면 "쉽노ㅋ", 사람이면 "ㅈ같노 ㅋ" (가끔)
+  if (room.bots && room.bots.length && winAmt.size && Math.random() < 0.5) {
+    let topWs = null, topAmt = -1;
+    for (const [s, amt] of winAmt) if (amt > topAmt) { topAmt = amt; topWs = s; }
+    if (topWs) room.ctx.botSay(room, topWs.isBot ? '쉽노ㅋ' : 'ㅈ같노 ㅋ');
+  }
 
   h.revealSet = new Set(contenders);
   const reveals = contenders.map((s) => ({
