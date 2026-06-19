@@ -23,6 +23,8 @@ fs.readdirSync(path.join(__dirname, 'games'))
   .sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.type.localeCompare(b.type))
   .forEach((mod) => { GAMES[mod.type] = mod; });
 
+const SBOT = require('./serverbots');   // 봇전(싱글플레이) 내장 봇
+
 // ---- 정적 파일 서버 ----
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
@@ -110,7 +112,10 @@ function removeFromRoom(ws) {
   if (mod.onLeave) mod.onLeave(room, ws);           // 게임 중단/다이 처리(큐에서 빼기 전)
   room.queue = room.queue.filter((s) => s !== ws);
   if (room.host === ws) room.host = room.queue[0] || null;
-  if (room.queue.length === 0) {
+  // 봇전 방은 사람이 나가면(봇만 남으면) 방+봇 정리. 일반 방은 빌 때 정리.
+  const noHumans = !room.queue.some((s) => !s.isBot);
+  if (room.queue.length === 0 || (room.singleplayer && noHumans)) {
+    clearBotTimers(room);
     if (mod.cleanup) mod.cleanup(room);
     rooms.delete(room.id);
   } else {
@@ -134,7 +139,7 @@ function lobbyStateFor(ws) {
     yourName: ws.name || null,
     yourColor: ws.color || null,
     games: Object.values(GAMES).map((g) => ({ type: g.type, title: g.title, emoji: g.emoji })),
-    rooms: [...rooms.values()].map((r) => ({
+    rooms: [...rooms.values()].filter((r) => !r.singleplayer).map((r) => ({   // 봇전 방은 로비에 안 보임
       id: r.id, name: r.name, gameType: r.gameType,
       phase: r.phase, hostName: r.host?.name || null,
       ...GAMES[r.gameType].lobbyInfo(r),
@@ -157,9 +162,44 @@ function roomStateFor(room, ws) {
 
 function broadcastRoom(room) {
   for (const ws of room.queue) if (ws.readyState === ws.OPEN) ws.send(roomStateFor(room, ws));
+  scheduleBots(room);                              // 봇전: 상태 바뀔 때마다 봇 차례 점검
 }
 function sendLobby(ws) { if (ws.readyState === ws.OPEN) ws.send(lobbyStateFor(ws)); }
 function broadcastLobby() { for (const ws of clients) if (ws.joined && !ws.roomId) sendLobby(ws); }
+
+// ---- 봇전(싱글플레이) ----
+// 룸에 내장 봇을 채워 사람 1명 vs 봇으로 만든다.
+function addBots(room) {
+  const mod = GAMES[room.gameType];
+  room.singleplayer = true;
+  room.bots = SBOT.createBots(SBOT.botCount(room.gameType, mod.maxPlayers), PALETTE);
+  for (const bot of room.bots) {
+    room.queue.push(bot);
+    if (mod.onEnter) mod.onEnter(room, bot);
+  }
+  broadcastRoom(room);
+  broadcastLobby();
+}
+function clearBotTimers(room) {
+  for (const bot of (room.bots || [])) if (bot._actTimer) { clearTimeout(bot._actTimer); bot._actTimer = null; }
+}
+// 각 봇이 둘 게 있으면 잠시 뒤 자동으로 둔다(broadcastRoom마다 호출 → 이벤트 구동).
+function scheduleBots(room) {
+  if (!room || !room.bots || !room.bots.length || !rooms.has(room.id)) return;
+  const mod = GAMES[room.gameType];
+  for (const bot of room.bots) {
+    if (bot._actTimer) continue;                   // 이미 예약됨
+    const st = mod.state(room, bot); st.phase = room.phase;
+    if (!SBOT.decide(room.gameType, st)) continue; // 지금 둘 게 없음
+    bot._actTimer = setTimeout(() => {
+      bot._actTimer = null;
+      if (!rooms.has(room.id)) return;
+      const st2 = mod.state(room, bot); st2.phase = room.phase;
+      const a2 = SBOT.decide(room.gameType, st2);
+      if (a2 && mod.action(room, bot, a2)) { broadcastRoom(room); broadcastLobby(); }
+    }, 700 + Math.random() * 1100);
+  }
+}
 
 // ---- 채팅 ----
 function handleChat(ws, text) {
@@ -230,11 +270,12 @@ wss.on('connection', (ws) => {
       const room = makeRoom('r' + (++roomSeq), name, gameType, opts);
       rooms.set(room.id, room);
       enterRoom(ws, room);
+      if (msg.singleplayer) addBots(room);           // 봇전: 나머지 좌석 봇으로 채움
 
     } else if (msg.type === 'enterRoom') {
       if (!ws.joined || ws.roomId) return;
       const room = rooms.get(String(msg.roomId));
-      if (!room) { sendLobby(ws); return; }
+      if (!room || room.singleplayer) { sendLobby(ws); return; }   // 봇전 방은 입장 불가
       enterRoom(ws, room);
 
     } else if (msg.type === 'leaveRoom') {

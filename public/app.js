@@ -114,12 +114,25 @@
     return { ok: !err, vals: err ? null : vals };
   }
 
+  // 방 모드 — 'multi'(기본) | 'single'(봇전)
+  var selectedMode = 'multi';
+  (function wireMode() {
+    var pick = $('modePick'); if (!pick) return;
+    pick.querySelectorAll('.modebtn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        selectedMode = b.dataset.mode;
+        pick.querySelectorAll('.modebtn').forEach(function (x) { x.classList.toggle('on', x === b); });
+      });
+    });
+  })();
+
   function createRoom() {
     if (!selectedGame) return;
     const r = readOpts();
     if (!r.ok) return;                                // 범위 벗어나면 생성 막고 안내 표시
     const msg = { type: 'createRoom', gameType: selectedGame, name: $('roomName').value.trim() };
     if (r.vals) msg.opts = r.vals;
+    if (selectedMode === 'single') msg.singleplayer = true;   // 봇전
     window.send(msg);
     $('roomName').value = '';
   }

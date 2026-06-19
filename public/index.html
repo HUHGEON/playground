@@ -30,6 +30,11 @@
           <div id="roomList"></div>
           <h3 style="margin-top:16px">새 방 만들기 — 게임 선택</h3>
           <div class="gamepick" id="gamePick"></div>
+          <!-- 모드: 멀티(기본) / 봇전 -->
+          <div class="modepick" id="modePick">
+            <button type="button" class="modebtn on" data-mode="multi"><span class="mem">👥</span>멀티<small>친구랑 같이</small></button>
+            <button type="button" class="modebtn" data-mode="single"><span class="mem">🤖</span>봇전<small>나 vs 봇</small></button>
+          </div>
           <!-- 방 생성 옵션: 선택한 게임 렌더러의 meta.options로 app.js가 동적 생성 -->
           <div id="seotdaOpts" style="display:none"></div>
           <div class="createbar">

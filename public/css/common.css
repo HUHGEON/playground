@@ -81,6 +81,13 @@
   .gamepick .opt { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #3a4350; background: rgba(0,0,0,.22); cursor: pointer; text-align: center; font-weight: 700; transition: .15s; }
   .gamepick .opt .em { font-size: 22px; display: block; margin-bottom: 3px; }
   .gamepick .opt.on { border-color: #d9a441; background: rgba(217,164,65,.16); box-shadow: 0 0 0 2px rgba(217,164,65,.28) inset; }
+  /* 모드 토글 — 멀티 / 봇전 */
+  .modepick { display: flex; gap: 8px; margin-bottom: 9px; }
+  .modepick .modebtn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 9px 8px; border-radius: 12px; border: 1px solid #3a4350; background: rgba(0,0,0,.22); color: var(--muted); cursor: pointer; font-size: 14px; font-weight: 800; box-shadow: none; transition: .15s; }
+  .modepick .modebtn .mem { font-size: 19px; }
+  .modepick .modebtn small { font-size: 10px; font-weight: 600; opacity: .65; }
+  .modepick .modebtn:hover { filter: brightness(1.12); transform: none; }
+  .modepick .modebtn.on { border-color: #d9a441; background: rgba(217,164,65,.16); color: #f1e9da; box-shadow: 0 0 0 2px rgba(217,164,65,.28) inset; }
   .empty { color: #8c8170; font-size: 13px; padding: 10px; text-align: center; }
   .orow { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 9px; font-size: 14px; }
   .orow.me { background: rgba(217,164,65,.12); }
