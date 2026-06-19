@@ -427,6 +427,10 @@ function finalizeShowdown(room, contenders) {
   room.ctx.notify(room, `🏆 ${names} 승리 — 판돈 ${won(totalPot)} 획득${reveals ? '' : ' (단독)'}`);
   const busted = h.seats.filter((s) => (gs.chips[s.sessionId] ?? 0) < gs.ante);
   if (busted.length) room.ctx.notify(room, `${busted.map((b) => b.name).join(', ')}님 칩 부족 — 다음 판 관전`);
+  // 봇전 도발: 단독 승자가 봇이면 "쉽노ㅋ", 사람이면 "ㅈ같노 ㅋ" (가끔)
+  if (room.bots && room.bots.length && winners.length === 1 && Math.random() < 0.5) {
+    room.ctx.botSay(room, winners[0].isBot ? '쉽노ㅋ' : 'ㅈ같노 ㅋ');
+  }
   maybeTransferHost(room); scheduleAutoStart(room);
 }
 

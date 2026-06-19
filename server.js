@@ -83,7 +83,7 @@ function reattach(room, oldWs, newWs) {
 // ---- 방 생성/유틸 ----
 function makeRoom(id, name, gameType, opts) {
   const room = { id, name, gameType, queue: [], host: null, phase: 'lobby', gs: {} };
-  room.ctx = { notify: roomNotify, broadcastRoom, broadcastLobby };
+  room.ctx = { notify: roomNotify, broadcastRoom, broadcastLobby, botSay };
   GAMES[gameType].init(room, opts || {});
   return room;
 }
@@ -91,6 +91,17 @@ function makeRoom(id, name, gameType, opts) {
 function roomNotify(room, text) {
   const msg = JSON.stringify({ type: 'notice', text });
   for (const ws of room.queue) if (ws.readyState === ws.OPEN) ws.send(msg);
+}
+
+// 봇전 도발 채팅 — 랜덤 봇이 한마디(도배 방지 3초 쿨다운). 채팅 스코프라 말풍선까지 뜸.
+function botSay(room, text) {
+  if (!room.singleplayer || !room.bots || !room.bots.length) return;
+  const now = Date.now();
+  if (room._lastTaunt && now - room._lastTaunt < 3000) return;
+  room._lastTaunt = now;
+  const bot = room.bots[Math.floor(Math.random() * room.bots.length)];
+  const payload = JSON.stringify({ type: 'chat', scope: 'room', name: bot.name, color: bot.color, text });
+  for (const c of room.queue) if (c.readyState === c.OPEN) c.send(payload);
 }
 
 // ---- 방 입퇴장 ----
@@ -161,6 +172,7 @@ function roomStateFor(room, ws) {
 }
 
 function broadcastRoom(room) {
+  if (room.host && room.host.isBot) room.host = room.queue.find((w) => !w.isBot) || room.host;   // 봇은 방장 불가 → 사람에게
   for (const ws of room.queue) if (ws.readyState === ws.OPEN) ws.send(roomStateFor(room, ws));
   scheduleBots(room);                              // 봇전: 상태 바뀔 때마다 봇 차례 점검
 }
@@ -201,12 +213,13 @@ function scheduleBots(room) {
   for (const bot of room.bots) {
     if (bot._actTimer) continue;                   // 이미 예약됨
     if (!botWants(mod, room, bot)) continue;        // 지금 둘 게 없음
-    bot._actTimer = setTimeout(() => {
+    bot._actTimer = setTimeout(async () => {
       bot._actTimer = null;
       if (!rooms.has(room.id)) return;
       if (!botWants(mod, room, bot)) { scheduleBots(room); return; }
-      const action = botMove(mod, room, bot);
-      if (action && mod.action(room, bot, action)) { broadcastRoom(room); broadcastLobby(); }
+      const action = await Promise.resolve(botMove(mod, room, bot));   // 어려움 오셀로는 워커(비동기)
+      if (!rooms.has(room.id)) return;                                 // 탐색 중 방이 닫혔을 수 있음
+      if (action && botWants(mod, room, bot) && mod.action(room, bot, action)) { broadcastRoom(room); broadcastLobby(); }
     }, 600 + Math.random() * 900);
   }
 }

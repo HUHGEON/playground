@@ -110,6 +110,12 @@ function conclude(room, text) {
   clearTurnTimer(room.gs);
   room.phase = 'finished';
   room.ctx.notify(room, text);
+  // 봇전 도발: 이긴 쪽이 봇이면 "쉽노ㅋ", 사람이면 "ㅈ같노 ㅋ"
+  const w = room.gs.winner;
+  if ((w === 'B' || w === 'W') && room.bots && room.bots.length) {
+    const winner = room.gs.players[w];
+    room.ctx.botSay(room, winner && winner.isBot ? '쉽노ㅋ' : 'ㅈ같노 ㅋ');
+  }
   reorderQueueAfterGame(room);
 }
 
@@ -118,116 +124,24 @@ function roleOf(room, ws) {
   return isActive(room, ws) ? 'seated' : 'S';
 }
 
-// ───────── 봇 AI: 미니맥스 + 알파베타 가지치기 + 위치 가중치 ─────────
-const POS_W = [
-  [120, -20, 20, 5, 5, 20, -20, 120],
-  [-20, -40, -5, -5, -5, -5, -40, -20],
-  [20, -5, 15, 3, 3, 15, -5, 20],
-  [5, -5, 3, 3, 3, 3, -5, 5],
-  [5, -5, 3, 3, 3, 3, -5, 5],
-  [20, -5, 15, 3, 3, 15, -5, 20],
-  [-20, -40, -5, -5, -5, -5, -40, -20],
-  [120, -20, 20, 5, 5, 20, -20, 120],
-];
-function applyOn(board, r, c, p) {                 // 보드 복제 후 착수(원본 불변)
-  const nb = board.map((row) => row.slice());
-  const f = flips(nb, r, c, p);
-  nb[r][c] = p; for (const [fr, fc] of f) nb[fr][fc] = p;
-  return nb;
-}
-// 강화 평가: 위치가중치 + 기동성(국면별) + frontier(노출 돌) + 코너점유 + 종반 돌수
-function evalBoard(board, me) {
-  const o = opp(me);
-  let pos = 0, my = 0, op = 0, myF = 0, opF = 0;
-  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
-    const v = board[r][c];
-    if (!v) continue;
-    let front = false;
-    for (const [dr, dc] of DIRS) { const nr = r + dr, nc = c + dc; if (inBounds(nr, nc) && !board[nr][nc]) { front = true; break; } }
-    if (v === me) { pos += POS_W[r][c]; my++; if (front) myF++; }
-    else { pos -= POS_W[r][c]; op++; if (front) opF++; }
-  }
-  // 코너 점유 추가 보너스(매우 중요)
-  let corner = 0;
-  for (const [r, c] of [[0, 0], [0, 7], [7, 0], [7, 7]]) { if (board[r][c] === me) corner += 35; else if (board[r][c] === o) corner -= 35; }
-  const mob = legalMoves(board, me).length - legalMoves(board, o).length;
-  const empties = 64 - my - op;
-  let s = pos + corner + (opF - myF) * 8;     // frontier 적을수록(상대 많을수록) 유리
-  if (empties > 12) s += mob * 16;            // 초·중반: 기동성 최우선
-  else s += mob * 5 + (my - op) * 24;         // 종반: 돌 수 비중↑
-  return s;
-}
-// 이동순서: 위치가중치 높은 수 먼저 평가 → 알파베타 가지치기 효율↑(더 깊이 탐색 가능)
-function ordered(moves) { return moves.sort((a, b) => POS_W[b[0]][b[1]] - POS_W[a[0]][a[1]]); }
-// 시간제한 탐색용 전역(반복심화 중단 신호). 고정깊이 호출은 _deadline=Infinity로 중단 안 함.
-let _nodes = 0, _deadline = Infinity, _aborted = false;
-function minimax(board, me, toMove, depth, alpha, beta) {
-  if (_aborted) return 0;
-  if ((++_nodes & 4095) === 0 && Date.now() > _deadline) { _aborted = true; return 0; }   // 시간초과 중단
-  if (depth <= 0) return evalBoard(board, me);
-  const moves = legalMoves(board, toMove);
-  const o = opp(toMove);
-  if (!moves.length) {
-    if (!legalMoves(board, o).length) {            // 양쪽 다 못 둠 → 종국 확정 점수
-      const sc = score(board), my = me === 'B' ? sc.B : sc.W, op = me === 'B' ? sc.W : sc.B;
-      return (my > op ? 1e6 : my < op ? -1e6 : 0) + (my - op);
-    }
-    return minimax(board, me, o, depth - 1, alpha, beta);   // 패스
-  }
-  ordered(moves);
-  const maxing = toMove === me;
-  let best = maxing ? -Infinity : Infinity;
-  for (const [r, c] of moves) {
-    const v = minimax(applyOn(board, r, c, toMove), me, o, depth - 1, alpha, beta);
-    if (maxing) { if (v > best) best = v; if (best > alpha) alpha = best; }
-    else { if (v < best) best = v; if (best < beta) beta = best; }
-    if (beta <= alpha) break;                       // 알파베타 가지치기
-  }
-  return best;
-}
-// 고정 깊이 탐색(쉬움/보통). _deadline=Infinity → 중단 없음.
-function searchFixed(board, me, depth) {
-  _deadline = Infinity; _aborted = false;
-  const moves = ordered(legalMoves(board, me));
-  let best = moves[0], bestV = -Infinity, a = -Infinity;
-  for (const mv of moves) {
-    const v = minimax(applyOn(board, mv[0], mv[1], me), me, opp(me), depth - 1, a, Infinity);
-    if (v > bestV) { bestV = v; best = mv; }
-    if (v > a) a = v;
-  }
-  return best;
-}
-// 시간제한 반복심화(어려움). budgetMs 안에서 갈 수 있는 만큼 깊이↑.
-function searchTimed(board, me, budgetMs) {
-  const moves = ordered(legalMoves(board, me));
-  if (moves.length <= 1) return moves[0];
-  _deadline = Date.now() + budgetMs;
-  let best = moves[0];
-  for (let depth = 3; depth <= 30; depth++) {
-    _aborted = false;
-    let bm = null, bv = -Infinity, a = -Infinity;
-    for (const mv of moves) {
-      const v = minimax(applyOn(board, mv[0], mv[1], me), me, opp(me), depth - 1, a, Infinity);
-      if (_aborted) break;
-      if (v > bv) { bv = v; bm = mv; }
-      if (v > a) a = v;
-    }
-    if (_aborted) break;                            // 이 깊이 미완 → 직전 깊이 결과 유지
-    best = bm;
-    moves.splice(moves.indexOf(bm), 1); moves.unshift(bm);   // 다음 깊이 위해 최선수 앞으로
-    if (Math.abs(bv) >= 1e6) break;                 // 승부 확정 → 더 볼 필요 없음
-    if (Date.now() > _deadline) break;
-  }
-  return best;
-}
-// 난이도: 쉬움=깊이2 / 보통=깊이4(종반 ≤9 완전탐색) / 어려움=5초 반복심화(보통 8~12수)
-function bestMove(board, me, level) {
-  const moves = legalMoves(board, me);
-  if (!moves.length) return null;
-  if (level === 'hard') return searchTimed(board, me, 4500);
-  const sc = score(board), empties = 64 - sc.B - sc.W;
-  const depth = level === 'easy' ? 2 : (empties <= 9 ? empties : 4);
-  return searchFixed(board, me, depth);
+// ───────── 봇 AI ─────────
+// 순수 탐색은 othello-ai.js. 어려움/헬은 worker_thread에서 비동기 실행 → 서버(채팅·다른 게임) 안 멈춤.
+const { Worker } = require("worker_threads");
+const AI = require("./othello-ai");
+const WORKER_PATH = require("path").join(__dirname, "othello-worker.js");
+const BUDGET = { hard: 4500, hell: 9500 };
+// 어려움/헬: 워커에서 시간제한 탐색 → Promise<[r,c]|null>. 워커 실패 시 동기(보통) 폴백.
+function bestMoveAsync(board, me, level) {
+  return new Promise((resolve) => {
+    let done = false;
+    const fin = (mv) => { if (!done) { done = true; resolve(mv); } };
+    let w;
+    try { w = new Worker(WORKER_PATH, { workerData: { board, me, level, budgetMs: BUDGET[level] || 4500 } }); }
+    catch (e) { return fin(AI.bestMove(board, me, "normal")); }
+    w.on("message", (mv) => { fin(mv); try { w.terminate(); } catch (e) {} });
+    w.on("error", () => { fin(AI.bestMove(board, me, "normal")); try { w.terminate(); } catch (e) {} });
+    w.on("exit", () => fin(AI.bestMove(board, me, "normal")));
+  });
 }
 
 module.exports = {
@@ -366,7 +280,7 @@ module.exports = {
     const gs = room.gs;
     const color = colorOf(gs, ws);
     if (room.phase !== 'playing' || color !== gs.turn) return null;
-    const mv = bestMove(gs.board, color, room.botLevel || 'normal');
-    return mv ? { type: 'move', r: mv[0], c: mv[1] } : null;
+    // 모든 난이도 워커(비동기)에서 탐색 → 어떤 난이도든 서버(채팅·다른 게임) 안 멈춤
+    return bestMoveAsync(gs.board, color, room.botLevel || 'normal').then((mv) => (mv ? { type: 'move', r: mv[0], c: mv[1] } : null));
   },
 };
