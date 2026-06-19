@@ -498,7 +498,7 @@
     // 대기/관전자
     const wait = document.getElementById('seotdaWait');
     if (wait) {
-      const overflow = (s.waiting || []).slice(waitList.length);    // 테이블에 못 올라간 초과 대기열
+      const overflow = (s.waiting || []).slice(waitOthers.length);    // 테이블에 못 올라간 초과 대기열
       if (overflow.length) {
         wait.innerHTML = '<h3>대기열</h3>' + overflow.map((w) =>
           `<div class="qrow"><span class="qname" style="color:${w.color}">${esc(w.name)}</span>` +
