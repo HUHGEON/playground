@@ -17,7 +17,7 @@ const PUBLIC = path.join(__dirname, 'public');
 // 로비 표시 순서: 모듈의 order(작을수록 앞), 없으면 뒤. 동률은 type 알파벳순.
 const GAMES = {};
 fs.readdirSync(path.join(__dirname, 'games'))
-  .filter((f) => f.endsWith('.js'))
+  .filter((f) => f.endsWith('.js') && !f.includes('-worker'))
   .map((f) => require('./games/' + f))
   .filter((mod) => mod && mod.type)
   .sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.type.localeCompare(b.type))
