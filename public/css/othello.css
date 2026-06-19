@@ -63,6 +63,8 @@
   @keyframes oWinPop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
   #oCtrl { display: flex; gap: 8px; justify-content: center; margin-top: 2px; }
   #oCtrl .ostart { background: linear-gradient(180deg,#f1d36a,#d9b042); color: #3a2a10; }
+  #oCtrl .ostart.oblack { background: linear-gradient(180deg,#444,#1c1c1c); color: #f0e6d2; }
+  #oCtrl .ostart.owhite { background: linear-gradient(180deg,#f4f4f4,#cdcdcd); color: #1a1a1a; }
   /* 나무 말풍선 */
   /* 시작점을 아바타 원 꼭대기(중심 x)에 고정 → 왼쪽 끝 안 움직이고 오른쪽으로만 늘어남 */
   @keyframes oBubbleIn { from { opacity: 0; transform: translateY(-100%) scale(.82); } to { opacity: 1; transform: translateY(-100%) scale(1); } }

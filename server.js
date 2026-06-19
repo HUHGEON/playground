@@ -210,6 +210,7 @@ function botMove(mod, room, bot) {
 function scheduleBots(room) {
   if (!room || !room.bots || !room.bots.length || !rooms.has(room.id)) return;
   const mod = GAMES[room.gameType];
+  if (mod.clientBots) return;                        // 봇 수를 클라가 계산하는 게임(오셀로)은 서버 구동 X
   for (const bot of room.bots) {
     if (bot._actTimer) continue;                   // 이미 예약됨
     if (!botWants(mod, room, bot)) continue;        // 지금 둘 게 없음
@@ -315,7 +316,7 @@ wss.on('connection', (ws) => {
       if (!room || room.host !== ws) return;
       const mod = GAMES[room.gameType];
       if (!mod.canStart(room)) return;
-      mod.start(room);
+      mod.start(room, msg);                            // msg 전달(예: 오셀로 봇전 흑/백 선택)
       broadcastRoom(room);
       broadcastLobby();
 

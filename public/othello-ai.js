@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────
-//  오셀로 봇 AI (순수 함수) — 메인 모듈(othello.js)과 워커(othello-worker.js)가 공유.
+//  오셀로 봇 AI (순수 함수) — 브라우저 Web Worker에서 실행(클라가 봇 수 계산).
 //  미니맥스 + 알파베타 + 이동순서 + 강화 평가 + (어려움/헬) 시간제한 반복심화.
 // ───────────────────────────────────────────────────────────
 const DIRS = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
@@ -125,4 +125,4 @@ function bestMove(board, me, level, budgetMs) {
   return searchFixed(board, me, level === 'easy' ? 2 : (empties <= 9 ? empties : 4));
 }
 
-module.exports = { bestMove, legalMoves };
+self.OthelloAI = { bestMove, legalMoves };   // 워커/페이지 전역에 등록

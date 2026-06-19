@@ -102,7 +102,7 @@ function reorderQueueAfterGame(room) {
     room.ctx.notify(room, `${loserWs?.name}님 → 대기열 맨 뒤로.` +
       (next && next !== winnerWs ? ` 다음 도전자: ${next.name}` : ''));
   }
-  room.host = room.queue[0] || null;
+  room.host = room.queue.find((w) => !w.isBot) || room.queue[0] || null;   // 봇은 방장 불가 → 사람 우선
   if (room.host && room.host !== oldHost) room.ctx.notify(room, `이제 ${room.host.name}님이 방장입니다.`);
 }
 
@@ -124,25 +124,8 @@ function roleOf(room, ws) {
   return isActive(room, ws) ? 'seated' : 'S';
 }
 
-// ───────── 봇 AI ─────────
-// 순수 탐색은 othello-ai.js. 어려움/헬은 worker_thread에서 비동기 실행 → 서버(채팅·다른 게임) 안 멈춤.
-const { Worker } = require("worker_threads");
-const AI = require("./othello-ai");
-const WORKER_PATH = require("path").join(__dirname, "othello-worker.js");
-const BUDGET = { hard: 4500, hell: 9500 };
-// 어려움/헬: 워커에서 시간제한 탐색 → Promise<[r,c]|null>. 워커 실패 시 동기(보통) 폴백.
-function bestMoveAsync(board, me, level) {
-  return new Promise((resolve) => {
-    let done = false;
-    const fin = (mv) => { if (!done) { done = true; resolve(mv); } };
-    let w;
-    try { w = new Worker(WORKER_PATH, { workerData: { board, me, level, budgetMs: BUDGET[level] || 4500 } }); }
-    catch (e) { return fin(AI.bestMove(board, me, "normal")); }
-    w.on("message", (mv) => { fin(mv); try { w.terminate(); } catch (e) {} });
-    w.on("error", () => { fin(AI.bestMove(board, me, "normal")); try { w.terminate(); } catch (e) {} });
-    w.on("exit", () => fin(AI.bestMove(board, me, "normal")));
-  });
-}
+// 오셀로 봇 AI는 클라(브라우저 Web Worker)에서 계산 → 서버 부하 0.
+// 완전정보(판이 다 공개)라 클라가 봇 수를 둬도 샐 정보가 없음. 서버는 합법성만 검증.
 
 module.exports = {
   type: 'othello',
@@ -163,13 +146,25 @@ module.exports = {
     return (room.phase === 'lobby' || room.phase === 'finished') && enoughPlayers(room);
   },
 
-  start(room) {
+  start(room, opts) {
     const gs = room.gs;
-    const order = Math.random() < 0.5 ? [room.queue[0], room.queue[1]] : [room.queue[1], room.queue[0]];
-    gs.players.B = order[0]; gs.players.W = order[1];
+    let chosen = false;
+    // 봇전: 사람이 흑(선)/백(후) 선택. 그 외엔 랜덤.
+    if (room.singleplayer && opts && (opts.color === 'B' || opts.color === 'W')) {
+      const human = room.queue.find((w) => !w.isBot), bot = room.queue.find((w) => w.isBot);
+      if (human && bot) {
+        if (opts.color === 'B') { gs.players.B = human; gs.players.W = bot; }
+        else { gs.players.B = bot; gs.players.W = human; }
+        chosen = true;
+      }
+    }
+    if (!chosen) {
+      const order = Math.random() < 0.5 ? [room.queue[0], room.queue[1]] : [room.queue[1], room.queue[0]];
+      gs.players.B = order[0]; gs.players.W = order[1];
+    }
     gs.board = initBoard(); gs.turn = 'B'; gs.winner = null; gs.lastMove = null;
     room.phase = 'playing';
-    room.ctx.notify(room, `게임 시작! 흑 ●: ${gs.players.B.name}  /  백 ○: ${gs.players.W.name} (랜덤 배정)`);
+    room.ctx.notify(room, `게임 시작! 흑 ●: ${gs.players.B.name}  /  백 ○: ${gs.players.W.name}${chosen ? '' : ' (랜덤 배정)'}`);
     startTurnTimer(room);
   },
 
@@ -199,8 +194,15 @@ module.exports = {
 
   action(room, ws, msg) {
     const gs = room.gs;
-    if (msg.type === 'move') {
-      if (room.phase !== 'playing' || colorOf(gs, ws) !== gs.turn) return false;
+    if (msg.type === 'move' || msg.type === 'botMove') {
+      if (room.phase !== 'playing') return false;
+      if (msg.type === 'move') {
+        if (colorOf(gs, ws) !== gs.turn) return false;        // 사람: 내 차례 + 내 돌만
+      } else {
+        // botMove: 클라가 봇 대신 둠(봇전·완전정보라 안전). 지금이 봇 차례 + 보낸이는 방 안 사람
+        const turnWs = gs.players[gs.turn];
+        if (!room.singleplayer || !turnWs || !turnWs.isBot || ws.isBot || !room.queue.includes(ws)) return false;
+      }
       const { r, c } = msg;
       if (!Number.isInteger(r) || !Number.isInteger(c) || r < 0 || r >= 8 || c < 0 || c >= 8) return false;
       const flipped = applyMove(gs.board, r, c, gs.turn);
@@ -247,7 +249,7 @@ module.exports = {
       yourRole: roleOf(room, ws),
       canStart: room.host === ws && module.exports.canStart(room),
       canResign: room.phase === 'playing' && !!colorOf(gs, ws),
-      canDefer: room.queue.length >= 2 && !(room.phase === 'playing' && !!colorOf(gs, ws)) && idx >= 0 && idx < room.queue.length - 1,
+      canDefer: !room.singleplayer && room.queue.length >= 2 && !(room.phase === 'playing' && !!colorOf(gs, ws)) && idx >= 0 && idx < room.queue.length - 1,
       legal: room.phase === 'playing' ? legalMoves(gs.board, gs.turn) : [],
       winner: gs.winner,
       blackName: gs.players.B?.name || null,
@@ -265,6 +267,8 @@ module.exports = {
       passName: gs.passName || null,
       blackColor: gs.players.B?.color || null,
       whiteColor: gs.players.W?.color || null,
+      singleplayer: !!room.singleplayer,                 // 봇전이면 클라가 봇 수 계산
+      botLevel: room.botLevel || null,
     };
   },
 
@@ -272,15 +276,6 @@ module.exports = {
     return { count: room.queue.length, max: '2인 + 관전' };
   },
 
-  // ---- 봇전: 내 차례면 미니맥스로 최선수 ----
-  botWants(room, ws) {
-    return room.phase === 'playing' && colorOf(room.gs, ws) === room.gs.turn;
-  },
-  bot(room, ws) {
-    const gs = room.gs;
-    const color = colorOf(gs, ws);
-    if (room.phase !== 'playing' || color !== gs.turn) return null;
-    // 모든 난이도 워커(비동기)에서 탐색 → 어떤 난이도든 서버(채팅·다른 게임) 안 멈춤
-    return bestMoveAsync(gs.board, color, room.botLevel || 'normal').then((mv) => (mv ? { type: 'move', r: mv[0], c: mv[1] } : null));
-  },
+  // 봇전 봇 수는 클라(브라우저)가 계산해 botMove로 보냄 → 서버는 봇을 직접 구동하지 않음
+  clientBots: true,
 };

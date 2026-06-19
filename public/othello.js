@@ -3,6 +3,28 @@
   const R = {};
   let cells = [], myTurn = false, lastSeq = 0, firstState = true, timerInt = null, lastPassSeq = 0;
   let topName = '', botName = '';
+  let aiWorker = null, lastBotSeq = -1;                 // 봇전: 봇 수를 브라우저 워커에서 계산
+
+  // 봇 AI 워커(브라우저) — 지연 생성. 결과는 botMove로 서버에 전송(서버가 합법성 검증).
+  function ensureAIWorker() {
+    if (aiWorker) return;
+    try {
+      aiWorker = new Worker('othello-worker.js');
+      aiWorker.onmessage = (e) => { const mv = e.data; if (mv) window.send({ type: 'botMove', r: mv[0], c: mv[1] }); };
+      aiWorker.onerror = () => { aiWorker = null; };
+    } catch (e) { aiWorker = null; }
+  }
+  // 봇전에서 봇 차례면 계산 요청(상태당 1회, 자연스러운 딜레이)
+  function maybeDriveBot(s, myColor) {
+    if (!s.singleplayer || s.phase !== 'playing' || !myColor || s.turn === myColor) return;
+    const seq = s.lastMove ? s.lastMove.seq : 0;
+    if (seq === lastBotSeq) return;                     // 이 상태엔 이미 요청함
+    lastBotSeq = seq;
+    const level = s.botLevel || 'normal';
+    const budget = level === 'hard' ? 4500 : (level === 'normal' ? 1200 : 350);
+    ensureAIWorker();
+    setTimeout(() => { if (aiWorker) aiWorker.postMessage({ board: s.board, me: s.turn, level, budgetMs: budget }); }, 550 + Math.random() * 650);
+  }
   const AVATARS = ['🐼', '🦊', '🐯', '🐸', '🐵', '🦁', '🐺', '🐻', '🦝', '🐰', '🦉', '🐢'];
   function avatar(name) { let h = 0; const s = name || '?'; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return AVATARS[h % AVATARS.length]; }
 
@@ -22,7 +44,7 @@
       cell.addEventListener('click', () => { if (myTurn) window.send({ type: 'move', r, c }); });
       boardEl.appendChild(cell); cells.push(cell);
     }
-    lastSeq = 0; firstState = true; lastPassSeq = 0;
+    lastSeq = 0; firstState = true; lastPassSeq = 0; lastBotSeq = -1;
     window.onRoomChat = showOBubble;                 // 채팅 → 나무 말풍선
   };
 
@@ -54,6 +76,7 @@
     const myName = s.yourName;
     const myColor = myName && myName === s.blackName ? 'B' : (myName && myName === s.whiteName ? 'W' : null);
     myTurn = s.phase === 'playing' && myColor != null && myColor === s.turn;
+    maybeDriveBot(s, myColor);                          // 봇전: 봇 차례면 클라가 계산해 둠
 
     // 하단 = 항상 내 좌석(내 색 고정, 관전이면 흑), 상단 = 상대
     const botSeat = myColor === 'W' ? 'W' : 'B';
@@ -119,7 +142,10 @@
 
     // 컨트롤
     const ctrl = $('oCtrl'); ctrl.innerHTML = '';
-    if (s.canStart) ctrl.appendChild(mkO('ostart', s.phase === 'finished' ? '다음 대국 시작' : '게임 시작', () => window.send({ type: 'start' })));
+    if (s.canStart && s.singleplayer) {                 // 봇전: 흑(선)/백(후) 매 게임 선택
+      ctrl.appendChild(mkO('ostart oblack', '⚫ 흑 (선)', () => window.send({ type: 'start', color: 'B' })));
+      ctrl.appendChild(mkO('ostart owhite', '⚪ 백 (후)', () => window.send({ type: 'start', color: 'W' })));
+    } else if (s.canStart) ctrl.appendChild(mkO('ostart', s.phase === 'finished' ? '다음 대국 시작' : '게임 시작', () => window.send({ type: 'start' })));
     else if (s.isHost && (s.phase === 'lobby' || s.phase === 'finished')) { const b = mkO('ostart', '상대 입장 대기 중', null); b.disabled = true; ctrl.appendChild(b); }
     if (s.canResign) ctrl.appendChild(mkO('danger', '기권', () => { if (confirm('기권하시겠습니까?')) window.send({ type: 'resign' }); }));
     if (s.canDefer) ctrl.appendChild(mkO('sub', '순위 미루기', () => window.send({ type: 'defer' })));
