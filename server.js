@@ -268,8 +268,18 @@ function handleChat(ws, text) {
 }
 
 // ---- 연결 처리 ----
+// ---- 접속 로그(Render Logs 탭에서 확인) ----
+function ts() { return new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false }); }
+function clientIp(req) {
+  const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();   // Render 프록시 뒤 실제 IP
+  return xff || (req.socket && req.socket.remoteAddress) || '?';
+}
+function alog(msg) { console.log(`[${ts()}] ${msg}`); }
+
 const wss = new WebSocketServer({ server: httpServer });
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
+  ws.ip = clientIp(req);
+  alog(`🔌 연결  ${ws.ip}`);
   ws.joined = false;
   ws.roomId = null;
   ws.msgTimes = [];
@@ -295,6 +305,7 @@ wss.on('connection', (ws) => {
         if (prev.graceTimer) { clearTimeout(prev.graceTimer); prev.graceTimer = null; }
         ws.sessionId = sessionId;
         ws.name = prev.name; ws.color = prev.color; ws.joined = true;
+        alog(`🔄 재접속  ${prev.name}  ${ws.ip}`);
         ws.roomId = (oldWs && oldWs.roomId) || null;
         prev.ws = ws;
         if (oldWs && oldWs !== ws && oldWs.readyState === oldWs.OPEN) { try { oldWs.close(); } catch (e) {} }
@@ -312,6 +323,7 @@ wss.on('connection', (ws) => {
       ws.sessionId = sessionId || ('s' + (++sessionSeq));
       ws.name = name; ws.color = assignColor(); ws.joined = true;
       sessions.set(ws.sessionId, { name: ws.name, color: ws.color, ws, graceTimer: null });
+      alog(`👤 입장  ${ws.name}  ${ws.ip}  (접속 ${[...clients].filter((c) => c.joined).length}명)`);
       broadcastLobby();
 
     } else if (msg.type === 'createRoom') {
@@ -328,6 +340,7 @@ wss.on('connection', (ws) => {
         room.botLevel = lv;
         addBots(room);
       }
+      alog(`🎮 방생성  "${name}"  ${gameType}${msg.singleplayer ? `(봇전·${room.botLevel})` : ''}  by ${ws.name}`);
 
     } else if (msg.type === 'enterRoom') {
       if (!ws.joined || ws.roomId) return;
@@ -380,6 +393,7 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     clients.delete(ws);
+    if (ws.joined) alog(`👋 퇴장  ${ws.name}  ${ws.ip}`);
     const sess = ws.sessionId && sessions.get(ws.sessionId);
     if (sess && sess.ws === ws) {
       sess.graceTimer = setTimeout(() => {
