@@ -1,8 +1,45 @@
-// 브라우저 Web Worker — 오셀로 봇 탐색을 페이지 메인 스레드와 분리.
-// → 봇이 수초 생각해도 화면이 안 멈춤. (othello-ai.js를 워커 전역에 로드)
-importScripts('othello-ai.js');
+// 브라우저 Web Worker — 오셀로 봇 수 계산(페이지 메인스레드 안 멈춤).
+// 1순위: Edax 엔진(WASM, 초인간). 실패 시 자체 미니맥스(othello-ai.js)로 폴백.
+importScripts('othello-ai.js');                 // 폴백용 (self.OthelloAI)
+
+let edaxBest = null;                             // 준비되면 cwrap된 edax_bestmove
+let edaxInit = null;                             // 준비 Promise(1회)
+
+function ensureEdax() {
+  if (edaxInit) return edaxInit;
+  edaxInit = new Promise((resolve) => {
+    try {
+      importScripts('edax.js');                  // createEdax 팩토리 정의(MODULARIZE)
+      self.createEdax().then((M) => {
+        M.ccall('edax_boot', null, [], []);      // eval.dat 로드(1회, ~0.2초)
+        edaxBest = (s, lv) => M.ccall('edax_bestmove', 'number', ['string', 'number'], [s, lv]);
+        resolve(true);
+      }).catch(() => resolve(false));
+    } catch (e) { resolve(false); }
+  });
+  return edaxInit;
+}
+
+// 난이도 → Edax 레벨(탐색 강도). 쉬움=약하게 / 어려움=강하게.
+function edaxLevel(level) { return level === 'hard' ? 21 : level === 'normal' ? 8 : 1; }
+
+// 8x8 보드('B'/'W'/null) + 둘 색(me) → Edax 보드 문자열(둘 차례='X', 상대='O')
+function toEdax(board, me) {
+  const opp = me === 'B' ? 'W' : 'B';
+  let s = '';
+  for (let i = 0; i < 64; i++) { const v = board[i >> 3][i & 7]; s += v === me ? 'X' : v === opp ? 'O' : '-'; }
+  return s + ' X';
+}
+
 onmessage = function (e) {
   const { board, me, level, budgetMs } = e.data;
-  const mv = self.OthelloAI.bestMove(board, me, level, budgetMs);   // [r,c] 또는 null
-  postMessage(mv);
+  ensureEdax().then((ok) => {
+    if (ok && edaxBest) {
+      try {
+        const idx = edaxBest(toEdax(board, me), edaxLevel(level));
+        if (idx >= 0 && idx < 64) { postMessage([idx >> 3, idx & 7]); return; }
+      } catch (err) { /* 폴백으로 */ }
+    }
+    postMessage(self.OthelloAI.bestMove(board, me, level, budgetMs));   // 폴백: 미니맥스
+  });
 };

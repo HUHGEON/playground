@@ -29,8 +29,10 @@ const SBOT = require('./serverbots');   // 봇전(싱글플레이) 내장 봇
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml',
+  '.wasm': 'application/wasm', '.data': 'application/octet-stream',
 };
-const IMG_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
+// 캐시 대상(자주 안 바뀌는 큰 에셋): 이미지 + Edax 엔진(wasm/data)
+const IMG_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.wasm', '.data']);
 const httpServer = http.createServer((req, res) => {
   let urlPath = req.url.split('?')[0];           // 쿼리스트링 제거(캐시버스팅 ?v= 등 허용)
   if (urlPath === '/') urlPath = '/index.html';
