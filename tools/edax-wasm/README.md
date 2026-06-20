@@ -2,7 +2,7 @@
 
 오셀로 봇은 초인간 엔진 **Edax**(공식 소스 https://github.com/abulmo/edax-reversi, v4.6)를
 WebAssembly로 빌드해 **브라우저 Web Worker**에서 실행한다. (서버 부하 0, 완전정보라 정보 누출 없음)
-난이도: 쉬움=레벨1 / 보통=4 / 어려움=7 / 헬=8 (모두 한 수 5초 상한).
+난이도: 쉬움=레벨1 / 보통=4 / 어려움=7 / 헬=18 (모두 한 수 5초 상한).
 
 ## 산출물 (public/)
 - `edax.js`   — emscripten glue (MODULARIZE: `createEdax()` 팩토리)

@@ -20,9 +20,9 @@ function ensureEdax() {
   return edaxInit;
 }
 
-// 난이도 → Edax 레벨(탐색 깊이). 쉬움1(입문) 보통4(중급) 어려움7(고수) 헬8.
+// 난이도 → Edax 레벨(탐색 깊이). 쉬움1(입문) 보통4(중급) 어려움7(고수) 헬18(세계챔피언급).
 function edaxLevel(level) {
-  return level === 'hell' ? 8 : level === 'hard' ? 7 : level === 'normal' ? 4 : 1;
+  return level === 'hell' ? 18 : level === 'hard' ? 7 : level === 'normal' ? 4 : 1;
 }
 var EDAX_TIME_CAP = 5000;   // 한 수 최대 5초(헬 레벨15가 종반서 넘으면 그 안의 최선수)
 
