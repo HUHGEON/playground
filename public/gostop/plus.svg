@@ -1,0 +1,56 @@
+<svg viewBox="0 0 180 280" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff7e6"/><stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <radialGradient id="globe" cx="38%" cy="35%" r="75%">
+      <stop offset="0" stop-color="#5ab4ff"/><stop offset="1" stop-color="#0a63b8"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 화투 카드 프레임 -->
+  <rect x="3" y="3" width="174" height="274" rx="15" fill="url(#sky)" stroke="#e01f26" stroke-width="7"/>
+  <rect x="11" y="11" width="158" height="258" rx="10" fill="none" stroke="#e01f26" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- 무지개 -->
+  <g fill="none" stroke-width="7" stroke-linecap="round">
+    <path d="M26 96 A64 64 0 0 1 154 96" stroke="#e74c3c"/>
+    <path d="M35 96 A55 55 0 0 1 145 96" stroke="#ff8c00"/>
+    <path d="M44 96 A46 46 0 0 1 136 96" stroke="#ffcf2e"/>
+    <path d="M53 96 A37 37 0 0 1 127 96" stroke="#2ecc71"/>
+    <path d="M62 96 A28 28 0 0 1 118 96" stroke="#3498db"/>
+  </g>
+
+  <!-- 지구본 -->
+  <g>
+    <ellipse cx="90" cy="158" rx="48" ry="13" fill="#000" opacity="0.10"/>
+    <circle cx="90" cy="146" r="44" fill="url(#globe)" stroke="#06375f" stroke-width="2.5"/>
+    <!-- 대륙 -->
+    <path d="M64 120 q14 6 10 18 q-8 10 4 18 q10 6 2 16 q-22 -6 -28 -28 q-2 -18 12 -24z" fill="#2ecc71" stroke="#1e8c4e" stroke-width="1"/>
+    <path d="M104 124 q18 2 22 16 q-2 16 -18 22 q-12 2 -14 -10 q4 -16 10 -28z" fill="#2ecc71" stroke="#1e8c4e" stroke-width="1"/>
+    <!-- 경위선 -->
+    <g fill="none" stroke="#cfeaff" stroke-width="1" opacity="0.65">
+      <ellipse cx="90" cy="146" rx="20" ry="44"/>
+      <ellipse cx="90" cy="146" rx="40" ry="44"/>
+      <line x1="46" y1="146" x2="134" y2="146"/>
+      <path d="M50 124 H130 M50 168 H130"/>
+    </g>
+    <!-- 빨간 극관 -->
+    <path d="M62 116 a44 44 0 0 1 56 0 q-28 12 -56 0z" fill="#e01f26" opacity="0.92"/>
+  </g>
+
+  <!-- 플러스피 배너 -->
+  <g>
+    <rect x="20" y="208" width="140" height="40" rx="9" fill="#e01f26"/>
+    <rect x="20" y="208" width="140" height="40" rx="9" fill="none" stroke="#ffd34d" stroke-width="2"/>
+    <text x="90" y="237" text-anchor="middle" font-family="'Apple SD Gothic Neo','Malgun Gothic',sans-serif"
+          font-size="27" font-weight="900" fill="#fff" letter-spacing="1">플러스피</text>
+  </g>
+
+  <!-- 피 표식(코너) -->
+  <g font-family="sans-serif" font-weight="900">
+    <circle cx="30" cy="32" r="17" fill="#fff" stroke="#e01f26" stroke-width="3"/>
+    <text x="30" y="39" text-anchor="middle" font-size="19" fill="#e01f26">皮</text>
+    <text x="150" y="260" text-anchor="middle" font-size="15" fill="#e01f26" opacity="0.8">+</text>
+  </g>
+</svg>
