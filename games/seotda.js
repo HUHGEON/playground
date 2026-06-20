@@ -838,7 +838,7 @@ module.exports = {
     const A = (a) => ({ type: 'bet', act: a });
     const ev = evalHand(h.cards.get(ws));
     const sc = ev.score, special = !!ev.special;
-    const level = room.botLevel || 'normal';
+    const level = room.botLevel === 'hell' ? 'hard' : (room.botLevel || 'normal');   // 섯다는 헬=고급
     const r = Math.random();
     if (level === 'easy') {                 // 쉬움: 패 거의 안 봄
       if (has('check')) return A('check');

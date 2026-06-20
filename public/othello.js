@@ -21,7 +21,8 @@
     if (seq === lastBotSeq) return;                     // 이 상태엔 이미 요청함
     lastBotSeq = seq;
     const level = s.botLevel || 'normal';
-    const budget = level === 'hard' ? 4500 : (level === 'normal' ? 1200 : 350);
+    // budgetMs = 미니맥스 폴백 전용(Edax는 워커 내부 5초캡). 어려움/헬 폴백 3초.
+    const budget = (level === 'hard' || level === 'hell') ? 3000 : (level === 'normal' ? 1200 : 350);
     ensureAIWorker();
     setTimeout(() => { if (aiWorker) aiWorker.postMessage({ board: s.board, me: s.turn, level, budgetMs: budget }); }, 550 + Math.random() * 650);
   }

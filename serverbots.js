@@ -13,7 +13,7 @@ function botCount(gameType, maxPlayers) {
 // ws처럼 보이는 봇 객체(서버의 broadcastRoom/notify가 ws.send를 호출해도 무해하게).
 // 이름 = 난이도별(초급/중급/고급)봇 + 여러 명이면 번호(1,2,3…).
 function createBots(count, palette, level) {
-  const prefix = level === 'easy' ? '🤖초급봇' : level === 'hard' ? '🤖고급봇' : '🤖중급봇';
+  const prefix = level === 'easy' ? '🤖초급봇' : level === 'hell' ? '👹헬봇' : level === 'hard' ? '🤖고급봇' : '🤖중급봇';
   const bots = [];
   for (let i = 0; i < count; i++) {
     seq++;

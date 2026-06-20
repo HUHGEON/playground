@@ -62,11 +62,15 @@ EMSCRIPTEN_KEEPALIVE void edax_boot(void){
   if(g_inited)return;
   options.n_task=1; options_parse("edax.ini"); options.verbosity=0; options_bound();
   edge_stability_init(); statistics_init(); eval_open(options.eval_file); search_global_init();
-  book_init(&g_book); play_init(&g_play,&g_book); g_play.search.id=1; g_inited=1;
+  book_init(&g_book); play_init(&g_play,&g_book); g_play.search.id=1;
+  options.play_type=EDAX_TIME_PER_MOVE;   // per-move 시간모드(시간 상한용)
+  g_inited=1;
 }
-EMSCRIPTEN_KEEPALIVE int edax_bestmove(const char* b,int level){
+// level=탐색 깊이(강도), timeMs=한 수 시간 상한. 둘 중 먼저 도달하면 그 시점 최선수.
+EMSCRIPTEN_KEEPALIVE int edax_bestmove(const char* b,int level,int timeMs){
   if(!g_inited)edax_boot();
-  options.level=level; play_set_board(&g_play,(char*)b);
+  options.level=level; options.time=timeMs;
+  play_set_board(&g_play,(char*)b);
   if(play_is_game_over(&g_play))return -1;
   play_go(&g_play,1);
   Move *m=play_get_last_move(&g_play); return m?m->x:-1;

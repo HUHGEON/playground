@@ -12,7 +12,7 @@ function ensureEdax() {
       importScripts('edax.js');                  // createEdax 팩토리 정의(MODULARIZE)
       self.createEdax().then((M) => {
         M.ccall('edax_boot', null, [], []);      // eval.dat 로드(1회, ~0.2초)
-        edaxBest = (s, lv) => M.ccall('edax_bestmove', 'number', ['string', 'number'], [s, lv]);
+        edaxBest = (s, lv, ms) => M.ccall('edax_bestmove', 'number', ['string', 'number', 'number'], [s, lv, ms]);
         resolve(true);
       }).catch(() => resolve(false));
     } catch (e) { resolve(false); }
@@ -20,8 +20,11 @@ function ensureEdax() {
   return edaxInit;
 }
 
-// 난이도 → Edax 레벨(탐색 강도). 쉬움=약하게 / 어려움=강하게.
-function edaxLevel(level) { return level === 'hard' ? 21 : level === 'normal' ? 8 : 1; }
+// 난이도 → Edax 레벨(탐색 깊이). 쉬움1(입문) 보통4(중급) 어려움7(고수) 헬8.
+function edaxLevel(level) {
+  return level === 'hell' ? 8 : level === 'hard' ? 7 : level === 'normal' ? 4 : 1;
+}
+var EDAX_TIME_CAP = 5000;   // 한 수 최대 5초(헬 레벨15가 종반서 넘으면 그 안의 최선수)
 
 // 8x8 보드('B'/'W'/null) + 둘 색(me) → Edax 보드 문자열(둘 차례='X', 상대='O')
 function toEdax(board, me) {
@@ -36,7 +39,7 @@ onmessage = function (e) {
   ensureEdax().then((ok) => {
     if (ok && edaxBest) {
       try {
-        const idx = edaxBest(toEdax(board, me), edaxLevel(level));
+        const idx = edaxBest(toEdax(board, me), edaxLevel(level), EDAX_TIME_CAP);
         if (idx >= 0 && idx < 64) { postMessage([idx >> 3, idx & 7]); return; }
       } catch (err) { /* 폴백으로 */ }
     }

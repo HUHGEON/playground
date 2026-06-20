@@ -124,6 +124,7 @@
         selectedMode = b.dataset.mode;
         pick.querySelectorAll('.modebtn').forEach(function (x) { x.classList.toggle('on', x === b); });
         if (lvl) lvl.style.display = selectedMode === 'single' ? 'flex' : 'none';   // 봇전일 때만 난이도
+        updateLevelUI();
       });
     });
     if (lvl) lvl.querySelectorAll('.levelbtn').forEach(function (b) {
@@ -133,6 +134,17 @@
       });
     });
   })();
+  // 헬(절대 못 이김)은 오셀로 전용 — 다른 게임이면 숨기고 선택 중이면 어려움으로
+  function updateLevelUI() {
+    var hellBtn = document.querySelector('.levelbtn[data-level=hell]');
+    if (!hellBtn) return;
+    var showHell = selectedGame === 'othello';
+    hellBtn.style.display = showHell ? '' : 'none';
+    if (!showHell && selectedLevel === 'hell') {
+      selectedLevel = 'hard';
+      document.querySelectorAll('.levelbtn').forEach(function (x) { x.classList.toggle('on', x.dataset.level === 'hard'); });
+    }
+  }
 
   function createRoom() {
     if (!selectedGame) return;

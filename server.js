@@ -297,7 +297,7 @@ wss.on('connection', (ws) => {
       rooms.set(room.id, room);
       enterRoom(ws, room);
       if (msg.singleplayer) {                         // 봇전: 나머지 좌석 봇으로 채움
-        const lv = ['easy', 'normal', 'hard'].includes(msg.botLevel) ? msg.botLevel : 'normal';
+        const lv = ['easy', 'normal', 'hard', 'hell'].includes(msg.botLevel) ? msg.botLevel : 'normal';
         room.botLevel = lv;
         addBots(room);
       }

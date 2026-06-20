@@ -748,7 +748,7 @@ module.exports = {
   bot(room, ws) {
     const gs = room.gs, h = gs.hand;
     if (!h) return null;
-    const level = room.botLevel || 'normal';
+    const level = room.botLevel === 'hell' ? 'hard' : (room.botLevel || 'normal');   // 포커는 헬=고급
     if (h.stage === 'discard') {                   // 버리기 단계
       if (!h.seats.includes(ws) || h.folded.has(ws) || h.discarded.has(ws)) return null;
       const arr = h.cards.get(ws);
