@@ -84,15 +84,20 @@ function reattach(room, oldWs, newWs) {
 
 // ---- 방 생성/유틸 ----
 function makeRoom(id, name, gameType, opts) {
-  const room = { id, name, gameType, queue: [], host: null, phase: 'lobby', gs: {} };
+  const room = { id, name, gameType, queue: [], spectators: [], host: null, phase: 'lobby', gs: {} };
   room.ctx = { notify: roomNotify, broadcastRoom, broadcastLobby, botSay };
   GAMES[gameType].init(room, opts || {});
   return room;
 }
 
+// 방의 전체 수신자 = 참가자(queue) + 관전자(spectators). 봇전 관전용.
+function roomAudience(room) {
+  return room.spectators && room.spectators.length ? room.queue.concat(room.spectators) : room.queue;
+}
+
 function roomNotify(room, text) {
   const msg = JSON.stringify({ type: 'notice', text });
-  for (const ws of room.queue) if (ws.readyState === ws.OPEN) ws.send(msg);
+  for (const ws of roomAudience(room)) if (ws.readyState === ws.OPEN) ws.send(msg);
 }
 
 // 봇전 도발 채팅 — 랜덤 봇이 한마디(도배 방지 3초 쿨다운). 채팅 스코프라 말풍선까지 뜸.
@@ -103,7 +108,7 @@ function botSay(room, text) {
   room._lastTaunt = now;
   const bot = room.bots[Math.floor(Math.random() * room.bots.length)];
   const payload = JSON.stringify({ type: 'chat', scope: 'room', name: bot.name, color: bot.color, text });
-  for (const c of room.queue) if (c.readyState === c.OPEN) c.send(payload);
+  for (const c of roomAudience(room)) if (c.readyState === c.OPEN) c.send(payload);
 }
 
 // ---- 방 입퇴장 ----
@@ -117,10 +122,25 @@ function enterRoom(ws, room) {
   broadcastLobby();
 }
 
+// 봇전 관전 입장 — 큐(참가)가 아니라 관전자 목록에. 좌석 배정 안 됨, 게임 영향 0.
+function enterAsSpectator(ws, room) {
+  ws.roomId = room.id;
+  ws.spectator = true;
+  room.spectators.push(ws);
+  ws.send(roomStateFor(room, ws));    // 현재 게임 상태(관전용)
+  broadcastLobby();                   // 관전자 수 반영
+}
+
 function removeFromRoom(ws) {
   const room = rooms.get(ws.roomId);
   ws.roomId = null;
   if (!room) return;
+  if (ws.spectator) {                 // 관전자 퇴장 — 게임/방 영향 없음
+    ws.spectator = false;
+    room.spectators = room.spectators.filter((s) => s !== ws);
+    broadcastLobby();
+    return;
+  }
   const mod = GAMES[room.gameType];
   if (mod.onLeave) mod.onLeave(room, ws);           // 게임 중단/다이 처리(큐에서 빼기 전)
   room.queue = room.queue.filter((s) => s !== ws);
@@ -130,6 +150,11 @@ function removeFromRoom(ws) {
   if (room.queue.length === 0 || (room.singleplayer && noHumans)) {
     clearBotTimers(room);
     if (mod.cleanup) mod.cleanup(room);
+    for (const sp of room.spectators) {            // 관전자들 로비로 내보냄
+      sp.roomId = null; sp.spectator = false;
+      sendLobby(sp);
+    }
+    room.spectators = [];
     rooms.delete(room.id);
   } else {
     broadcastRoom(room);
@@ -152,9 +177,11 @@ function lobbyStateFor(ws) {
     yourName: ws.name || null,
     yourColor: ws.color || null,
     games: Object.values(GAMES).map((g) => ({ type: g.type, title: g.title, emoji: g.emoji })),
-    rooms: [...rooms.values()].filter((r) => !r.singleplayer).map((r) => ({   // 봇전 방은 로비에 안 보임
+    rooms: [...rooms.values()].map((r) => ({   // 봇전 방도 보임(관전 전용)
       id: r.id, name: r.name, gameType: r.gameType,
       phase: r.phase, hostName: r.host?.name || null,
+      singleplayer: !!r.singleplayer,           // 봇전 표시 + 클릭 시 관전 입장
+      spectators: r.spectators ? r.spectators.length : 0,
       ...GAMES[r.gameType].lobbyInfo(r),
     })),
     online: [...clients].filter((c) => c.joined).map(whereIs),
@@ -175,7 +202,7 @@ function roomStateFor(room, ws) {
 
 function broadcastRoom(room) {
   if (room.host && room.host.isBot) room.host = room.queue.find((w) => !w.isBot) || room.host;   // 봇은 방장 불가 → 사람에게
-  for (const ws of room.queue) if (ws.readyState === ws.OPEN) ws.send(roomStateFor(room, ws));
+  for (const ws of roomAudience(room)) if (ws.readyState === ws.OPEN) ws.send(roomStateFor(room, ws));
   scheduleBots(room);                              // 봇전: 상태 바뀔 때마다 봇 차례 점검
 }
 function sendLobby(ws) { if (ws.readyState === ws.OPEN) ws.send(lobbyStateFor(ws)); }
@@ -233,7 +260,7 @@ function handleChat(ws, text) {
     const room = rooms.get(ws.roomId);
     if (!room) return;
     const payload = JSON.stringify({ type: 'chat', scope: 'room', name: ws.name, color: ws.color, text });
-    for (const c of room.queue) if (c.readyState === c.OPEN) c.send(payload);
+    for (const c of roomAudience(room)) if (c.readyState === c.OPEN) c.send(payload);
   } else {
     const payload = JSON.stringify({ type: 'chat', scope: 'lobby', name: ws.name, color: ws.color, text });
     for (const c of clients) if (c.joined && !c.roomId && c.readyState === c.OPEN) c.send(payload);
@@ -305,7 +332,8 @@ wss.on('connection', (ws) => {
     } else if (msg.type === 'enterRoom') {
       if (!ws.joined || ws.roomId) return;
       const room = rooms.get(String(msg.roomId));
-      if (!room || room.singleplayer) { sendLobby(ws); return; }   // 봇전 방은 입장 불가
+      if (!room) { sendLobby(ws); return; }
+      if (room.singleplayer) { enterAsSpectator(ws, room); return; }   // 봇전은 관전만(대기열 X)
       enterRoom(ws, room);
 
     } else if (msg.type === 'leaveRoom') {

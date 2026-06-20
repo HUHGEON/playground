@@ -249,13 +249,17 @@
       const row = document.createElement('div');
       row.className = 'roomrow';
       const badge = r.phase === 'playing' ? '<span class="badge play">진행중</span>' : '<span class="badge">대기중</span>';
+      const spTag = r.singleplayer ? '<span class="badge bot">🤖 봇전</span>' : '';
+      const meta = r.singleplayer
+        ? `봇전 · 👁 관전 ${r.spectators || 0}명 · 방장 ${esc(r.hostName || '-')}`
+        : `${r.count}명 · ${esc(r.max || '')} · 방장 ${esc(r.hostName || '-')}`;
       row.innerHTML =
         `<span class="gicon g-${r.gameType}">${g.emoji || '🎲'}</span>` +
         `<span class="rinfo"><div class="rname">${esc(r.name)}</div>` +
-        `<div class="meta">${r.count}명 · ${esc(r.max || '')} · 방장 ${esc(r.hostName || '-')}</div></span>` +
-        `<span class="gtag g-${r.gameType}">${esc(g.title || r.gameType)}</span>${badge}`;
+        `<div class="meta">${meta}</div></span>` +
+        `<span class="gtag g-${r.gameType}">${esc(g.title || r.gameType)}</span>${badge}${spTag}`;
       const btn = document.createElement('button');
-      btn.textContent = '입장';
+      btn.textContent = r.singleplayer ? '관전' : '입장';
       btn.onclick = () => window.send({ type: 'enterRoom', roomId: r.id });
       row.appendChild(btn); list.appendChild(row);
     });

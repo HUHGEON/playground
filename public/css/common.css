@@ -66,6 +66,7 @@
   .gtag.g-seotda { background: rgba(60,160,100,.18); color: #7fd9a8; } .gtag.g-othello { background: rgba(120,150,200,.18); color: #9fc2f0; } .gtag.g-poker { background: rgba(220,180,60,.18); color: #f0d77a; }
   .badge { font-size: 11px; font-weight: 700; padding: 5px 11px; border-radius: 999px; white-space: nowrap; background: #3a4450; color: #c4d0de; }
   .badge.play { background: linear-gradient(180deg, #6a5420, #4a3a17); color: #ffd97a; }
+  .badge.bot { background: linear-gradient(180deg, #2f4a52, #1d3138); color: #7fe3d6; }
   #seotdaOpts { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
   .optrow { display: flex; gap: 10px; }
   .opthint { font-size: 11px; color: var(--muted); }
