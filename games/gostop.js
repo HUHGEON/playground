@@ -275,6 +275,50 @@ function endTurn(room) {
   r.turnIdx = nextSeat(r);
 }
 
+// ── 점수 계산 (§4) ──
+// gukjinAs: 9월 국진을 '열끗' | '피' 중 어느 쪽으로 셀지
+function scoreCore(captured, gukjinAs) {
+  const kwang = captured.filter((c) => c.cat === 'KWANG');
+  let yeol = captured.filter((c) => c.cat === 'YEOL');
+  let piTotal = captured.filter((c) => c.cat === 'PI').reduce((s, c) => s + c.pi, 0);
+  if (gukjinAs === 'pi') { yeol = yeol.filter((c) => !c.flags.includes('GUKJIN')); piTotal += 2; }
+  const tti = captured.filter((c) => c.cat === 'TTI');
+
+  const detail = {};
+  let score = 0;
+
+  // 광: 3광3 / 비광낀3광2 / 4광4 / 5광15
+  const nK = kwang.length, hasBi = kwang.some((c) => c.flags.includes('BIGWANG'));
+  let kS = 0;
+  if (nK >= 5) kS = 15; else if (nK === 4) kS = 4; else if (nK === 3) kS = hasBi ? 2 : 3;
+  if (kS) { score += kS; detail.kwang = kS; }
+
+  // 고도리(2·4·8 열끗 = 5)
+  if (yeol.filter((c) => c.flags.includes('GODORI')).length >= 3) { score += 5; detail.godori = 5; }
+
+  // 열끗 5장1점 +1/장
+  if (yeol.length >= 5) { const y = yeol.length - 4; score += y; detail.yeol = y; }
+
+  // 띠 5장1점 +1/장 + 홍/청/초단 각3
+  if (tti.length >= 5) { const t = tti.length - 4; score += t; detail.tti = t; }
+  if (tti.filter((c) => c.flags.includes('HONGDAN')).length >= 3) { score += 3; detail.hongdan = 3; }
+  if (tti.filter((c) => c.flags.includes('CHEONGDAN')).length >= 3) { score += 3; detail.cheongdan = 3; }
+  if (tti.filter((c) => c.flags.includes('CHODAN')).length >= 3) { score += 3; detail.chodan = 3; }
+
+  // 피 10점1점 +1/점 (쌍피·보너스 piValue=2)
+  if (piTotal >= 10) { const p = piTotal - 9; score += p; detail.pi = p; }
+
+  return { total: score, detail, kwangCount: nK, yeolCount: yeol.length, piTotal, mungBak: yeol.length >= 7, gukjinAs };
+}
+
+// 국진은 보유자에게 유리한 쪽(열끗/피) 자동 선택
+function scoreOf(captured) {
+  const a = scoreCore(captured, 'yeol');
+  if (!captured.some((c) => c.flags.includes('GUKJIN'))) return a;
+  const b = scoreCore(captured, 'pi');
+  return b.total > a.total ? b : a;
+}
+
 // ── 모듈 인터페이스 ──
 module.exports = {
   type: 'gostop',
@@ -377,8 +421,11 @@ module.exports = {
       myHand: seatIdx >= 0 ? (r.hands[seatIdx] || []) : [],
       handCounts: r.hands.map((h) => h.length),
       captured: r.captured,
+      scores: r.captured.map((cap) => scoreOf(cap).total),   // 좌석별 현재 점수
+      myScore: seatIdx >= 0 ? scoreOf(r.captured[seatIdx]) : null,
       bbeokMonths: r.bbeokMonths,
       chongtong: r.chongtong,
+      bbeokCount: r.bbeokCount,
       pendingChoice: pend,           // 내가 바닥 2장 골라야 하면 선택지
       events: r.events,
       over: r.over,
@@ -394,4 +441,5 @@ module.exports = {
   _buildMonthCards: buildMonthCards,
   _modeParams: modeParams,
   _deal: deal,
+  _scoreOf: scoreOf,
 };
