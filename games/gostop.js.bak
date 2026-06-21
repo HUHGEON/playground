@@ -280,7 +280,7 @@ module.exports = {
   type: 'gostop',
   title: '고스톱',
   emoji: '🃏',
-  maxPlayers: 4,
+  maxPlayers: 5,
   wip: true,                      // ⚠️ 구현 중 — 완성 전까지 로비 노출/생성 차단
 
   init(room, opts) {
