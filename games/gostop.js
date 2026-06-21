@@ -128,6 +128,87 @@ function deal(deck, params, seonIdx) {
   throw new Error('deal failed (too many 4-of-month floors)');
 }
 
+// ── 턴 엔진 (§3, 기본 매칭 — 이벤트 피뺏기/점수는 후속 단계) ──
+const nextSeat = (r) => (r.turnIdx + 1) % r.params.players;
+function removeFloor(r, ids) { const s = new Set(ids); r.floor = r.floor.filter((c) => !s.has(c.id)); }
+function capture(r, seat, cards) { r.captured[seat].push(...cards); r.took[seat] = (r.took[seat] || 0) + cards.length; }
+
+// 손패 1장 내기
+function playCard(room, seat, cardId) {
+  const r = room.gs.round;
+  if (!r || r.over || r.pending || seat !== r.turnIdx) return false;
+  const hand = r.hands[seat];
+  const ci = hand.findIndex((c) => c.id === cardId);
+  if (ci < 0) return false;
+  const card = hand.splice(ci, 1)[0];
+  r.took = {};                      // 이번 턴 획득 집계(따닥 판정용, 후속)
+  r.log = [];
+  resolveCard(room, seat, card, 'hand');
+  return true;
+}
+
+// 낸 패/뒤집은 패를 바닥과 매칭
+function resolveCard(room, seat, card, src) {
+  const r = room.gs.round;
+  if (card.flags.includes('BONUS')) {           // 보너스피: 즉시 획득 + 더미 한 장 더(후속: 피뺏기)
+    capture(r, seat, [card]); r.log.push({ ev: 'bonus', card: card.id, src });
+    return src === 'hand' ? flipPhase(room, seat) : null;   // hand면 일반 뒤집기로, flip이면 reflip(루프가 처리)
+  }
+  const matches = r.floor.filter((c) => c.m === card.m && card.m !== 0);
+  if (matches.length === 0) {
+    r.floor.push(card); r.log.push({ ev: 'place', card: card.id, src });
+    return src === 'hand' ? flipPhase(room, seat) : 'placed';
+  }
+  if (matches.length === 1) {
+    capture(r, seat, [card, matches[0]]); removeFloor(r, [matches[0].id]);
+    r.log.push({ ev: 'take', cards: [card.id, matches[0].id], src });
+    return src === 'hand' ? flipPhase(room, seat) : 'took';
+  }
+  if (matches.length === 2) {                    // ⚙️ 바닥 동월 2장 → 선택(§3.1)
+    r.pending = { phase: src === 'hand' ? 'play' : 'flip', seat, month: card.m, options: matches.map((c) => c.id), card };
+    return 'pending';
+  }
+  // ≥3 (뻑 스택) → 전부 회수
+  capture(r, seat, [card, ...matches]); removeFloor(r, matches.map((c) => c.id));
+  r.log.push({ ev: 'take', cards: [card.id, ...matches.map((c) => c.id)], src });
+  return src === 'hand' ? flipPhase(room, seat) : 'took';
+}
+
+// 바닥 동월 2장 선택 해소
+function chooseFloor(room, seat, floorCardId) {
+  const r = room.gs.round;
+  if (!r || !r.pending || seat !== r.pending.seat) return false;
+  const p = r.pending;
+  if (!p.options.includes(floorCardId)) return false;
+  const chosen = r.floor.find((c) => c.id === floorCardId);
+  capture(r, seat, [p.card, chosen]); removeFloor(r, [floorCardId]);
+  r.log.push({ ev: 'take', cards: [p.card.id, floorCardId], src: p.phase, chosen: true });
+  const phase = p.phase; r.pending = null;
+  if (phase === 'play') flipPhase(room, seat);
+  else endTurn(room);
+  return true;
+}
+
+// 더미에서 뒤집기(보너스면 연속)
+function flipPhase(room, seat) {
+  const r = room.gs.round;
+  while (true) {
+    if (r.draw.length === 0) return endTurn(room);
+    const d = r.draw.shift();
+    if (d.flags.includes('BONUS')) { capture(r, seat, [d]); r.log.push({ ev: 'bonus', card: d.id, src: 'flip' }); continue; }
+    const res = resolveCard(room, seat, d, 'flip');
+    if (res === 'pending') return;          // 선택 대기
+    return endTurn(room);
+  }
+}
+
+function endTurn(room) {
+  const r = room.gs.round;
+  r.pending = null;
+  if (r.hands.every((h) => h.length === 0)) { r.over = true; room.phase = 'finished'; return; }  // 정산은 후속 단계
+  r.turnIdx = nextSeat(r);
+}
+
 // ── 모듈 인터페이스 ──
 module.exports = {
   type: 'gostop',
@@ -175,6 +256,10 @@ module.exports = {
       seonTook: dealt.seonTook,
       chongtong: dealt.chongtong,
       bbeokMonths: dealt.bbeokMonths,
+      pending: null,                      // 바닥 선택 대기
+      over: false,
+      took: {},                           // 턴별 획득 집계
+      log: [],                            // 직전 액션 이벤트(UI용)
     };
     // 선이 가져간 바닥 보너스 → 선 획득더미로
     if (dealt.seonTook.length) room.gs.round.captured[seonIdx].push(...dealt.seonTook);
@@ -191,7 +276,12 @@ module.exports = {
   reattach(room, oldWs, newWs) {},
 
   action(room, ws, msg) {
-    return false;   // [후속 단계] 턴 액션(낼 패/고스톱/선택 등)
+    if (room.phase !== 'playing') return false;
+    const seat = room.queue.indexOf(ws);
+    if (seat < 0) return false;
+    if (msg.type === 'play') return playCard(room, seat, String(msg.cardId));     // 손패 1장 내기
+    if (msg.type === 'choose') return chooseFloor(room, seat, String(msg.cardId)); // 바닥 동월 2장 선택
+    return false;
   },
 
   state(room, ws) {
@@ -207,10 +297,15 @@ module.exports = {
       wip: true,
     };
     if (!r) return base;
+    const pend = r.pending && r.pending.seat === seatIdx ? {
+      month: r.pending.month,
+      options: r.pending.options.map((id) => r.floor.find((c) => c.id === id)).filter(Boolean),
+    } : null;
     return {
       ...base,
       seonIdx: r.seonIdx,
       turnIdx: r.turnIdx,
+      myTurn: seatIdx === r.turnIdx && !r.pending,
       floor: r.floor,
       drawCount: r.draw.length,
       myHand: seatIdx >= 0 ? (r.hands[seatIdx] || []) : [],
@@ -218,6 +313,9 @@ module.exports = {
       captured: r.captured,
       bbeokMonths: r.bbeokMonths,
       chongtong: r.chongtong,
+      pendingChoice: pend,           // 내가 바닥 2장 골라야 하면 선택지
+      log: r.log,
+      over: r.over,
     };
   },
 
