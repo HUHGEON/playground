@@ -176,7 +176,7 @@ function lobbyStateFor(ws) {
     type: 'lobby',
     yourName: ws.name || null,
     yourColor: ws.color || null,
-    games: Object.values(GAMES).map((g) => ({ type: g.type, title: g.title, emoji: g.emoji })),
+    games: Object.values(GAMES).filter((g) => !g.wip).map((g) => ({ type: g.type, title: g.title, emoji: g.emoji })),   // WIP 게임은 숨김
     rooms: [...rooms.values()].map((r) => ({   // 봇전 방도 보임(관전 전용)
       id: r.id, name: r.name, gameType: r.gameType,
       phase: r.phase, hostName: r.host?.name || null,
@@ -329,7 +329,7 @@ wss.on('connection', (ws, req) => {
     } else if (msg.type === 'createRoom') {
       if (!ws.joined || ws.roomId) return;
       const gameType = String(msg.gameType || '');
-      if (!GAMES[gameType]) return;
+      if (!GAMES[gameType] || GAMES[gameType].wip) return;   // WIP 게임은 생성 불가
       const name = String(msg.name || '').trim().slice(0, 24) || `${ws.name}의 방`;
       const opts = (msg.opts && typeof msg.opts === 'object') ? msg.opts : {};
       const room = makeRoom('r' + (++roomSeq), name, gameType, opts);
