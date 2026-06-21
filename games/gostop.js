@@ -271,8 +271,66 @@ function chooseFloor(room, seat, floorCardId) {
 function endTurn(room) {
   const r = room.gs.round;
   r.pending = null;
-  if (r.hands.every((h) => h.length === 0)) { r.over = true; room.phase = 'finished'; return; }  // 정산은 후속 단계
+  if (r.hands.every((h) => h.length === 0)) return nagari(room);     // 손·더미 소진까지 아무도 못 남 → 나가리
+  const seat = r.turnIdx;
+  const sc = scoreOf(r.captured[seat]).total;
+  const baseline = r.goCount[seat] > 0 ? r.goScoreAt[seat] + 1 : r.params.minScore;   // 첫 나기 or 직전 고+1
+  if (sc >= baseline) { r.decision = { seat, score: sc }; return; }   // 고/스톱 선택 대기(턴 멈춤)
   r.turnIdx = nextSeat(r);
+}
+
+// 나가리 — 무승부, 다음 판 점수 ×2 누적
+function nagari(room) {
+  const r = room.gs.round;
+  r.over = true; room.phase = 'finished';
+  r.result = { nagari: true };
+  room.gs.carryMult = (room.gs.carryMult || 1) * 2;
+}
+
+// 고 — 계속 진행
+function declareGo(room, seat) {
+  const r = room.gs.round;
+  if (!r.decision || r.decision.seat !== seat) return false;
+  r.goCount[seat]++;
+  r.goScoreAt[seat] = r.decision.score;
+  r.events = [{ ev: 'go', by: seat, n: r.goCount[seat] }];
+  r.decision = null;
+  r.turnIdx = nextSeat(r);
+  return true;
+}
+
+// 스톱 — 정산
+function declareStop(room, seat) {
+  const r = room.gs.round;
+  if (!r.decision || r.decision.seat !== seat) return false;
+  settle(room, seat);
+  return true;
+}
+
+// 정산(§5.2) — 5A: 고공식 + 나가리누적. (박/멍박/흔들기 배수는 5B)
+function settle(room, winnerSeat) {
+  const r = room.gs.round, gs = room.gs;
+  const sc = scoreOf(r.captured[winnerSeat]);
+  const goCount = r.goCount[winnerSeat];
+  let score = sc.total + goCount;                       // (원점수 + 고수)
+  if (goCount >= 3) score *= Math.pow(2, goCount - 2);  // 3고부터 ×2씩
+  score *= (gs.carryMult || 1);                         // 나가리 누적
+
+  const amount = score * gs.pointValue;
+  const losers = r.captured.map((_, i) => i).filter((i) => i !== winnerSeat);
+  const payments = {};
+  let pot = 0;
+  for (const L of losers) {
+    const ws = room.queue[L];
+    const pay = Math.min(amount, gs.chips[ws.sessionId] || 0);   // 보유칩 한도
+    gs.chips[ws.sessionId] -= pay; payments[L] = pay; pot += pay;
+  }
+  gs.chips[room.queue[winnerSeat].sessionId] += pot;
+
+  r.over = true; room.phase = 'finished';
+  r.result = { winner: winnerSeat, baseScore: sc.total, detail: sc.detail, goCount, finalScore: score, amount, payments };
+  gs.carryMult = 1;                                     // 나가리 누적 리셋
+  gs.seonIdx = winnerSeat;                              // 다음 판 선 = 승자
 }
 
 // ── 점수 계산 (§4) ──
@@ -331,9 +389,11 @@ module.exports = {
     const cfg = { ...DEFAULTS };
     room.gs = {
       cfg,
+      chips: {},                  // sessionId → 칩
+      startChips: 100000,
+      pointValue: 100,            // 점당 칩
       handNo: 0,
       seonIdx: 0,
-      hand: null,                 // 진행 중 라운드 상태(후속 단계)
       carryMult: 1,               // 나가리 누적배수
     };
   },
@@ -370,7 +430,12 @@ module.exports = {
       over: false,
       events: [],                         // 직전 액션 이벤트(UI용: take/place/bbeok/steal…)
       bbeokCount: {},                     // 좌석별 뻑 횟수(첫뻑/연뻑·쓰리뻑 판정용)
+      goCount: room.queue.map(() => 0),   // 좌석별 고 횟수
+      goScoreAt: room.queue.map(() => 0), // 직전 고 선언 시 점수
+      decision: null,                     // 고/스톱 대기 { seat, score }
+      result: null,                       // 정산 결과
     };
+    for (const w of room.queue) if (room.gs.chips[w.sessionId] == null) room.gs.chips[w.sessionId] = room.gs.startChips;
     // 선이 가져간 바닥 보너스 → 선 획득더미로
     if (dealt.seonTook.length) room.gs.round.captured[seonIdx].push(...dealt.seonTook);
   },
@@ -391,6 +456,8 @@ module.exports = {
     if (seat < 0) return false;
     if (msg.type === 'play') return playCard(room, seat, String(msg.cardId));     // 손패 1장 내기
     if (msg.type === 'choose') return chooseFloor(room, seat, String(msg.cardId)); // 바닥 동월 2장 선택
+    if (msg.type === 'go') return declareGo(room, seat);                           // 고
+    if (msg.type === 'stop') return declareStop(room, seat);                       // 스톱(정산)
     return false;
   },
 
@@ -427,6 +494,10 @@ module.exports = {
       chongtong: r.chongtong,
       bbeokCount: r.bbeokCount,
       pendingChoice: pend,           // 내가 바닥 2장 골라야 하면 선택지
+      decision: r.decision && r.decision.seat === seatIdx ? r.decision : null,   // 내 고/스톱 차례면 표시
+      goCounts: r.goCount,
+      result: r.result,              // 정산 결과(over일 때)
+      chips: room.gs.chips,
       events: r.events,
       over: r.over,
     };
