@@ -81,7 +81,6 @@
         '<div id="gsTop"></div>' +
         '<div id="gsMid"><div id="gsFloor"></div>' +
           '<div id="gsCenter"><div id="gsDrawWrap"><div id="gsDraw"></div><div id="gsDrawN"></div></div></div>' +
-          '<div id="gsPot"></div>' +
         '</div>' +
         '<div id="gsMy"><div id="gsMyCap"></div>' +
           '<div id="gsMyRow"><div id="gsMyAva"></div><div id="gsHand"></div><div id="gsActions"></div></div>' +
@@ -128,12 +127,9 @@
     }).join('');
     prevFloorIds = new Set(fids);
 
-    // 더미 + 큰판
+    // 더미(가운데) — 큰판/점수 표시 없음(점수는 각 사람 패널에만)
     $('gsDraw').className = s.drawCount > 0 ? 'has' : '';
     $('gsDrawN').textContent = s.drawCount > 0 ? s.drawCount : '';
-    const lead = Math.max(0, ...(s.scores || [0]));
-    $('gsPot').innerHTML = `<div class="gs-pot-big">🔥 ${lead}점</div>` +
-      (s.goCounts && Math.max(0, ...s.goCounts) ? `<div class="gs-pot-go">${Math.max(...s.goCounts)}고</div>` : '');
 
     // 내 영역
     const myTurn = s.myTurn && s.phase === 'playing';
