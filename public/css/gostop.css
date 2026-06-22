@@ -59,19 +59,19 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 .gs-side { position: relative; flex: 0 0 0; }
 #gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 100px; }
 /* 사이드 상대: 2열 — 왼쪽 광/멍/단/피, 오른쪽 이모지+세로이름+점수. 피는 세로로 쌓아 판 밖 방지 */
-#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 120px; }
-.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 112px; min-width: 0; margin: 0; display: flex; gap: 4px; align-items: flex-start; padding: 5px 3px; }
+#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 122px; }
+.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 114px; min-width: 0; margin: 0; display: flex; gap: 4px; align-items: flex-start; padding: 6px 4px; }
 #gsRight .gs-opp.side { flex-direction: row-reverse; }
 .gs-scap { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
 .gs-srow { display: flex; align-items: flex-start; gap: 1px; }
 .gs-slb { font-size: 9px; color: #aecdb9; flex: 0 0 11px; padding-top: 2px; }
-/* 패: 가로로, 5개마다 줄바꿈 */
-.gs-scards { display: flex; flex-wrap: wrap; width: 64px; min-height: 12px; }
-.gs-scards .gscard.mini.xs { width: 18px; height: 27px; margin-left: -7px; }
+/* 패: 가로로 5개마다 줄바꿈, 카드는 세로로 크게 */
+.gs-scards { display: flex; flex-wrap: wrap; width: 66px; min-height: 14px; row-gap: 2px; }
+.gs-scards .gscard.mini.xs { width: 22px; height: 38px; margin-left: -12px; }
 .gs-scards .gscard.mini.xs:nth-child(5n+1) { margin-left: 0; }
-.gs-srow.pi .gs-pic { display: inline-block; margin-left: -7px; }
+.gs-srow.pi .gs-pic { display: inline-block; margin-left: -12px; }
 .gs-srow.pi .gs-pic:nth-child(5n+1) { margin-left: 0; }
-.gs-srow.pi .gs-pic .gscard.mini.xs { margin-left: 0; width: 18px; height: 27px; }
+.gs-srow.pi .gs-pic .gscard.mini.xs { margin-left: 0; width: 22px; height: 38px; }
 .gs-sid { display: flex; flex-direction: column; align-items: center; gap: 1px; flex: 0 0 26px; }
 .gs-sid .gs-ava { display: flex; flex-direction: column; align-items: center; line-height: 1; font-size: 20px; }
 .gs-bot { font-size: 11px; margin-top: -1px; }
