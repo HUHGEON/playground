@@ -180,12 +180,12 @@ function playCard(room, seat, cardId) {
     capture(r, seat, [card]); r.events.push({ ev: 'bonus', card: card.id, src: 'hand' });
     if (cfg.bonusStealPi) stealPi(room, seat, 1, 'bonus');
     r.turn = { m: 0, cBefore: 0, hand: null };
-    return flipStep(room, seat);
+    flipStep(room, seat); return true;
   }
   const cBefore = floorCount(r, card.m);          // 내기 전 바닥의 같은 월 수
   r.floor.push(card);                             // 손패를 바닥에 올림(먹기 미확정)
   r.turn = { m: card.m, cBefore, hand: card };
-  return flipStep(room, seat);
+  flipStep(room, seat); return true;
 }
 
 // 더미에서 뒤집기(보너스면 연속), 뒤집은 패로 합산 판정
@@ -343,7 +343,7 @@ function declareBomb(room, seat, month) {
   r.shake[seat]++;
   r.freeFlips[seat] += 2;
   r.turn = { m: 0, cBefore: 0, hand: null };   // 합산판정 없음 — 일반 뒤집기
-  return flipStep(room, seat);
+  flipStep(room, seat); return true;
 }
 
 // 뒤집기만(폭탄 빚 갚기) — 손패 안 내고 더미 한 장
@@ -354,7 +354,7 @@ function freeFlip(room, seat) {
   r.freeFlips[seat]--;
   r.events = [];
   r.turn = { m: 0, cBefore: 0, hand: null };
-  return flipStep(room, seat);
+  flipStep(room, seat); return true;
 }
 
 // 총통 — 손패 같은 월 4장 → 즉시 3점 승. (선언 안 하고 계속하면 chongtongHold로 ×4)
@@ -501,7 +501,7 @@ module.exports = {
   title: '고스톱',
   emoji: '🃏',
   maxPlayers: 4,
-  wip: true,                      // ⚠️ 구현 중 — 완성 전까지 로비 노출/생성 차단
+  wip: false,                      // ⚠️ 구현 중 — 완성 전까지 로비 노출/생성 차단
 
   init(room, opts) {
     const cfg = { ...DEFAULTS };
@@ -632,7 +632,7 @@ module.exports = {
       seats: room.queue.map((w, i) => ({ name: w.name, color: w.color, isBot: !!w.isBot, seat: i })),
       yourSeat: seatIdx,
       canStart: room.host === ws && module.exports.canStart(room),
-      wip: true,
+      wip: false,
     };
     if (!r) return base;
     const pend = r.pending && r.pending.seat === seatIdx ? {
