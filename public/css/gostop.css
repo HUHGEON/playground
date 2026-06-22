@@ -35,20 +35,21 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 .gs-opp-cap { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
 .gs-cap-empty { font-size: 11px; color: rgba(255,255,255,.3); }
 
-/* 획득더미 — 광·멍·단·피 가로 4그룹, 각 그룹 카드도 가로 겹침 */
-.gs-opp-cap, #gsMyCap { display: flex; flex-direction: row !important; align-items: flex-end; gap: 10px; }
-.gs-cgrp { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.gs-cgrp-cards { display: flex; padding-left: 15px; min-height: 14px; }
-.gs-cgrp-lb { font-size: 11px; color: #cfe6d6; white-space: nowrap; }
-.gs-cgrp-lb b { color: #ffd34d; }
+/* 획득더미 — 광·멍·단·피 고정 슬롯(그리드, 위치 안 움직임), 거기에만 카드 적립 */
+#gsMyCap { display: grid; grid-template-columns: 80px 104px 104px 1fr; align-items: end; gap: 4px; }
+.gs-opp-cap { display: grid; grid-template-columns: 50px 64px 64px 1fr; align-items: end; gap: 3px; }
+.gs-cgrp { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+.gs-cgrp-cards { display: flex; min-height: 14px; }
+.gs-cgrp-lb { font-size: 11px; color: #aecdb9; white-space: nowrap; }
 .gs-cgrp.c-kw .gs-cgrp-lb { color: #ffe08a; } .gs-cgrp.c-pi .gs-cgrp-lb { color: #ff9a6a; }
-#gsMyCap .gs-cgrp-cards { padding-left: 18px; }
-#gsMyCap .gscard.mini { width: 30px; height: 45px; margin-left: -18px; }
+#gsMyCap .gscard.mini { width: 30px; height: 45px; margin-left: -16px; }
 #gsMyCap .gscard.mini:first-child { margin-left: 0; }
+.gs-opp-cap .gscard.mini { margin-left: -12px; }
+.gs-opp-cap .gscard.mini:first-child { margin-left: 0; }
 /* 피 값 뱃지(쌍피2·쓰리피3·보너스) */
 .c-pi .gs-pic { position: relative; display: inline-block; }
 .c-pi .gs-pic .gscard.mini { margin-left: 0; }
-#gsMyCap .c-pi .gs-pic + .gs-pic { margin-left: -18px; }
+#gsMyCap .c-pi .gs-pic + .gs-pic { margin-left: -16px; }
 .gs-opp-cap .c-pi .gs-pic + .gs-pic { margin-left: -12px; }
 .gs-piv { position: absolute; bottom: -2px; right: -4px; background: #e8540e; color: #fff; font-size: 10px; font-weight: 900; min-width: 14px; height: 14px; line-height: 14px; text-align: center; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
 .gs-opp-cap .gs-piv { font-size: 8px; min-width: 11px; height: 11px; line-height: 11px; }
@@ -75,7 +76,7 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 
 /* 내 영역(아래) */
 #gsMy { display: flex; flex-direction: column; gap: 6px; }
-#gsMyCap { display: flex; flex-direction: column; gap: 2px; min-height: 44px; background: rgba(0,0,0,.16); border-radius: 10px; padding: 5px 8px; }
+#gsMyCap { min-height: 50px; background: rgba(0,0,0,.16); border-radius: 10px; padding: 6px 10px; }
 #gsMyRow { display: flex; align-items: flex-end; gap: 10px; }
 #gsMyAva { display: flex; flex-direction: column; align-items: center; min-width: 70px; }
 .gs-my-meta { display: flex; flex-direction: column; align-items: center; }
