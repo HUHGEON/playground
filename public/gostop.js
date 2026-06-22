@@ -73,7 +73,7 @@
           ${row('광', cardsH(g.KWANG))}${row('멍', cardsH(g.YEOL))}${row('단', cardsH(g.TTI))}${row('피', piH, ' pi')}
         </div>
         <div class="gs-sid">
-          <span class="gs-ava">${p.isBot ? '🤖' : avatar(p.name)}</span>
+          <span class="gs-ava">${avatar(p.name)}${p.isBot ? '<span class="gs-bot">🤖</span>' : ''}</span>
           <div class="gs-vname">${esc(p.name.replace(/🤖/g, ''))}</div>
           <div class="gs-sscore">${sc}점</div>
           ${turn ? '<div class="gs-now">차례</div>' : ''}

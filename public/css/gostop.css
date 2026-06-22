@@ -65,15 +65,15 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 .gs-scap { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
 .gs-srow { display: flex; align-items: flex-start; gap: 1px; }
 .gs-slb { font-size: 9px; color: #aecdb9; flex: 0 0 11px; padding-top: 2px; }
-.gs-scards { display: flex; padding-left: 11px; min-height: 12px; }
-.gs-scards .gscard.mini.xs { width: 20px; height: 30px; margin-left: -11px; }
-.gs-scards .gscard.mini.xs:first-child { margin-left: 0; }
-.gs-srow.pi .gs-scards { flex-direction: column; padding-left: 0; }
+.gs-scards { display: flex; flex-direction: column; min-height: 12px; }   /* 패 전부 세로 적층 */
+.gs-scards .gscard.mini.xs { width: 20px; height: 30px; margin-left: 0; margin-top: -22px; }
+.gs-scards .gscard.mini.xs:first-child { margin-top: 0; }
 .gs-srow.pi .gs-pic { display: block; margin-top: -22px; }
 .gs-srow.pi .gs-pic:first-child { margin-top: 0; }
-.gs-srow.pi .gscard.mini.xs { margin-left: 0; }
-.gs-sid { display: flex; flex-direction: column; align-items: center; gap: 1px; flex: 0 0 24px; }
-.gs-sid .gs-ava { font-size: 20px; }
+.gs-srow.pi .gs-pic .gscard.mini.xs { margin-top: 0; }
+.gs-sid { display: flex; flex-direction: column; align-items: center; gap: 1px; flex: 0 0 26px; }
+.gs-sid .gs-ava { display: flex; flex-direction: column; align-items: center; line-height: 1; font-size: 20px; }
+.gs-bot { font-size: 11px; margin-top: -1px; }
 .gs-vname { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: -1px; font-weight: 700; color: #eaf6ee; font-size: 12px; line-height: 1; }
 .gs-sscore { font-size: 12px; font-weight: 800; color: #ffe08a; margin-top: 3px; }
 
