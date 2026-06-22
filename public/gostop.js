@@ -14,6 +14,14 @@
   }
   const cardSrc = (c) => c.img || ('gostop/' + c.m + '-' + c.idx + '.png');
   const cardHTML = (c, cls) => `<img class="gscard${cls ? ' ' + cls : ''}" src="${cardSrc(c)}" data-id="${c.id}" data-m="${c.m}" draggable="false" alt="">`;
+  // 바닥 카드 위치 — 카드 id 해시로 안정(다른 카드 추가돼도 안 튐), 중앙(더미) 피해 타원 분산
+  function floorPos(id) {
+    let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    const ang = (h % 360) * Math.PI / 180;
+    const rx = 25 + ((h >> 9) & 7) * 1.7, ry = 27 + ((h >> 6) & 7) * 1.4;
+    return { x: 50 + Math.cos(ang) * rx, y: 50 + Math.sin(ang) * ry, rot: ((h >> 3) % 26) - 13 };
+  }
+  let prevFloorIds = new Set();
 
   // 획득더미: 광/열끗/띠/피 4분류 스트립 + 카테고리 점수
   function catPoints(detail) {
@@ -30,16 +38,18 @@
     for (const c of captured) { (g[c.cat] || g.PI).push(c); if (c.cat === 'PI') piVal += c.pi; }
     return { g, piVal };
   }
+  // 획득더미: 광·멍(열끗)·단(띠)·피 를 가로로 나란히, 각 그룹 안에서도 카드 가로 겹침
   function capStrips(captured, detail, small) {
     const { g, piVal } = pileGroups(captured);
     const pt = catPoints(detail);
     const mini = small ? 'mini xs' : 'mini';
-    const strip = (cards, badge) => cards.length
-      ? `<div class="gs-strip"><span class="gs-strip-cards">${cards.map((c) => cardHTML(c, mini)).join('')}</span>${badge ? `<b class="gs-pt">${badge}</b>` : ''}</div>` : '';
-    return strip(g.KWANG, pt.KWANG ? pt.KWANG + '점' : '') +
-      strip(g.YEOL, pt.YEOL ? pt.YEOL + '점' : '') +
-      strip(g.TTI, pt.TTI ? pt.TTI + '점' : '') +
-      strip(g.PI, piVal ? piVal + '피' : '');
+    const grp = (label, cards, badge, cls) => `<div class="gs-cgrp ${cls}">
+        <div class="gs-cgrp-cards">${cards.map((c) => cardHTML(c, mini)).join('')}</div>
+        <div class="gs-cgrp-lb">${label}${badge ? ` <b>${badge}</b>` : ''}</div></div>`;
+    return grp('광', g.KWANG, pt.KWANG ? pt.KWANG + '점' : '', 'c-kw') +
+      grp('멍', g.YEOL, pt.YEOL ? pt.YEOL + '점' : '', 'c-yeol') +
+      grp('단', g.TTI, pt.TTI ? pt.TTI + '점' : '', 'c-tti') +
+      grp('피', g.PI, piVal ? piVal + '장' : '', 'c-pi');   // 피는 값 합산(쌍피·보너스 포함)
   }
 
   // 상대 패널 (위쪽)
@@ -68,7 +78,8 @@
       '<div id="gsStage"><div id="gsFelt">' +
         '<div id="gsTop"></div>' +
         '<div id="gsMid"><div id="gsFloor"></div>' +
-          '<div id="gsCenter"><div id="gsDrawWrap"><div id="gsDraw"></div><div id="gsDrawN"></div></div><div id="gsPot"></div></div>' +
+          '<div id="gsCenter"><div id="gsDrawWrap"><div id="gsDraw"></div><div id="gsDrawN"></div></div></div>' +
+          '<div id="gsPot"></div>' +
         '</div>' +
         '<div id="gsMy"><div id="gsMyCap"></div>' +
           '<div id="gsMyRow"><div id="gsMyAva"></div><div id="gsHand"></div><div id="gsActions"></div></div>' +
@@ -106,11 +117,14 @@
     const top = $('gsTop'); top.className = 'n' + opps.length;
     top.innerHTML = opps.map((i) => oppHTML(s, i)).join('');
 
-    // 바닥
+    // 바닥 — 더미(중앙) 주변 분산 + 새 패는 슬램(내려치기)
+    const fids = [];
     $('gsFloor').innerHTML = (s.floor || []).map((c) => {
       const ch = s.pendingChoice && s.pendingChoice.options.some((o) => o.id === c.id);
-      return cardHTML(c, ch ? 'choosable' : '');
-    }).join('') || '<div class="gs-empty"></div>';
+      const p = floorPos(c.id); const slam = prevFloorIds.has(c.id) ? '' : ' slam'; fids.push(c.id);
+      return `<img class="gscard floorc${ch ? ' choosable' : ''}${slam}" style="left:${p.x}%;top:${p.y}%;--rot:${p.rot}deg" src="${cardSrc(c)}" data-id="${c.id}" data-m="${c.m}" draggable="false" alt="">`;
+    }).join('');
+    prevFloorIds = new Set(fids);
 
     // 더미 + 큰판
     $('gsDraw').className = s.drawCount > 0 ? 'has' : '';

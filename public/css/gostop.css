@@ -35,23 +35,36 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 .gs-opp-cap { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
 .gs-cap-empty { font-size: 11px; color: rgba(255,255,255,.3); }
 
-/* 획득 스트립(광/열/띠/피) */
-.gs-strip { display: flex; align-items: center; gap: 5px; min-height: 20px; }
-.gs-strip-cards { display: flex; padding-left: 15px; }
-.gs-pt { font-size: 11px; color: #ffd34d; font-weight: 800; white-space: nowrap; }
+/* 획득더미 — 광·멍·단·피 가로 4그룹, 각 그룹 카드도 가로 겹침 */
+.gs-opp-cap, #gsMyCap { display: flex; flex-direction: row !important; align-items: flex-end; gap: 10px; }
+.gs-cgrp { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.gs-cgrp-cards { display: flex; padding-left: 15px; min-height: 14px; }
+.gs-cgrp-lb { font-size: 11px; color: #cfe6d6; white-space: nowrap; }
+.gs-cgrp-lb b { color: #ffd34d; }
+.gs-cgrp.c-kw .gs-cgrp-lb { color: #ffe08a; } .gs-cgrp.c-pi .gs-cgrp-lb { color: #ff9a6a; }
+#gsMyCap .gs-cgrp-cards { padding-left: 18px; }
+#gsMyCap .gscard.mini { width: 30px; height: 45px; margin-left: -18px; }
+#gsMyCap .gscard.mini:first-child { margin-left: 0; }
 
-/* 가운데(바닥 + 더미/큰판) */
-#gsMid { flex: 1; display: flex; gap: 10px; align-items: center; min-height: 200px; }
-#gsFloor { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-content: center; justify-content: center; min-height: 150px; }
-.gs-empty { min-height: 100px; }
-#gsCenter { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+/* 가운데 — 더미(중앙) + 바닥패 주변 분산 */
+#gsMid { position: relative; flex: 1; min-height: 232px; }
+#gsFloor { position: absolute; inset: 0; }
+.floorc { position: absolute; transform: translate(-50%,-50%) rotate(var(--rot,0deg)); }
+.floorc.choosable { z-index: 6; }
+@keyframes gsSlam {
+  0%  { transform: translate(-50%,-190%) rotate(var(--rot,0deg)) scale(1.5); opacity: .15; }
+  62% { transform: translate(-50%,-42%) rotate(var(--rot,0deg)) scale(1.07); opacity: 1; }
+  100%{ transform: translate(-50%,-50%) rotate(var(--rot,0deg)) scale(1); }
+}
+.floorc.slam { animation: gsSlam .26s cubic-bezier(.25,1.5,.5,1); }
+#gsCenter { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 2; }
 #gsDrawWrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-#gsDraw { width: 52px; height: 78px; border-radius: 5px; background: linear-gradient(135deg, #861f1f, #4a1010); border: 2px solid #d9a72e; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+#gsDraw { width: 52px; height: 78px; border-radius: 5px; background: linear-gradient(135deg, #861f1f, #4a1010); border: 2px solid #d9a72e; box-shadow: 0 3px 10px rgba(0,0,0,.6); }
 #gsDraw:not(.has) { opacity: .2; }
 #gsDrawN { font-size: 12px; color: #ffd34d; font-weight: 700; }
-#gsPot { text-align: center; }
-.gs-pot-big { background: linear-gradient(180deg, #6a4a16, #3a2a0c); border: 2px solid #ffd34d; color: #ffe08a; font-weight: 900; font-size: 16px; padding: 4px 14px; border-radius: 10px; white-space: nowrap; }
-.gs-pot-go { margin-top: 3px; font-size: 12px; color: #ff8c5a; font-weight: 800; }
+#gsPot { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); text-align: center; z-index: 3; }
+.gs-pot-big { background: linear-gradient(180deg, #6a4a16, #3a2a0c); border: 2px solid #ffd34d; color: #ffe08a; font-weight: 900; font-size: 15px; padding: 3px 14px; border-radius: 10px; white-space: nowrap; }
+.gs-pot-go { margin-top: 2px; font-size: 12px; color: #ff8c5a; font-weight: 800; }
 
 /* 내 영역(아래) */
 #gsMy { display: flex; flex-direction: column; gap: 6px; }
