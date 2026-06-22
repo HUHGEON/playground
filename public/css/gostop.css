@@ -58,9 +58,16 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 #gsBody { flex: 1; display: flex; align-items: stretch; min-height: 300px; }
 .gs-side { position: relative; flex: 0 0 0; }
 #gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 100px; }
-.gs-side .gs-opp { position: absolute; top: 50%; left: 50%; width: 250px; min-width: 0; max-width: 250px; margin: 0; }
-#gsLeft .gs-opp { transform: translate(-50%,-50%) rotate(90deg); }
-#gsRight .gs-opp { transform: translate(-50%,-50%) rotate(-90deg); }
+#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 86px; }
+.gs-side .gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 78px; min-width: 0; margin: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 9px 4px; }
+.gs-vname { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 1px; font-weight: 800; color: #eaf6ee; font-size: 14px; line-height: 1.1; }
+.gs-vscore { writing-mode: vertical-rl; text-orientation: upright; font-weight: 800; color: #ffe08a; font-size: 14px; }
+.gs-vtag { font-size: 10px; color: #ffd34d; }
+.gs-vnow { font-size: 10px; background: #e8540e; color: #fff; padding: 2px 6px; border-radius: 7px; font-weight: 700; }
+.gs-vcap { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.gs-vc { display: flex; justify-content: space-between; gap: 4px; font-size: 11px; min-width: 40px; }
+.gs-vc i { color: #9fc0ac; font-style: normal; } .gs-vc b { color: #ffd34d; }
 
 /* 가운데 — 더미(중앙) + 바닥패 주변 분산 */
 #gsMid { position: relative; flex: 1; min-height: 300px; }
