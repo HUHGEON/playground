@@ -43,17 +43,21 @@
     return { g, piVal };
   }
   // 획득더미: 광·멍(열끗)·단(띠)·피 를 가로로 나란히, 각 그룹 안에서도 카드 가로 겹침
+  // 피는 장수가 아니라 '값'(일반1·쌍피2·쓰리피3·보너스) 합산 → 10값에 1점
   function capStrips(captured, detail, small) {
     const { g, piVal } = pileGroups(captured);
     const pt = catPoints(detail);
     const mini = small ? 'mini xs' : 'mini';
-    const grp = (label, cards, badge, cls) => `<div class="gs-cgrp ${cls}">
-        <div class="gs-cgrp-cards">${cards.map((c) => cardHTML(c, mini)).join('')}</div>
+    const grp = (label, html, badge, cls) => `<div class="gs-cgrp ${cls}">
+        <div class="gs-cgrp-cards">${html}</div>
         <div class="gs-cgrp-lb">${label}${badge ? ` <b>${badge}</b>` : ''}</div></div>`;
-    return grp('광', g.KWANG, pt.KWANG ? pt.KWANG + '점' : '', 'c-kw') +
-      grp('멍', g.YEOL, pt.YEOL ? pt.YEOL + '점' : '', 'c-yeol') +
-      grp('단', g.TTI, pt.TTI ? pt.TTI + '점' : '', 'c-tti') +
-      grp('피', g.PI, piVal ? piVal + '장' : '', 'c-pi');   // 피는 값 합산(쌍피·보너스 포함)
+    const plain = (cards) => cards.map((c) => cardHTML(c, mini)).join('');
+    // 피: 쌍피/쓰리피/보너스에 값 뱃지
+    const piHtml = g.PI.map((c) => `<span class="gs-pic">${cardHTML(c, mini)}${c.pi >= 2 ? `<b class="gs-piv">${c.pi}</b>` : ''}</span>`).join('');
+    return grp('광', plain(g.KWANG), pt.KWANG ? pt.KWANG + '점' : '', 'c-kw') +
+      grp('멍', plain(g.YEOL), pt.YEOL ? pt.YEOL + '점' : '', 'c-yeol') +
+      grp('단', plain(g.TTI), pt.TTI ? pt.TTI + '점' : '', 'c-tti') +
+      grp('피', piHtml, piVal ? piVal + '피' : '', 'c-pi');   // 값 기준(10피=1점)
   }
 
   // 상대 패널 (위쪽)
