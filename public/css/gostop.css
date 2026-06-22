@@ -47,7 +47,7 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 #gsMyCap .gscard.mini:first-child { margin-left: 0; }
 
 /* 가운데 — 더미(중앙) + 바닥패 주변 분산 */
-#gsMid { position: relative; flex: 1; min-height: 232px; }
+#gsMid { position: relative; flex: 1; min-height: 300px; }
 #gsFloor { position: absolute; inset: 0; }
 .floorc { position: absolute; transform: translate(-50%,-50%) rotate(var(--rot,0deg)); }
 .floorc.choosable { z-index: 6; }

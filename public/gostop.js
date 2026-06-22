@@ -14,12 +14,16 @@
   }
   const cardSrc = (c) => c.img || ('gostop/' + c.m + '-' + c.idx + '.png');
   const cardHTML = (c, cls) => `<img class="gscard${cls ? ' ' + cls : ''}" src="${cardSrc(c)}" data-id="${c.id}" data-m="${c.m}" draggable="false" alt="">`;
-  // 바닥 카드 위치 — 카드 id 해시로 안정(다른 카드 추가돼도 안 튐), 중앙(더미) 피해 타원 분산
+  // 바닥 카드 위치 — 카드 id 해시로 안정. 중앙 더미를 회피하는 타원 '밖'에만 배치(절대 안 겹침).
   function floorPos(id) {
     let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
     const ang = (h % 360) * Math.PI / 180;
-    const rx = 25 + ((h >> 9) & 7) * 1.7, ry = 27 + ((h >> 6) & 7) * 1.4;
-    return { x: 50 + Math.cos(ang) * rx, y: 50 + Math.sin(ang) * ry, rot: ((h >> 3) % 26) - 13 };
+    const rf = 1.0 + ((h >> 9) & 7) / 11;     // 1.0~1.64 바깥 링
+    const EXX = 18, EXY = 33;                  // 더미 회피 타원 반지름(%) — 이 안엔 절대 안 들어옴
+    let x = 50 + Math.cos(ang) * EXX * rf;
+    let y = 50 + Math.sin(ang) * EXY * rf;
+    x = Math.max(9, Math.min(91, x)); y = Math.max(13, Math.min(87, y));
+    return { x, y, rot: ((h >> 3) % 26) - 13 };
   }
   let prevFloorIds = new Set();
 
