@@ -7,6 +7,7 @@ let seq = 0;
 
 // 봇전에서 채울 봇 수 = 좌석 다 채우기(나 빼고 나머지). maxPlayers-1.
 function botCount(gameType, maxPlayers) {
+  if (gameType === 'gostop') return 1;     // 고스톱 봇전 = 2인 맞고(나 vs 봇 1)
   return Math.max(1, (maxPlayers || 2) - 1);
 }
 

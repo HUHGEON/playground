@@ -473,6 +473,28 @@ function scoreOf(captured) {
   return b.total > a.total ? b : a;
 }
 
+// ── 봇 (서버측, 히든정보 — 휴리스틱) ──
+function cardWorth(c) {
+  if (c.cat === 'KWANG') return 20;
+  if (c.cat === 'YEOL') return c.flags.includes('GODORI') ? 14 : 10;
+  if (c.cat === 'TTI') return c.flags.some((f) => ['HONGDAN', 'CHEONGDAN', 'CHODAN'].includes(f)) ? 7 : 5;
+  return c.pi || 1;   // 피
+}
+function botPickPlay(r, seat) {
+  const hand = r.hands[seat];
+  let best = hand[0], bestV = -1e9;
+  for (const c of hand) {
+    const fc = floorCount(r, c.m);
+    let v;
+    if (fc === 1) v = 5 + cardWorth(floorOf(r, c.m)[0]) + cardWorth(c);   // 짝 먹기
+    else if (fc >= 3) v = 40;                                             // 뻑 스택 회수
+    else if (fc === 2) v = -10;                                           // 뻑 위험 회피
+    else v = -cardWorth(c) * 0.3;                                         // 짝없음 → 가치 낮은 패 깔기
+    if (v > bestV) { bestV = v; best = c; }
+  }
+  return best;
+}
+
 // ── 모듈 인터페이스 ──
 module.exports = {
   type: 'gostop',
@@ -563,6 +585,41 @@ module.exports = {
     if (msg.type === 'flip') return freeFlip(room, seat);                          // 뒤집기만(폭탄 빚)
     if (msg.type === 'chongtong') return declareChongtong(room, seat);             // 총통
     return false;
+  },
+
+  botWants(room, ws) {
+    const r = room.gs.round;
+    if (!r || room.phase !== 'playing' || r.over) return false;
+    const seat = room.queue.indexOf(ws);
+    if (seat < 0) return false;
+    if (r.pending) return r.pending.seat === seat;
+    if (r.decision) return r.decision.seat === seat;
+    return r.turnIdx === seat;     // 내 턴(플레이/뒤집기/총통)
+  },
+
+  bot(room, ws) {
+    const r = room.gs.round;
+    const seat = room.queue.indexOf(ws);
+    if (!r || seat < 0) return null;
+    if (r.pending && r.pending.seat === seat) {                 // 바닥 2장 선택 → 가치 높은 패
+      const opts = r.pending.options.map((id) => r.floor.find((c) => c.id === id)).filter(Boolean);
+      opts.sort((a, b) => cardWorth(b) - cardWorth(a));
+      return { type: 'choose', cardId: (opts[0] || r.floor.find((c) => c.id === r.pending.options[0])).id };
+    }
+    if (r.decision && r.decision.seat === seat) {               // 고/스톱
+      const sc = r.decision.score, left = r.draw.length;
+      let go = sc < 4 ? Math.random() < 0.7 : sc < 7 ? Math.random() < 0.35 : Math.random() < 0.1;
+      if (left < 4) go = false;
+      return { type: go ? 'go' : 'stop' };
+    }
+    if (r.turnIdx === seat) {
+      if (r.freeFlips[seat] > 0) return { type: 'flip' };
+      if (r.chongtong.includes(seat)) return { type: 'chongtong' };          // 총통이면 즉시
+      const bombM = handMonths(r, seat, 3).filter((m) => floorCount(r, m) >= 1);
+      if (bombM.length && Math.random() < 0.7) return { type: 'bomb', month: bombM[0] };
+      return { type: 'play', cardId: botPickPlay(r, seat).id };
+    }
+    return null;
   },
 
   state(room, ws) {
