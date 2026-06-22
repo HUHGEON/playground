@@ -65,7 +65,8 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 .gs-stop2 { display: flex; align-items: center; gap: 4px; }
 .gs-stop2 .gs-ava { font-size: 17px; }
 .gs-sname2 { flex: 1; min-width: 0; font-size: 11px; font-weight: 700; color: #eaf6ee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gs-scap { display: flex; flex-direction: column; gap: 2px; overflow: hidden; flex: 1 1 auto; min-width: 0; }
+.gs-scap { display: flex; flex-direction: column; gap: 2px; overflow: hidden; flex: 0 1 auto; min-width: 0; }
+.gs-sbottom { margin-top: auto; text-align: center; font-size: 15px; font-weight: 800; color: #ffe08a; padding-top: 2px; }
 #gsRight .gs-opp.side { flex-direction: row-reverse; }
 .gs-scap { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
 .gs-srow { display: flex; align-items: flex-start; gap: 1px; }
