@@ -498,6 +498,7 @@ function botPickPlay(r, seat) {
 // ── 모듈 인터페이스 ──
 module.exports = {
   type: 'gostop',
+  order: 3,
   title: '고스톱',
   emoji: '🃏',
   maxPlayers: 4,

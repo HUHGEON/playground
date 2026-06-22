@@ -523,6 +523,7 @@ function dealHand(room, seats) {
 // ───────────────────────────────────────────────────────────
 module.exports = {
   type: 'seotda',
+  order: 2,
   title: '섯다',
   emoji: '🎴',
   minPlayers: 2,

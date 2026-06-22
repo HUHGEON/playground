@@ -521,6 +521,7 @@ function winProb(h, me, iters) {
 // ───────────────────────────────────────────────────────────
 module.exports = {
   type: 'poker',
+  order: 4,
   title: '세븐포커',
   emoji: '🃏',
   minPlayers: 2,

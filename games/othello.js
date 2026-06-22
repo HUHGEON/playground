@@ -129,6 +129,7 @@ function roleOf(room, ws) {
 
 module.exports = {
   type: 'othello',
+  order: 1,
   title: '오셀로',
   emoji: '⚫',
   minPlayers: 2,
