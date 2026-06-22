@@ -79,8 +79,11 @@
     main.innerHTML =
       '<div id="gsStage"><div id="gsFelt">' +
         '<div id="gsTop"></div>' +
-        '<div id="gsMid"><div id="gsFloor"></div>' +
-          '<div id="gsCenter"><div id="gsDrawWrap"><div id="gsDraw"></div><div id="gsDrawN"></div></div></div>' +
+        '<div id="gsBody"><div id="gsLeft" class="gs-side"></div>' +
+          '<div id="gsMid"><div id="gsFloor"></div>' +
+            '<div id="gsCenter"><div id="gsDrawWrap"><div id="gsDraw"></div><div id="gsDrawN"></div></div></div>' +
+          '</div>' +
+          '<div id="gsRight" class="gs-side"></div>' +
         '</div>' +
         '<div id="gsMy"><div id="gsMyCap"></div>' +
           '<div id="gsMyRow"><div id="gsMyAva"></div><div id="gsHand"></div><div id="gsActions"></div></div>' +
@@ -108,15 +111,17 @@
     // 대기(로비)
     if (s.phase !== 'playing' && s.phase !== 'finished') {
       $('gsTop').innerHTML = (s.seats || []).map((p, i) => oppHTML(s, i)).join('');
-      $('gsMid').style.display = 'none'; $('gsMy').style.display = 'none';
+      $('gsLeft').innerHTML = ''; $('gsRight').innerHTML = '';
+      $('gsBody').style.display = 'none'; $('gsMy').style.display = 'none';
       modalLobby(s); $('gsSide').innerHTML = sideHTML(s); return;
     }
-    $('gsMid').style.display = ''; $('gsMy').style.display = '';
+    $('gsBody').style.display = ''; $('gsMy').style.display = '';
 
-    // 상대들(위)
+    // 상대 배치: 첫 상대 상단, 둘째 왼쪽(90°), 셋째 오른쪽(90°)
     const opps = (s.seats || []).map((_, i) => i).filter((i) => i !== me);
-    const top = $('gsTop'); top.className = 'n' + opps.length;
-    top.innerHTML = opps.map((i) => oppHTML(s, i)).join('');
+    $('gsTop').innerHTML = opps[0] != null ? oppHTML(s, opps[0]) : '';
+    $('gsLeft').innerHTML = opps[1] != null ? oppHTML(s, opps[1]) : '';
+    $('gsRight').innerHTML = opps[2] != null ? oppHTML(s, opps[2]) : '';
 
     // 바닥 — 더미(중앙) 주변 분산 + 새 패는 슬램(내려치기)
     const fids = [];
