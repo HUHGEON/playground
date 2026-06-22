@@ -59,8 +59,10 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 .gs-side { position: relative; flex: 0 0 0; }
 #gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 100px; }
 /* 사이드 상대: 2열 — 왼쪽 광/멍/단/피, 오른쪽 이모지+세로이름+점수. 피는 세로로 쌓아 판 밖 방지 */
-#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 122px; }
-.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 114px; min-width: 0; margin: 0; display: flex; gap: 4px; align-items: flex-start; padding: 6px 4px; }
+#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 126px; }
+/* 고정 크기 박스 — 카드 수와 무관하게 일정 */
+.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 116px; height: 288px; box-sizing: border-box; min-width: 0; margin: 0; display: flex; gap: 4px; align-items: flex-start; padding: 6px 4px; overflow: hidden; }
+.gs-scap { flex: 1 1 auto; min-width: 0; overflow: hidden; }
 #gsRight .gs-opp.side { flex-direction: row-reverse; }
 .gs-scap { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
 .gs-srow { display: flex; align-items: flex-start; gap: 1px; }
