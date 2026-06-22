@@ -59,13 +59,13 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 .gs-side { position: relative; flex: 0 0 0; }
 #gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 100px; }
 /* 사이드 상대: 닉/이모지/점수는 세로 정자, 광/멍/단/피 카드만 90° 회전(사이드뷰) */
-#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 134px; }
-.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 126px; min-width: 0; margin: 0; display: flex; gap: 4px; align-items: center; padding: 6px 4px; }
+#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 108px; }
+.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 100px; min-width: 0; margin: 0; display: flex; gap: 2px; align-items: center; padding: 5px 3px; }
 #gsRight .gs-opp.side { flex-direction: row-reverse; }
-.gs-vhead { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 0 0 auto; }
-.gs-vhead .gs-ava { font-size: 22px; }
-.gs-vname { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 1px; font-weight: 800; color: #eaf6ee; font-size: 13px; }
-.gs-vscore { writing-mode: vertical-rl; text-orientation: upright; font-weight: 800; color: #ffe08a; font-size: 13px; }
+.gs-vhead { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 22px; }
+.gs-vhead .gs-ava { font-size: 20px; }
+.gs-vname { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: -1px; font-weight: 700; color: #eaf6ee; font-size: 11px; line-height: 1; }
+.gs-vscore { writing-mode: vertical-rl; text-orientation: upright; font-weight: 800; color: #ffe08a; font-size: 12px; letter-spacing: -1px; }
 .gs-vnow { writing-mode: vertical-rl; text-orientation: upright; font-size: 10px; background: #e8540e; color: #fff; padding: 4px 2px; border-radius: 6px; font-weight: 700; }
 .gs-caprot { position: relative; width: 62px; height: 200px; flex: 0 0 auto; }
 .gs-caprot .gs-opp-cap { position: absolute; top: 50%; left: 50%; width: 196px; transform-origin: center; }

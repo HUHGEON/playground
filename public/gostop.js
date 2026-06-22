@@ -66,7 +66,7 @@
     if (pos === 'left' || pos === 'right') {
       return `<div class="gs-opp side ${pos}${turn ? ' turn' : ''}">
         <div class="gs-vhead">
-          <span class="gs-ava">${avatar(p.name)}${p.isBot ? '🤖' : ''}</span>
+          <span class="gs-ava">${p.isBot ? '🤖' : avatar(p.name)}</span>
           <div class="gs-vname">${esc(p.name.replace(/🤖/g, ''))}</div>
           <div class="gs-vscore">${sc}점</div>
           ${turn ? '<div class="gs-vnow">차례</div>' : ''}
