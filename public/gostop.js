@@ -54,7 +54,7 @@
     return grp('광', plain(g.KWANG), 'c-kw') + grp('멍', plain(g.YEOL), 'c-yeol') + grp('단', plain(g.TTI), 'c-tti') + grp('피', piHtml, 'c-pi');
   }
 
-  // 상대 패널 — pos: 'top'|'left'|'right'. 사이드는 패널 통째 90° 회전(카드 사이드뷰), 헤드만 CSS로 똑바로.
+  // 상대 패널 — pos: 'top'|'left'|'right'. 사이드는 카드만 90° 회전(사이드뷰), 닉/이모지/점수는 세로 정자.
   function oppHTML(s, seat, pos) {
     const p = s.seats[seat]; if (!p) return '';
     const turn = s.turnIdx === seat && s.phase === 'playing';
@@ -63,7 +63,18 @@
     const tags = [];
     if (s.goCounts && s.goCounts[seat]) tags.push(`${s.goCounts[seat]}고`);
     if (s.shake && s.shake[seat]) tags.push(`흔들×${s.shake[seat]}`);
-    return `<div class="gs-opp${pos === 'left' || pos === 'right' ? ' side ' + pos : ''}${turn ? ' turn' : ''}">
+    if (pos === 'left' || pos === 'right') {
+      return `<div class="gs-opp side ${pos}${turn ? ' turn' : ''}">
+        <div class="gs-vhead">
+          <span class="gs-ava">${avatar(p.name)}${p.isBot ? '🤖' : ''}</span>
+          <div class="gs-vname">${esc(p.name.replace(/🤖/g, ''))}</div>
+          <div class="gs-vscore">${sc}점</div>
+          ${turn ? '<div class="gs-vnow">차례</div>' : ''}
+        </div>
+        <div class="gs-caprot"><div class="gs-opp-cap">${capStrips((s.captured && s.captured[seat]) || [], det, true)}</div></div>
+      </div>`;
+    }
+    return `<div class="gs-opp${turn ? ' turn' : ''}">
       <div class="gs-opp-head">
         <span class="gs-ava">${avatar(p.name)}</span>
         <span class="gs-opp-info"><b>${esc(p.name)}${p.isBot ? '🤖' : ''}</b>

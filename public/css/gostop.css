@@ -58,13 +58,19 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 #gsBody { flex: 1; display: flex; align-items: stretch; min-height: 300px; }
 .gs-side { position: relative; flex: 0 0 0; }
 #gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 100px; }
-/* 사이드 상대: 패널 통째 90° 회전(광/멍/단/피 카드 사이드뷰) + 헤드(이름/점수/이모지)만 반대로 돌려 똑바로 */
-#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 120px; }
-.gs-opp.side { position: absolute; top: 50%; left: 50%; width: 222px; min-width: 0; margin: 0; }
-#gsLeft .gs-opp.side { transform: translate(-50%,-50%) rotate(90deg); }
-#gsRight .gs-opp.side { transform: translate(-50%,-50%) rotate(-90deg); }
-#gsLeft .gs-opp.side .gs-opp-head { transform: rotate(-90deg); transform-origin: center; }
-#gsRight .gs-opp.side .gs-opp-head { transform: rotate(90deg); transform-origin: center; }
+/* 사이드 상대: 닉/이모지/점수는 세로 정자, 광/멍/단/피 카드만 90° 회전(사이드뷰) */
+#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 134px; }
+.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 126px; min-width: 0; margin: 0; display: flex; gap: 4px; align-items: center; padding: 6px 4px; }
+#gsRight .gs-opp.side { flex-direction: row-reverse; }
+.gs-vhead { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 0 0 auto; }
+.gs-vhead .gs-ava { font-size: 22px; }
+.gs-vname { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 1px; font-weight: 800; color: #eaf6ee; font-size: 13px; }
+.gs-vscore { writing-mode: vertical-rl; text-orientation: upright; font-weight: 800; color: #ffe08a; font-size: 13px; }
+.gs-vnow { writing-mode: vertical-rl; text-orientation: upright; font-size: 10px; background: #e8540e; color: #fff; padding: 4px 2px; border-radius: 6px; font-weight: 700; }
+.gs-caprot { position: relative; width: 62px; height: 200px; flex: 0 0 auto; }
+.gs-caprot .gs-opp-cap { position: absolute; top: 50%; left: 50%; width: 196px; transform-origin: center; }
+#gsLeft .gs-caprot .gs-opp-cap { transform: translate(-50%,-50%) rotate(90deg); }
+#gsRight .gs-caprot .gs-opp-cap { transform: translate(-50%,-50%) rotate(-90deg); }
 
 /* 가운데 — 더미(중앙) + 바닥패 주변 분산 */
 #gsMid { position: relative; flex: 1; min-height: 300px; }
