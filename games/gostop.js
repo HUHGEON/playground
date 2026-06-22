@@ -156,12 +156,21 @@ function stealPi(room, seat, n, reason) {
 
 const floorCount = (r, m) => (m === 0 ? 0 : r.floor.filter((c) => c.m === m).length);
 const floorOf = (r, m) => r.floor.filter((c) => c.m === m);
-function markBbeok(r, seat, m) { r.bbeokCount[seat] = (r.bbeokCount[seat] || 0) + 1; }
+const myTurnNow = (r, seat) => seat >= 0 && seat === r.turnIdx && !r.pending && !r.decision && !r.over && r.freeFlips[seat] === 0;
+function handMonths(r, seat, n) {   // 손패에 같은 월 n장 이상인 월 목록
+  const cnt = {}; for (const c of r.hands[seat] || []) if (c.m !== 0) cnt[c.m] = (cnt[c.m] || 0) + 1;
+  return Object.keys(cnt).filter((m) => cnt[m] >= n).map(Number);
+}
+function markBbeok(r, seat, m) {
+  r.bbeokCount[seat] = (r.bbeokCount[seat] || 0) + 1;
+  if (r.bbeokCount[seat] >= 3) r.threeBbeok = seat;   // 쓰리뻑 → 자동 승(endTurn에서 정산)
+}
 
 // 손패 1장 내기 — 손패를 바닥에 올린 뒤 뒤집기와 "합산 판정"(쪽/따닥/뻑)
 function playCard(room, seat, cardId) {
   const r = room.gs.round, cfg = room.gs.cfg;
-  if (!r || r.over || r.pending || seat !== r.turnIdx) return false;
+  if (!r || r.over || r.pending || r.decision || seat !== r.turnIdx) return false;
+  if (r.freeFlips[seat] > 0) return false;        // 폭탄 빚: 뒤집기만(flip 액션) 해야 함
   const hand = r.hands[seat];
   const ci = hand.findIndex((c) => c.id === cardId);
   if (ci < 0) return false;
@@ -271,6 +280,7 @@ function chooseFloor(room, seat, floorCardId) {
 function endTurn(room) {
   const r = room.gs.round;
   r.pending = null;
+  if (r.threeBbeok != null) return settle(room, r.threeBbeok, { forcedScore: r.params.minScore, reason: '쓰리뻑' });  // 쓰리뻑 자동승
   if (r.hands.every((h) => h.length === 0)) return nagari(room);     // 손·더미 소진까지 아무도 못 남 → 나가리
   const seat = r.turnIdx;
   const sc = scoreOf(r.captured[seat]).total;
@@ -307,30 +317,116 @@ function declareStop(room, seat) {
   return true;
 }
 
-// 정산(§5.2) — 5A: 고공식 + 나가리누적. (박/멍박/흔들기 배수는 5B)
-function settle(room, winnerSeat) {
-  const r = room.gs.round, gs = room.gs;
-  const sc = scoreOf(r.captured[winnerSeat]);
-  const goCount = r.goCount[winnerSeat];
-  let score = sc.total + goCount;                       // (원점수 + 고수)
-  if (goCount >= 3) score *= Math.pow(2, goCount - 2);  // 3고부터 ×2씩
-  score *= (gs.carryMult || 1);                         // 나가리 누적
+const canActNow = (r, seat) => r && !r.over && !r.pending && !r.decision && seat === r.turnIdx && r.freeFlips[seat] === 0;
 
-  const amount = score * gs.pointValue;
+// 흔들기 — 손에 같은 월 3장 공개(이기면 ×2). 선언 후 그 월 카드를 냄.
+function declareShake(room, seat, month) {
+  const r = room.gs.round;
+  if (!canActNow(r, seat)) return false;
+  if (r.hands[seat].filter((c) => c.m === month).length < 3) return false;
+  r.shake[seat]++;
+  r.events = [{ ev: 'shake', by: seat, month }];
+  return true;   // 선언만 — 이어서 그 월 패를 play
+}
+
+// 폭탄 — 손 3장 + 바닥 1장(나머지) → 4장 전부 회수, 이기면 ×2, 손패 2장 부족 → 뒤집기 빚 2
+function declareBomb(room, seat, month) {
+  const r = room.gs.round;
+  if (!canActNow(r, seat)) return false;
+  const handM = r.hands[seat].filter((c) => c.m === month);
+  if (handM.length < 3 || floorCount(r, month) < 1) return false;
+  const floorM = floorOf(r, month);
+  r.hands[seat] = r.hands[seat].filter((c) => c.m !== month);
+  removeFloor(r, floorM.map((c) => c.id));
+  r.events = [{ ev: 'bomb', by: seat, month, cards: [...handM, ...floorM].map((c) => c.id) }];
+  capture(r, seat, [...handM, ...floorM]);
+  r.shake[seat]++;
+  r.freeFlips[seat] += 2;
+  r.turn = { m: 0, cBefore: 0, hand: null };   // 합산판정 없음 — 일반 뒤집기
+  return flipStep(room, seat);
+}
+
+// 뒤집기만(폭탄 빚 갚기) — 손패 안 내고 더미 한 장
+function freeFlip(room, seat) {
+  const r = room.gs.round;
+  if (!r || r.over || r.pending || r.decision || seat !== r.turnIdx) return false;
+  if (r.freeFlips[seat] <= 0) return false;
+  r.freeFlips[seat]--;
+  r.events = [];
+  r.turn = { m: 0, cBefore: 0, hand: null };
+  return flipStep(room, seat);
+}
+
+// 총통 — 손패 같은 월 4장 → 즉시 3점 승. (선언 안 하고 계속하면 chongtongHold로 ×4)
+function declareChongtong(room, seat) {
+  const r = room.gs.round;
+  if (!r || r.over) return false;
+  if (!r.chongtong.includes(seat)) return false;
+  settle(room, seat, { forcedScore: r.params.minScore, reason: '총통' });
+  return true;
+}
+
+// 정산(§5.2 곱셈 순서 엄수)
+function settle(room, winnerSeat, opts) {
+  const r = room.gs.round, gs = room.gs, cfg = gs.cfg;
+  opts = opts || {};
+  const sc = scoreOf(r.captured[winnerSeat]);
+
+  // 1) base → 2) 고공식
+  const goCount = r.goCount[winnerSeat];
+  const base = opts.forcedScore != null ? opts.forcedScore : sc.total;
+  let goScore = base + goCount;
+  if (goCount >= 3) goScore *= Math.pow(2, goCount - 2);
+
+  // 3) 전역 배수: 나가리누적 · 멍박 · 흔들기/폭탄 · 총통들고치기
+  let globalMult = gs.carryMult || 1;
+  const mungBakOn = cfg.mungBak == null ? r.params.mungBakDefault : cfg.mungBak;
+  const mungBak = mungBakOn && sc.yeolCount >= 7;
+  if (mungBak) globalMult *= 2;
+  globalMult *= Math.pow(2, r.shake[winnerSeat] || 0);
+  if (r.chongtongHold[winnerSeat]) globalMult *= 4;
+
+  // 패자별 박(피박/광박) ×2 중첩
+  const wonByPi = (sc.detail.pi || 0) > 0, wonByKwang = (sc.detail.kwang || 0) > 0;
   const losers = r.captured.map((_, i) => i).filter((i) => i !== winnerSeat);
-  const payments = {};
-  let pot = 0;
+  const bak = {}, baseAmt = {};
   for (const L of losers) {
-    const ws = room.queue[L];
-    const pay = Math.min(amount, gs.chips[ws.sessionId] || 0);   // 보유칩 한도
+    let m = globalMult; const tags = [];
+    const lsc = scoreOf(r.captured[L]);
+    if (wonByPi && lsc.piTotal > 0 && lsc.piTotal <= r.params.piBak) { m *= 2; tags.push('피박'); }
+    if (wonByKwang && lsc.kwangCount === 0) { m *= 2; tags.push('광박'); }
+    if (mungBak) tags.push('멍박');
+    bak[L] = tags; baseAmt[L] = goScore * m;
+  }
+
+  // 고박(3인): 고 외치고 진 사람이 전원분 전액
+  const goLosers = r.params.gobak ? losers.filter((L) => r.goCount[L] > 0) : [];
+  const payScore = {};
+  if (goLosers.length) {
+    const total = losers.reduce((s, L) => s + baseAmt[L], 0);
+    for (const L of losers) payScore[L] = goLosers.includes(L) ? Math.round(total / goLosers.length) : 0;
+    goLosers.forEach((L) => bak[L].push('고박'));
+  } else {
+    for (const L of losers) payScore[L] = baseAmt[L];
+  }
+
+  // 칩 이동(보유칩 한도)
+  const payments = {}; let pot = 0;
+  for (const L of losers) {
+    const ws = room.queue[L], amt = payScore[L] * gs.pointValue;
+    const pay = Math.min(amt, gs.chips[ws.sessionId] || 0);
     gs.chips[ws.sessionId] -= pay; payments[L] = pay; pot += pay;
   }
   gs.chips[room.queue[winnerSeat].sessionId] += pot;
 
   r.over = true; room.phase = 'finished';
-  r.result = { winner: winnerSeat, baseScore: sc.total, detail: sc.detail, goCount, finalScore: score, amount, payments };
-  gs.carryMult = 1;                                     // 나가리 누적 리셋
-  gs.seonIdx = winnerSeat;                              // 다음 판 선 = 승자
+  r.result = {
+    winner: winnerSeat, reason: opts.reason || 'stop',
+    baseScore: base, detail: sc.detail, goCount, goScore,
+    shake: r.shake[winnerSeat] || 0, mungBak, chongtong: !!r.chongtongHold[winnerSeat],
+    bak, payScore, payments,
+  };
+  gs.carryMult = 1; gs.seonIdx = winnerSeat;            // 누적 리셋, 승자 선
 }
 
 // ── 점수 계산 (§4) ──
@@ -434,6 +530,10 @@ module.exports = {
       goScoreAt: room.queue.map(() => 0), // 직전 고 선언 시 점수
       decision: null,                     // 고/스톱 대기 { seat, score }
       result: null,                       // 정산 결과
+      shake: room.queue.map(() => 0),     // 흔들기/폭탄 횟수(이기면 ×2/회)
+      freeFlips: room.queue.map(() => 0), // 폭탄으로 인한 "뒤집기만" 빚
+      chongtongHold: room.queue.map(() => false),  // 총통 안 치고 계속(이기면 ×4)
+      threeBbeok: null,                   // 쓰리뻑 발생 좌석
     };
     for (const w of room.queue) if (room.gs.chips[w.sessionId] == null) room.gs.chips[w.sessionId] = room.gs.startChips;
     // 선이 가져간 바닥 보너스 → 선 획득더미로
@@ -458,6 +558,10 @@ module.exports = {
     if (msg.type === 'choose') return chooseFloor(room, seat, String(msg.cardId)); // 바닥 동월 2장 선택
     if (msg.type === 'go') return declareGo(room, seat);                           // 고
     if (msg.type === 'stop') return declareStop(room, seat);                       // 스톱(정산)
+    if (msg.type === 'shake') return declareShake(room, seat, Number(msg.month));  // 흔들기
+    if (msg.type === 'bomb') return declareBomb(room, seat, Number(msg.month));    // 폭탄
+    if (msg.type === 'flip') return freeFlip(room, seat);                          // 뒤집기만(폭탄 빚)
+    if (msg.type === 'chongtong') return declareChongtong(room, seat);             // 총통
     return false;
   },
 
@@ -496,6 +600,11 @@ module.exports = {
       pendingChoice: pend,           // 내가 바닥 2장 골라야 하면 선택지
       decision: r.decision && r.decision.seat === seatIdx ? r.decision : null,   // 내 고/스톱 차례면 표시
       goCounts: r.goCount,
+      shake: r.shake,
+      myFreeFlips: seatIdx >= 0 ? r.freeFlips[seatIdx] : 0,   // >0이면 뒤집기만(flip)
+      shakeable: myTurnNow(r, seatIdx) ? handMonths(r, seatIdx, 3).filter((m) => floorCount(r, m) < 1) : [],  // 흔들기 가능 월
+      bombable: myTurnNow(r, seatIdx) ? handMonths(r, seatIdx, 3).filter((m) => floorCount(r, m) >= 1) : [],  // 폭탄 가능 월
+      canChongtong: r.chongtong.includes(seatIdx),
       result: r.result,              // 정산 결과(over일 때)
       chips: room.gs.chips,
       events: r.events,
