@@ -64,11 +64,20 @@
     if (s.goCounts && s.goCounts[seat]) tags.push(`${s.goCounts[seat]}고`);
     if (s.shake && s.shake[seat]) tags.push(`흔들×${s.shake[seat]}`);
     if (pos === 'left' || pos === 'right') {
+      const { g } = pileGroups((s.captured && s.captured[seat]) || []);
+      const row = (lb, cards, extra) => `<div class="gs-srow${extra || ''}"><span class="gs-slb">${lb}</span><span class="gs-scards">${cards}</span></div>`;
+      const cardsH = (arr) => arr.map((c) => cardHTML(c, 'mini xs')).join('');
+      const piH = g.PI.map((c) => `<span class="gs-pic">${cardHTML(c, 'mini xs')}${c.pi >= 2 ? `<b class="gs-piv">${c.pi}</b>` : ''}</span>`).join('');
       return `<div class="gs-opp side ${pos}${turn ? ' turn' : ''}">
-        <span class="gs-ava">${p.isBot ? '🤖' : avatar(p.name)}</span>
-        <div class="gs-sname">${esc(p.name.replace(/🤖/g, ''))}${turn ? ' <span class="gs-now">차례</span>' : ''}</div>
-        <div class="gs-opp-cap sidecap">${capStrips((s.captured && s.captured[seat]) || [], det, true)}</div>
-        <div class="gs-sscore">${sc}점</div>
+        <div class="gs-scap">
+          ${row('광', cardsH(g.KWANG))}${row('멍', cardsH(g.YEOL))}${row('단', cardsH(g.TTI))}${row('피', piH, ' pi')}
+        </div>
+        <div class="gs-sid">
+          <span class="gs-ava">${p.isBot ? '🤖' : avatar(p.name)}</span>
+          <div class="gs-vname">${esc(p.name.replace(/🤖/g, ''))}</div>
+          <div class="gs-sscore">${sc}점</div>
+          ${turn ? '<div class="gs-now">차례</div>' : ''}
+        </div>
       </div>`;
     }
     return `<div class="gs-opp${turn ? ' turn' : ''}">

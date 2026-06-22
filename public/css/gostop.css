@@ -58,18 +58,24 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 #gsBody { flex: 1; display: flex; align-items: stretch; min-height: 300px; }
 .gs-side { position: relative; flex: 0 0 0; }
 #gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 100px; }
-/* 사이드 상대: 세로 스택 — 이모지(위)→이름→패(광멍단피)→점수(밑) */
-#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 104px; }
-.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 96px; min-width: 0; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px; }
-.gs-opp.side .gs-ava { font-size: 24px; }
-.gs-sname { font-size: 12px; font-weight: 700; color: #eaf6ee; text-align: center; white-space: nowrap; }
-.gs-sscore { font-size: 14px; font-weight: 800; color: #ffe08a; }
-.gs-opp.side .gs-opp-cap.sidecap { display: flex; flex-direction: column; gap: 1px; width: 100%; }
-.gs-opp.side .sidecap .gs-cgrp { flex-direction: row; align-items: center; gap: 3px; }
-.gs-opp.side .sidecap .gs-cgrp-lb { order: -1; font-size: 9px; min-width: 13px; color: #aecdb9; }
-.gs-opp.side .sidecap .gs-cgrp-cards { padding-left: 11px; }
-.gs-opp.side .sidecap .gscard.mini { width: 21px; height: 31px; margin-left: -13px; }
-.gs-opp.side .sidecap .gscard.mini:first-child { margin-left: 0; }
+/* 사이드 상대: 2열 — 왼쪽 광/멍/단/피, 오른쪽 이모지+세로이름+점수. 피는 세로로 쌓아 판 밖 방지 */
+#gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 120px; }
+.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 112px; min-width: 0; margin: 0; display: flex; gap: 4px; align-items: flex-start; padding: 5px 3px; }
+#gsRight .gs-opp.side { flex-direction: row-reverse; }
+.gs-scap { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.gs-srow { display: flex; align-items: flex-start; gap: 1px; }
+.gs-slb { font-size: 9px; color: #aecdb9; flex: 0 0 11px; padding-top: 2px; }
+.gs-scards { display: flex; padding-left: 11px; min-height: 12px; }
+.gs-scards .gscard.mini.xs { width: 20px; height: 30px; margin-left: -11px; }
+.gs-scards .gscard.mini.xs:first-child { margin-left: 0; }
+.gs-srow.pi .gs-scards { flex-direction: column; padding-left: 0; }
+.gs-srow.pi .gs-pic { display: block; margin-top: -22px; }
+.gs-srow.pi .gs-pic:first-child { margin-top: 0; }
+.gs-srow.pi .gscard.mini.xs { margin-left: 0; }
+.gs-sid { display: flex; flex-direction: column; align-items: center; gap: 1px; flex: 0 0 24px; }
+.gs-sid .gs-ava { font-size: 20px; }
+.gs-vname { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: -1px; font-weight: 700; color: #eaf6ee; font-size: 12px; line-height: 1; }
+.gs-sscore { font-size: 12px; font-weight: 800; color: #ffe08a; margin-top: 3px; }
 
 /* 가운데 — 더미(중앙) + 바닥패 주변 분산 */
 #gsMid { position: relative; flex: 1; min-height: 300px; }
