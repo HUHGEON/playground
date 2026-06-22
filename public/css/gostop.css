@@ -60,25 +60,28 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 #gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 100px; }
 /* 사이드 상대: 2열 — 왼쪽 광/멍/단/피, 오른쪽 이모지+세로이름+점수. 피는 세로로 쌓아 판 밖 방지 */
 #gsLeft:not(:empty), #gsRight:not(:empty) { flex: 0 0 126px; }
-/* 고정 크기 박스 — 카드 수와 무관하게 일정 */
-.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 116px; height: 288px; box-sizing: border-box; min-width: 0; margin: 0; display: flex; gap: 4px; align-items: flex-start; padding: 6px 4px; overflow: hidden; }
-.gs-scap { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+/* 고정 크기 박스 — 카드 수와 무관하게 일정. 이름 위 가로 한 줄 + 패 밑으로 */
+.gs-opp.side { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 118px; height: 206px; box-sizing: border-box; min-width: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; align-items: stretch; padding: 6px 5px; overflow: hidden; }
+.gs-stop2 { display: flex; align-items: center; gap: 4px; }
+.gs-stop2 .gs-ava { font-size: 17px; }
+.gs-sname2 { flex: 1; min-width: 0; font-size: 11px; font-weight: 700; color: #eaf6ee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-scap { display: flex; flex-direction: column; gap: 2px; overflow: hidden; flex: 1 1 auto; min-width: 0; }
 #gsRight .gs-opp.side { flex-direction: row-reverse; }
 .gs-scap { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
 .gs-srow { display: flex; align-items: flex-start; gap: 1px; }
 .gs-slb { font-size: 9px; color: #aecdb9; flex: 0 0 11px; padding-top: 2px; }
-/* 패: 가로로 5개마다 줄바꿈, 카드는 세로로 크게 */
-.gs-scards { display: flex; flex-wrap: wrap; width: 66px; min-height: 14px; row-gap: 2px; }
-.gs-scards .gscard.mini.xs { width: 22px; height: 38px; margin-left: -12px; }
-.gs-scards .gscard.mini.xs:nth-child(5n+1) { margin-left: 0; }
-.gs-srow.pi .gs-pic { display: inline-block; margin-left: -12px; }
-.gs-srow.pi .gs-pic:nth-child(5n+1) { margin-left: 0; }
-.gs-srow.pi .gs-pic .gscard.mini.xs { margin-left: 0; width: 22px; height: 38px; }
-.gs-sid { display: flex; flex-direction: column; align-items: center; gap: 1px; flex: 0 0 26px; }
-.gs-sid .gs-ava { display: flex; flex-direction: column; align-items: center; line-height: 1; font-size: 20px; }
-.gs-bot { font-size: 11px; margin-top: -1px; }
-.gs-vname { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: -1px; font-weight: 700; color: #eaf6ee; font-size: 12px; line-height: 1; }
-.gs-sscore { font-size: 12px; font-weight: 800; color: #ffe08a; margin-top: 3px; }
+/* 패: 가로로 5개마다 줄바꿈, 카드끼리 아주 약간 공백, 작게 해서 피도 안 짤림 */
+.gs-scards { display: flex; flex-wrap: wrap; flex: none; width: 86px; min-height: 12px; gap: 1px; }
+.gs-scards .gscard.mini.xs { width: 16px; height: 24px; margin: 0; }
+.gs-srow.pi .gs-pic { display: inline-block; }
+.gs-srow.pi .gs-pic .gscard.mini.xs { margin: 0; }
+.gs-srow.pi .gs-piv { font-size: 7px; min-width: 9px; height: 9px; line-height: 9px; right: -2px; bottom: -1px; }
+/* 이모지·닉네임·점수 비율 맞춰 세로 균등 배치 */
+.gs-sid { display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex: 0 0 30px; padding: 2px 0; }
+.gs-sid .gs-ava { display: flex; flex-direction: column; align-items: center; line-height: 1; font-size: 23px; }
+.gs-bot { font-size: 11px; margin-top: -2px; }
+.gs-vname { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 0; font-weight: 700; color: #eaf6ee; font-size: 13px; line-height: 1.05; }
+.gs-sscore { font-size: 14px; font-weight: 800; color: #ffe08a; }
 
 /* 가운데 — 더미(중앙) + 바닥패 주변 분산 */
 #gsMid { position: relative; flex: 1; min-height: 300px; }
