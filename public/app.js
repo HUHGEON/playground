@@ -123,7 +123,6 @@
       b.addEventListener('click', function () {
         selectedMode = b.dataset.mode;
         pick.querySelectorAll('.modebtn').forEach(function (x) { x.classList.toggle('on', x === b); });
-        if (lvl) lvl.style.display = selectedMode === 'single' ? 'flex' : 'none';   // 봇전일 때만 난이도
         updateLevelUI();
       });
     });
@@ -134,16 +133,16 @@
       });
     });
   })();
-  // 헬(절대 못 이김)은 오셀로 전용 — 다른 게임이면 숨기고 선택 중이면 어려움으로
+  // 난이도 선택은 오셀로 전용. 나머지 게임 봇전은 고급봇(hard) 하나만.
   function updateLevelUI() {
-    var hellBtn = document.querySelector('.levelbtn[data-level=hell]');
-    if (!hellBtn) return;
-    var showHell = selectedGame === 'othello';
-    hellBtn.style.display = showHell ? '' : 'none';
-    if (!showHell && selectedLevel === 'hell') {
-      selectedLevel = 'hard';
-      document.querySelectorAll('.levelbtn').forEach(function (x) { x.classList.toggle('on', x.dataset.level === 'hard'); });
-    }
+    var lvl = $('levelPick');
+    var isOthello = selectedGame === 'othello';
+    if (lvl) lvl.style.display = (selectedMode === 'single' && isOthello) ? 'flex' : 'none';
+    if (!isOthello) selectedLevel = 'hard';                 // 오셀로 외엔 고급봇 고정
+    var hellBtn = document.querySelector('.levelbtn[data-level=hell]');   // 헬은 오셀로만
+    if (hellBtn) hellBtn.style.display = isOthello ? '' : 'none';
+    if (isOthello && selectedLevel === 'hell' && !hellBtn) selectedLevel = 'hard';
+    if (lvl) lvl.querySelectorAll('.levelbtn').forEach(function (x) { x.classList.toggle('on', x.dataset.level === selectedLevel); });
   }
 
   function createRoom() {
@@ -234,6 +233,7 @@
       wrap.appendChild(o);
     });
     buildOptForm();                                  // 선택 게임의 meta.options로 옵션 폼 생성/갱신
+    if (typeof updateLevelUI === 'function') updateLevelUI();   // 오셀로만 난이도 노출
   }
 
   function renderLobby(s) {

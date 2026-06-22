@@ -629,7 +629,7 @@ module.exports = {
       phase: room.phase,
       mode: gs.params ? gs.params.mode : null,
       handNo: gs.handNo,
-      seats: room.queue.map((w, i) => ({ name: w.name, color: w.color, isBot: !!w.isBot, seat: i })),
+      seats: room.queue.map((w, i) => ({ name: w.name, color: w.color, isBot: !!w.isBot, seat: i, chips: room.gs.chips ? (room.gs.chips[w.sessionId] || 0) : 0 })),
       yourSeat: seatIdx,
       canStart: room.host === ws && module.exports.canStart(room),
       wip: false,
@@ -650,6 +650,7 @@ module.exports = {
       handCounts: r.hands.map((h) => h.length),
       captured: r.captured,
       scores: r.captured.map((cap) => scoreOf(cap).total),   // 좌석별 현재 점수
+      scoreDetails: r.captured.map((cap) => scoreOf(cap).detail),   // 좌석별 점수 상세(획득더미 표시)
       myScore: seatIdx >= 0 ? scoreOf(r.captured[seatIdx]) : null,
       bbeokMonths: r.bbeokMonths,
       chongtong: r.chongtong,
