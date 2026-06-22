@@ -65,13 +65,10 @@
     if (s.shake && s.shake[seat]) tags.push(`흔들×${s.shake[seat]}`);
     if (pos === 'left' || pos === 'right') {
       return `<div class="gs-opp side ${pos}${turn ? ' turn' : ''}">
-        <div class="gs-vhead">
-          <span class="gs-ava">${p.isBot ? '🤖' : avatar(p.name)}</span>
-          <div class="gs-vname">${esc(p.name.replace(/🤖/g, ''))}</div>
-          <div class="gs-vscore">${sc}점</div>
-          ${turn ? '<div class="gs-vnow">차례</div>' : ''}
-        </div>
-        <div class="gs-caprot"><div class="gs-opp-cap">${capStrips((s.captured && s.captured[seat]) || [], det, true)}</div></div>
+        <span class="gs-ava">${p.isBot ? '🤖' : avatar(p.name)}</span>
+        <div class="gs-sname">${esc(p.name.replace(/🤖/g, ''))}${turn ? ' <span class="gs-now">차례</span>' : ''}</div>
+        <div class="gs-opp-cap sidecap">${capStrips((s.captured && s.captured[seat]) || [], det, true)}</div>
+        <div class="gs-sscore">${sc}점</div>
       </div>`;
     }
     return `<div class="gs-opp${turn ? ' turn' : ''}">
