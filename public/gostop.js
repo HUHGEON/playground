@@ -69,11 +69,11 @@
       const cardsH = (arr) => arr.map((c) => cardHTML(c, 'mini xs')).join('');
       const piH = g.PI.map((c) => `<span class="gs-pic">${cardHTML(c, 'mini xs')}${c.pi >= 2 ? `<b class="gs-piv">${c.pi}</b>` : ''}</span>`).join('');
       return `<div class="gs-opp side ${pos}${turn ? ' turn' : ''}">
-        <div class="gs-stop2"><span class="gs-ava">${avatar(p.name)}</span><span class="gs-sname2">${esc(p.name)}</span>${turn ? '<span class="gs-now">차례</span>' : ''}</div>
+        <div class="gs-stop2"><span class="gs-ava">${avatar(p.name)}</span><span class="gs-sname2">${esc(p.name)}</span></div>
         <div class="gs-scap">
           ${row('광', cardsH(g.KWANG))}${row('멍', cardsH(g.YEOL))}${row('단', cardsH(g.TTI))}${row('피', piH, ' pi')}
         </div>
-        <div class="gs-sbottom">${sc}점</div>
+        <div class="gs-sbottom">${sc}점${turn ? ' <span class="gs-now">차례</span>' : ''}</div>
       </div>`;
     }
     return `<div class="gs-opp${turn ? ' turn' : ''}">
