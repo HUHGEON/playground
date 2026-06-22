@@ -54,39 +54,19 @@
     return grp('광', plain(g.KWANG), 'c-kw') + grp('멍', plain(g.YEOL), 'c-yeol') + grp('단', plain(g.TTI), 'c-tti') + grp('피', piHtml, 'c-pi');
   }
 
-  // 사이드(좌/우) 획득 요약 — 카테고리 개수만 컴팩트하게
-  function sideCap(captured) {
-    const { g, piVal } = pileGroups(captured);
-    const row = (lb, n) => `<span class="gs-vc"><i>${lb}</i><b>${n}</b></span>`;
-    return row('광', g.KWANG.length) + row('멍', g.YEOL.length) + row('단', g.TTI.length) + row('피', piVal);
-  }
-
-  // 상대 패널 — pos: 'top'(기본) | 'left' | 'right'(사이드는 세로글자)
+  // 상대 패널 — pos: 'top'|'left'|'right'. 사이드는 패널 통째 90° 회전(카드 사이드뷰), 헤드만 CSS로 똑바로.
   function oppHTML(s, seat, pos) {
     const p = s.seats[seat]; if (!p) return '';
     const turn = s.turnIdx === seat && s.phase === 'playing';
     const det = s.scoreDetails ? s.scoreDetails[seat] : {};
     const sc = s.scores ? s.scores[seat] : 0;
-    const nm = esc(p.name);
-    if (pos === 'left' || pos === 'right') {     // 세로 배치: 이름/점수 한 글자씩
-      const tags = [];
-      if (s.goCounts && s.goCounts[seat]) tags.push(`${s.goCounts[seat]}고`);
-      return `<div class="gs-opp side ${pos}${turn ? ' turn' : ''}">
-        <span class="gs-ava">${avatar(p.name)}${p.isBot ? '🤖' : ''}</span>
-        <div class="gs-vname">${esc(p.name.replace(/🤖/g, ''))}</div>
-        <div class="gs-vscore">${sc}점</div>
-        ${tags.length ? `<div class="gs-vtag">${tags.join(' ')}</div>` : ''}
-        ${turn ? '<div class="gs-vnow">차례</div>' : ''}
-        <div class="gs-vcap">${sideCap((s.captured && s.captured[seat]) || [])}</div>
-      </div>`;
-    }
     const tags = [];
     if (s.goCounts && s.goCounts[seat]) tags.push(`${s.goCounts[seat]}고`);
     if (s.shake && s.shake[seat]) tags.push(`흔들×${s.shake[seat]}`);
-    return `<div class="gs-opp${turn ? ' turn' : ''}">
+    return `<div class="gs-opp${pos === 'left' || pos === 'right' ? ' side ' + pos : ''}${turn ? ' turn' : ''}">
       <div class="gs-opp-head">
         <span class="gs-ava">${avatar(p.name)}</span>
-        <span class="gs-opp-info"><b>${nm}${p.isBot ? '🤖' : ''}</b>
+        <span class="gs-opp-info"><b>${esc(p.name)}${p.isBot ? '🤖' : ''}</b>
           <span class="gs-chips">${nyang(p.chips)}냥</span></span>
         <span class="gs-badge-col"><span class="gs-sc">${sc}점</span>${tags.map((t) => `<span class="gs-tag">${t}</span>`).join('')}${turn ? '<span class="gs-now">차례</span>' : ''}</span>
       </div>
