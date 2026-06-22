@@ -1,0 +1,81 @@
+/* ── 화투(고스톱) ── */
+body.game-gostop { background: radial-gradient(circle at 50% 30%, #2a5a3a, #14331f 70%); }
+
+#gsStage { position: relative; display: flex; justify-content: center; padding: 8px; }
+#gsFelt {
+  position: relative; width: min(760px, 96vw); min-height: 560px;
+  background: repeating-linear-gradient(135deg, #1f6b3f, #1f6b3f 14px, #1d653b 14px, #1c623a 28px), #1f6b3f;
+  border: 10px solid #5a3a1c; border-radius: 18px;
+  box-shadow: inset 0 0 40px rgba(0,0,0,.45), 0 10px 30px rgba(0,0,0,.4);
+  padding: 12px; display: flex; flex-direction: column; gap: 8px;
+}
+
+/* 카드 */
+.gscard { width: 56px; height: 84px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,.4); background: #fff; object-fit: cover; vertical-align: bottom; }
+.gscard.mini { width: 30px; height: 45px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.35); margin-left: -12px; }
+.gscard.mini:first-child { margin-left: 0; }
+.gscard.choosable { outline: 3px solid #ffd34d; cursor: pointer; animation: gsPulse 1s infinite; }
+@keyframes gsPulse { 0%,100% { outline-color: #ffd34d; } 50% { outline-color: #ff8c00; } }
+
+/* 상대 패널 영역 */
+#gsOpps { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.gs-panel { display: flex; gap: 8px; align-items: flex-start; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 7px 10px; min-width: 180px; }
+.gs-panel.turn { border-color: #ffd34d; box-shadow: 0 0 12px rgba(255,211,77,.5); }
+.gs-panel.mine { background: rgba(20,60,38,.6); }
+.gs-ava { font-size: 26px; line-height: 1; }
+.gs-pinfo { min-width: 0; }
+.gs-pname { font-weight: 700; color: #eaf6ee; font-size: 13px; }
+.gs-turn { color: #ffd34d; }
+.gs-pmeta { font-size: 11px; color: #b7d4c2; margin-top: 1px; }
+.gs-score { color: #ffe08a; font-size: 13px; }
+.gs-pile { display: flex; flex-direction: column; gap: 2px; }
+.gspile-row { display: flex; align-items: center; gap: 4px; }
+.gspile-lb { font-size: 10px; color: #9fc0ac; width: 14px; }
+.gspile-cards { display: flex; padding-left: 12px; }
+.gspile-val { font-size: 10px; color: #ffd34d; margin-left: 4px; }
+
+/* 가운데(바닥+더미) */
+#gsMid { flex: 1; display: flex; gap: 12px; align-items: center; justify-content: center; min-height: 180px; }
+#gsFloor { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-content: center; justify-content: center; min-height: 100px; padding: 8px; background: rgba(0,0,0,.12); border-radius: 12px; }
+.gs-empty { color: rgba(255,255,255,.3); font-size: 13px; }
+#gsDrawWrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#gsDraw { width: 56px; height: 84px; border-radius: 6px; background: linear-gradient(135deg, #7a1f1f, #4a1010); border: 2px solid #d9a72e; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+#gsDraw:not(.has) { opacity: .25; }
+#gsDrawN { font-size: 12px; color: #ffd34d; font-weight: 700; }
+
+/* 내 영역 */
+#gsMineWrap { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+#gsActions { display: flex; gap: 6px; flex-wrap: wrap; }
+.gs-act { padding: 7px 12px; border: none; border-radius: 9px; font-weight: 800; font-size: 13px; cursor: pointer; color: #fff; }
+.gs-act.shake { background: #1aa86b; }
+.gs-act.bomb { background: #e8540e; }
+.gs-act.flip { background: #2d7dd2; }
+.gs-act[data-act="chongtong"] { background: #8a2be2; }
+
+#gsHand { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; padding: 6px; background: rgba(0,0,0,.2); border-radius: 12px; min-height: 90px; }
+#gsHand .gscard { cursor: pointer; transition: transform .1s; }
+#gsHand .gscard:hover:not(.dim) { transform: translateY(-8px); }
+#gsHand .gscard.dim { opacity: .55; cursor: default; }
+
+/* 토스트 */
+#gsToast { position: absolute; top: 38%; left: 50%; transform: translate(-50%,-50%) scale(.7); background: rgba(20,10,5,.92); color: #ffd34d; font-weight: 900; font-size: 26px; padding: 12px 26px; border-radius: 14px; border: 2px solid #ffd34d; opacity: 0; pointer-events: none; transition: all .18s; white-space: nowrap; }
+#gsToast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+#gsToast.hint { font-size: 16px; color: #eaf6ee; border-color: #eaf6ee; }
+
+/* 모달 */
+#gsModal { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.4); z-index: 20; }
+.gs-box { background: linear-gradient(180deg, #243b2e, #18271e); border: 2px solid #5a3a1c; border-radius: 16px; padding: 22px 28px; text-align: center; color: #eaf6ee; min-width: 240px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+.gs-box h2 { margin: 0 0 8px; color: #ffe08a; }
+.gs-box p { margin: 4px 0; }
+.gs-box button { margin-top: 12px; padding: 10px 22px; border: none; border-radius: 10px; font-weight: 800; font-size: 15px; cursor: pointer; background: #d9a72e; color: #2a1a08; }
+.gs-gobtns { display: flex; gap: 10px; justify-content: center; }
+.gs-gobtns #gsGo { background: #e8540e; color: #fff; }
+.gs-gobtns #gsStop { background: #2d7dd2; color: #fff; }
+.gs-result .gs-rscore { font-size: 20px; font-weight: 900; color: #ffe08a; }
+.gs-tags { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 8px 0; }
+.gs-tags span { background: rgba(255,211,77,.18); color: #ffd34d; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.gs-pays { font-size: 13px; color: #b7d4c2; margin: 6px 0; }
+.gs-wait { font-size: 13px; opacity: .7; }
+
+/* 사이드 */
+#gsSide .gs-sline { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; }
