@@ -529,6 +529,19 @@ module.exports = {
     const players = room.queue.length;
     const params = modeParams(players);
     const deck = buildDeck(room.gs.cfg);
+    // 첫 판: 선 = 패 떼어 가장 높은 패 뽑은 사람(처음 깐 패 기준). 이후 판은 직전 승자.
+    if (room.gs.handNo === 0 && !room.gs.seonSet) {
+      const pick = shuffle(buildMonthCards());
+      const rank = (c) => c.m * 10 + ({ KWANG: 4, YEOL: 3, TTI: 2, PI: 1 }[c.cat] || 0);
+      const draws = room.queue.map((_, i) => pick[i]);
+      let best = 0;
+      draws.forEach((c, i) => { if (rank(c) > rank(draws[best])) best = i; });
+      room.gs.seonIdx = best;
+      room.gs.seonSet = true;
+      room.gs.seonDraws = draws.map((c, i) => ({ seat: i, name: room.queue[i].name, card: c }));
+    } else {
+      room.gs.seonDraws = null;
+    }
     const seonIdx = room.gs.seonIdx % players;
     const dealt = deal(deck, params, seonIdx);
     room.phase = 'playing';
@@ -537,6 +550,7 @@ module.exports = {
     room.gs.round = {
       params,
       seonIdx,
+      seonDraws: room.gs.seonDraws,        // 첫 판 선 뽑기 결과(있으면 UI 표시)
       turnIdx: seonIdx,
       hands: dealt.hands,                 // 좌석별 손패
       floor: dealt.floor,                 // 바닥
@@ -643,6 +657,7 @@ module.exports = {
     return {
       ...base,
       seonIdx: r.seonIdx,
+      seonDraws: r.seonDraws || null,
       turnIdx: r.turnIdx,
       myTurn: seatIdx === r.turnIdx && !r.pending,
       floor: r.floor,
