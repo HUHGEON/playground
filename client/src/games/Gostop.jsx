@@ -36,6 +36,21 @@ function animThrow(id, from, rot) {
     ], { duration: 420, easing: 'cubic-bezier(.3,.85,.4,1)' });
   } catch (e) { /* noop */ }
 }
+// 엘리먼트 중심(felt 기준)
+function feltPt(el, felt) { if (!el) return null; const r = el.getBoundingClientRect(); if (!r.width) return null; return { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top }; }
+// 획득 모션 — 임시 ghost 카드가 from→to로 날아가 더미로 빨려듦
+function flyGhost(motion, card, from, to, delay, dur) {
+  dur = dur || 270;
+  if (!from || !to) return;
+  setTimeout(() => {
+    try {
+      const g = document.createElement('img'); g.className = 'gs-ghost'; g.src = cardSrc(card);
+      g.style.left = from.x + 'px'; g.style.top = from.y + 'px'; motion.appendChild(g);
+      g.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${to.x - from.x}px,${to.y - from.y}px) scale(.5)`, opacity: .4 }], { duration: dur, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
+      setTimeout(() => g.remove(), dur + 60);
+    } catch (e) { /* noop */ }
+  }, delay || 0);
+}
 const pname = (p) => (p ? p.name.replace(/🤖/g, '') : '');
 
 function Card({ c, cls }) {
@@ -114,16 +129,19 @@ export default function Gostop({ ws }) {
   const prevHandRects = useRef({});
   const prevHandIds = useRef(new Set());
   const prevFloorIds = useRef(new Set());
+  const prevFloorRects = useRef({});
+  const lastCapCounts = useRef(null);
   const layRef = useRef(lay);
   layRef.current = lay;
   useLayoutEffect(() => {
     const feltEl = document.getElementById('gsFelt');
     if (!feltEl || s.phase !== 'playing') {
-      // 비플레이 단계: ref만 갱신
       const f = feltEl && feltEl.getBoundingClientRect();
       prevHandRects.current = f ? measureRects('gsHand', f) : {};
+      prevFloorRects.current = f ? measureRects('gsFloor', f) : {};
       prevHandIds.current = new Set(Object.keys(prevHandRects.current));
-      prevFloorIds.current = new Set(f ? Object.keys(measureRects('gsFloor', f)) : []);
+      prevFloorIds.current = new Set(Object.keys(prevFloorRects.current));
+      lastCapCounts.current = s.captured ? s.captured.map((c) => c.length) : null;
       return;
     }
     const felt = feltEl.getBoundingClientRect();
@@ -131,15 +149,44 @@ export default function Gostop({ ws }) {
     const newFloorRects = measureRects('gsFloor', felt);
     const newFloorIds = new Set(Object.keys(newFloorRects));
     const newHandIds = new Set(Object.keys(newHandRects));
-    // 내 손에서 빠졌고 바닥에 새로 생긴 패 = 내가 던진 패 → 손 위치에서 날아오게
-    const playedId = [...prevHandIds.current].find((id) => !newHandIds.has(id) && newFloorIds.has(id) && !prevFloorIds.current.has(id));
-    if (playedId && prevHandRects.current[playedId]) {
-      const rot = (layRef.current[playedId] && layRef.current[playedId].rot) || 0;
-      animThrow(playedId, prevHandRects.current[playedId], rot);
+    const leftHandId = [...prevHandIds.current].find((id) => !newHandIds.has(id));   // 손서 빠진 패
+
+    // 던지기: 손서 빠졌고 바닥에 새로 생김(매칭 X) → 손 위치에서 날아오게
+    if (leftHandId && newFloorIds.has(leftHandId) && !prevFloorIds.current.has(leftHandId) && prevHandRects.current[leftHandId]) {
+      const rot = (layRef.current[leftHandId] && layRef.current[leftHandId].rot) || 0;
+      animThrow(leftHandId, prevHandRects.current[leftHandId], rot);
     }
+
+    // 먹기: events의 획득 패를 더미로 날림(던졌으면 던지기+뒤집기 뒤에)
+    const capIds = [];
+    for (const ev of (s.events || [])) { if (Array.isArray(ev.cards)) capIds.push(...ev.cards); if (ev.ev === 'bonus' && ev.card) capIds.push(ev.card); }
+    if (capIds.length && s.captured) {
+      let capturer = s.turnIdx;
+      if (lastCapCounts.current) for (let i = 0; i < s.captured.length; i++) {
+        if ((s.captured[i] ? s.captured[i].length : 0) > (lastCapCounts.current[i] || 0)) { capturer = i; break; }
+      }
+      const pileEl = capturer === me ? document.getElementById('gsMyCap') : document.querySelector('#gsTop .gs-opp');
+      const tgt = feltPt(pileEl, felt);
+      const motion = document.getElementById('gsMotion');
+      if (tgt && motion) {
+        const cardOf = (id) => s.captured[capturer] && s.captured[capturer].find((c) => c.id === id);
+        const threw = leftHandId && prevHandRects.current[leftHandId];
+        const base = threw ? 700 : 360;            // 던졌으면 던지기·뒤집기 끝난 뒤 가져오기
+        let n = 0;
+        capIds.forEach((id) => {
+          const card = cardOf(id); if (!card) return;
+          const from = prevFloorRects.current[id] || (id === leftHandId ? prevHandRects.current[id] : null);
+          if (!from) return;
+          flyGhost(motion, card, from, tgt, base + n * 60); n++;
+        });
+      }
+    }
+
     prevHandRects.current = newHandRects;
+    prevFloorRects.current = newFloorRects;
     prevHandIds.current = newHandIds;
     prevFloorIds.current = newFloorIds;
+    lastCapCounts.current = s.captured ? s.captured.map((c) => c.length) : null;
   }, [s]);
 
   const turnName = s.seats && s.turnIdx != null && s.seats[s.turnIdx] ? pname(s.seats[s.turnIdx]) : '';
@@ -334,6 +381,8 @@ export default function Gostop({ ws }) {
           <div id="gsHandHints" />
         </div>
       </div>
+      <div id="gsMotion" />
+      <div id="gsToast" />
 
       {decision && !result && (
         <div id="gsModal" style={{ display: 'flex' }}>
