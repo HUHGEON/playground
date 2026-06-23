@@ -32,6 +32,13 @@
   word-break: break-word; pointer-events: none; }
 @keyframes oBubbleIn { from { opacity: 0; transform: translate(-50%,-78%) scale(.7); } to { opacity: 1; transform: translate(-50%,-100%) scale(1); } }
 
-/* 오셀로 — 사이에 낀 돌이 놓은 위치에서 거리순으로 촤르르륵 뒤집힘(React 전용 연출) */
-@keyframes oFlip { 0% { transform: scaleX(1); } 48% { transform: scaleX(.12); } 100% { transform: scaleX(1); } }
-.disc.oflip { animation: oFlip .42s cubic-bezier(.45,.05,.4,1) both; }
+/* 오셀로 — 양면 돌(앞=새색, 뒤=옛색)을 3D로 돌려 뒤집기. 놓은 위치서 거리순 cascade */
+.ocell { perspective: 560px; }
+.disc.oflip3d { background: transparent !important; box-shadow: none !important; transform-style: preserve-3d;
+  animation: oFlip3d .6s cubic-bezier(.42,0,.32,1) both; }
+.disc.oflip3d .oface { position: absolute; inset: 0; border-radius: 50%; backface-visibility: hidden;
+  box-shadow: 0 3px 5px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.25); }
+.disc.oflip3d .oface.black { background: radial-gradient(circle at 36% 30%, #9a9a9a 0%, #383838 42%, #050505 88%); }
+.disc.oflip3d .oface.white { background: radial-gradient(circle at 36% 30%, #ffffff 0%, #ededed 42%, #c2c2c2 88%); }
+.disc.oflip3d .oface.oback { transform: rotateY(180deg); }
+@keyframes oFlip3d { from { transform: rotateY(180deg); } to { transform: rotateY(0deg); } }

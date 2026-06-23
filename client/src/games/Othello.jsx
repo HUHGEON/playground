@@ -113,7 +113,7 @@ export default function Othello({ ws }) {
     for (let i = 0; i < 64; i++) {
       const r = Math.floor(i / 8), c = i % 8;
       const old = prevBoard.current[r] && prevBoard.current[r][c], cur = s.board[r][c];
-      if (old && cur && old !== cur) flipDelay[i] = (Math.max(Math.abs(r - pr), Math.abs(c - pc)) - 1) * 70;   // 거리 1=먼저
+      if (old && cur && old !== cur) flipDelay[i] = (Math.max(Math.abs(r - pr), Math.abs(c - pc)) - 1) * 105;   // 거리 1=먼저, 105ms 간격(순차감)
     }
   }
   useEffect(() => { prevBoard.current = s.board; });   // 렌더 후 현재 보드 저장(다음 렌더의 '이전')
@@ -188,10 +188,18 @@ export default function Othello({ ws }) {
               if (v) {
                 const fd = flipDelay[i];
                 const isPlaced = lm && i === placedIdx;
-                inner = <div
-                  className={'disc ' + (v === 'B' ? 'black' : 'white') + (fd != null ? ' oflip' : (isPlaced ? ' place' : ''))}
-                  style={fd != null ? { animationDelay: fd + 'ms', transitionDelay: fd + 'ms' } : undefined}
-                />;
+                const newColor = v === 'B' ? 'black' : 'white';
+                if (fd != null) {
+                  const oldColor = newColor === 'black' ? 'white' : 'black';   // 뒤집기 전 = 반대색(양면 돌의 뒷면)
+                  inner = (
+                    <div className="disc oflip3d" style={{ animationDelay: fd + 'ms' }}>
+                      <span className={'oface ' + newColor} />
+                      <span className={'oface oback ' + oldColor} />
+                    </div>
+                  );
+                } else {
+                  inner = <div className={'disc ' + newColor + (isPlaced ? ' place' : '')} />;
+                }
               } else if (s.phase === 'playing' && legalSet.has(i)) {
                 cls += myTurn ? ' playable' : ' hint';
               }
