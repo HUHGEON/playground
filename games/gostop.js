@@ -91,6 +91,22 @@ function floorMonthCounts(floor) {
   return cnt;
 }
 
+// ── 선 판정 + 보너스 회수 (Phase 1) ──
+const CAT_RANK = { KWANG: 4, YEOL: 3, TTI: 2, PI: 1 };
+const seonRank = (c) => (c.m || 0) * 10 + (CAT_RANK[c.cat] || 0);   // 월 우선, 같은 월이면 광>멍>띠>피
+
+// 바닥 보너스피 회수: 쓰리피(pi≥3) → 투피(pi2) 우선, 빈자리는 더미에서 보충, 보너스 0까지 반복.
+// floor/draw를 직접 변형, 회수분을 took에 push.
+function recoverBonus(floor, draw, took) {
+  while (true) {
+    let i = floor.findIndex((c) => c.flags.includes('BONUS') && c.pi >= 3);   // 쓰리피 우선
+    if (i < 0) i = floor.findIndex((c) => c.flags.includes('BONUS'));         // 다음 투피/쌍피
+    if (i < 0) break;
+    took.push(floor.splice(i, 1)[0]);
+    if (draw.length) floor.push(draw.shift());   // 보충(보충분이 또 보너스면 루프가 다시 잡음)
+  }
+}
+
 // ── 딜링 + 셋업 예외 처리 (§2) ──
 // 반환: { hands: [[],...], floor: [], draw: [], seonTook: [], chongtong: [seatIdx...], bbeokMonths: [month...] }
 function deal(deck, params, seonIdx) {
@@ -109,10 +125,7 @@ function deal(deck, params, seonIdx) {
     if (Object.values(fc).some((v) => v >= 4)) continue;   // 재딜
 
     const seonTook = [];
-    // 바닥 보너스피 → 선이 가져감
-    for (let i = floor.length - 1; i >= 0; i--) {
-      if (floor[i].flags.includes('BONUS')) { seonTook.push(floor[i]); floor.splice(i, 1); }
-    }
+    recoverBonus(floor, draw, seonTook);   // 바닥 보너스피 → 선 회수(쓰리피→투피) + 빈자리 더미 보충
     // 바닥 같은 월 3장 → 뻑 예비(묶음) 표시
     const fc2 = floorMonthCounts(floor);
     const bbeokMonths = Object.keys(fc2).filter((m) => fc2[m] === 3).map(Number);
@@ -126,6 +139,104 @@ function deal(deck, params, seonIdx) {
     return { hands, floor, draw, seonTook, chongtong, bbeokMonths };
   }
   throw new Error('deal failed (too many 4-of-month floors)');
+}
+
+// pickFirst 확정 후: pickFloor를 바닥으로, restDeck에서 손패/더미. 보너스 회수+보충.
+function dealFromPick(room) {
+  const pk = room.gs.pick, params = pk.params;
+  const hands = Array.from({ length: params.players }, () => []);
+  let p = 0;
+  for (let i = 0; i < params.hand; i++) for (let s = 0; s < params.players; s++) hands[s].push(pk.restDeck[p++]);
+  const draw = pk.restDeck.slice(p);
+  const floor = pk.pickFloor.slice();
+  const seonTook = [];
+  recoverBonus(floor, draw, seonTook);
+  const fc2 = floorMonthCounts(floor);
+  const bbeokMonths = Object.keys(fc2).filter((m) => fc2[m] === 3).map(Number);
+  const chongtong = [];
+  hands.forEach((h, s) => { const cm = floorMonthCounts(h); if (Object.values(cm).some((v) => v === 4)) chongtong.push(s); });
+  return { hands, floor, draw, seonTook, chongtong, bbeokMonths };
+}
+
+// 라운드(플레이) 객체 셋업 — deal 결과 + 선으로 round 생성
+function setupRound(room, params, seonIdx, dealt, pickReveals) {
+  room.phase = 'playing';
+  room.gs.handNo++;
+  room.gs.params = params;
+  room.gs.round = {
+    params, seonIdx, pickReveals: pickReveals || null,
+    turnIdx: seonIdx,
+    hands: dealt.hands, floor: dealt.floor, draw: dealt.draw,
+    captured: room.queue.map(() => []),
+    seonTook: dealt.seonTook, chongtong: dealt.chongtong, bbeokMonths: dealt.bbeokMonths,
+    pending: null, over: false, events: [],
+    bbeokCount: {}, goCount: room.queue.map(() => 0), goScoreAt: room.queue.map(() => 0),
+    decision: null, result: null,
+    shake: room.queue.map(() => 0), freeFlips: room.queue.map(() => 0),
+    chongtongHold: room.queue.map(() => false), threeBbeok: null,
+  };
+  for (const w of room.queue) if (room.gs.chips[w.sessionId] == null) room.gs.chips[w.sessionId] = room.gs.startChips;
+  if (dealt.seonTook.length) room.gs.round.captured[seonIdx].push(...dealt.seonTook);
+}
+
+function beginRound(room, params, deck, seonIdx) {
+  setupRound(room, params, seonIdx, deal(deck, params, seonIdx), null);
+}
+
+// ── 선 정하기(pickFirst) ──
+function startPickFirst(room, params, deck) {
+  let floor = [], rest = [];
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const d = shuffle(deck.slice());
+    floor = d.slice(0, params.floor); rest = d.slice(params.floor);
+    if (!Object.values(floorMonthCounts(floor)).some((v) => v >= 4)) break;   // 같은 월 4장이면 재셔플(공개 전이라 무해)
+  }
+  room.gs.pick = {
+    params, pickFloor: floor, restDeck: rest,
+    picks: {},                              // 현재 라운드: seat → pickFloor index
+    reveals: [],                            // 누적 공개: { seat, index, round }
+    eligible: room.queue.map((_, i) => i),  // 선 후보 좌석
+    taken: [],                              // 이미 뽑힌 index(재대결 시 제외)
+    round: 1, seonIdx: null,
+  };
+  room.gs.round = null;
+  room.phase = 'pickFirst';
+}
+
+function pickFirstCard(room, seat, index) {
+  const pk = room.gs.pick;
+  if (!pk || pk.seonIdx != null) return false;
+  if (!pk.eligible.includes(seat) || pk.picks[seat] != null) return false;
+  if (!Number.isInteger(index) || index < 0 || index >= pk.pickFloor.length || pk.taken.includes(index)) return false;
+  pk.picks[seat] = index; pk.taken.push(index);
+  pk.reveals.push({ seat, index, round: pk.round });
+  if (pk.eligible.every((s) => pk.picks[s] != null)) resolvePickFirst(room);
+  return true;
+}
+
+function resolvePickFirst(room) {
+  const pk = room.gs.pick;
+  const scored = pk.eligible.map((s) => ({ seat: s, r: seonRank(pk.pickFloor[pk.picks[s]]) }));
+  const maxR = Math.max(...scored.map((x) => x.r));
+  const top = scored.filter((x) => x.r === maxR);
+  if (top.length === 1) {                          // 선 확정
+    pk.seonIdx = top[0].seat;
+    room.gs.seonIdx = top[0].seat; room.gs.seonSet = true;
+    if (room.ctx) room.gs._pickTimer = setTimeout(() => {   // 잠시 선 공개 후 실제 딜
+      if (room.gs && room.gs.pick && room.gs.pick.seonIdx != null) { finishPickFirst(room); room.ctx.broadcastRoom(room); room.ctx.broadcastLobby(); }
+    }, 2200);
+    else finishPickFirst(room);                    // ctx 없으면(테스트) 즉시
+  } else {                                          // 동점 → 해당자만 재대결(남은 카드에서)
+    pk.eligible = top.map((x) => x.seat);
+    for (const s of pk.eligible) delete pk.picks[s];
+    pk.round++;
+  }
+}
+
+function finishPickFirst(room) {
+  const pk = room.gs.pick;
+  setupRound(room, pk.params, pk.seonIdx, dealFromPick(room), pk.reveals);
+  room.gs.pick = null; room.gs._pickTimer = null;
 }
 
 // ── 턴 엔진 (§3 이벤트 + 피 뺏기) ──
@@ -525,63 +636,19 @@ module.exports = {
     return room.queue.length >= 2 && room.phase !== 'playing';
   },
 
-  // [1단계] start = 딜링/셋업까지만. 턴 엔진은 후속.
+  // 라운드 시작 — 첫 판은 선 정하기(pickFirst), 이후는 직전 승자가 선
   start(room, msg) {
     const players = room.queue.length;
     const params = modeParams(players);
     const deck = buildDeck(room.gs.cfg);
-    // 첫 판: 선 = 패 떼어 가장 높은 패 뽑은 사람(처음 깐 패 기준). 이후 판은 직전 승자.
-    if (room.gs.handNo === 0 && !room.gs.seonSet) {
-      const pick = shuffle(buildMonthCards());
-      const rank = (c) => c.m * 10 + ({ KWANG: 4, YEOL: 3, TTI: 2, PI: 1 }[c.cat] || 0);
-      const draws = room.queue.map((_, i) => pick[i]);
-      let best = 0;
-      draws.forEach((c, i) => { if (rank(c) > rank(draws[best])) best = i; });
-      room.gs.seonIdx = best;
-      room.gs.seonSet = true;
-      room.gs.seonDraws = draws.map((c, i) => ({ seat: i, name: room.queue[i].name, card: c }));
-    } else {
-      room.gs.seonDraws = null;
-    }
-    const seonIdx = room.gs.seonIdx % players;
-    const dealt = deal(deck, params, seonIdx);
-    room.phase = 'playing';
-    room.gs.handNo++;
-    room.gs.params = params;
-    room.gs.round = {
-      params,
-      seonIdx,
-      seonDraws: room.gs.seonDraws,        // 첫 판 선 뽑기 결과(있으면 UI 표시)
-      turnIdx: seonIdx,
-      hands: dealt.hands,                 // 좌석별 손패
-      floor: dealt.floor,                 // 바닥
-      draw: dealt.draw,                   // 더미
-      captured: room.queue.map(() => []), // 좌석별 획득
-      seonTook: dealt.seonTook,
-      chongtong: dealt.chongtong,
-      bbeokMonths: dealt.bbeokMonths,
-      pending: null,                      // 바닥 선택 대기
-      over: false,
-      events: [],                         // 직전 액션 이벤트(UI용: take/place/bbeok/steal…)
-      bbeokCount: {},                     // 좌석별 뻑 횟수(첫뻑/연뻑·쓰리뻑 판정용)
-      goCount: room.queue.map(() => 0),   // 좌석별 고 횟수
-      goScoreAt: room.queue.map(() => 0), // 직전 고 선언 시 점수
-      decision: null,                     // 고/스톱 대기 { seat, score }
-      result: null,                       // 정산 결과
-      shake: room.queue.map(() => 0),     // 흔들기/폭탄 횟수(이기면 ×2/회)
-      freeFlips: room.queue.map(() => 0), // 폭탄으로 인한 "뒤집기만" 빚
-      chongtongHold: room.queue.map(() => false),  // 총통 안 치고 계속(이기면 ×4)
-      threeBbeok: null,                   // 쓰리뻑 발생 좌석
-    };
-    for (const w of room.queue) if (room.gs.chips[w.sessionId] == null) room.gs.chips[w.sessionId] = room.gs.startChips;
-    // 선이 가져간 바닥 보너스 → 선 획득더미로
-    if (dealt.seonTook.length) room.gs.round.captured[seonIdx].push(...dealt.seonTook);
+    if (room.gs.handNo === 0 && !room.gs.seonSet) { startPickFirst(room, params, deck); return; }
+    beginRound(room, params, deck, room.gs.seonIdx % players);
   },
 
   onLeave(room, ws) {
-    // 후속: 대국 중 퇴장 처리. 1단계는 라운드 폐기.
-    if (room.phase === 'playing') room.phase = 'lobby';
-    room.gs.round = null;
+    if (room.gs && room.gs._pickTimer) { clearTimeout(room.gs._pickTimer); room.gs._pickTimer = null; }
+    if (room.phase === 'playing' || room.phase === 'pickFirst') room.phase = 'lobby';
+    if (room.gs) { room.gs.pick = null; room.gs.round = null; }
   },
 
   cleanup(room) {},
@@ -589,9 +656,10 @@ module.exports = {
   reattach(room, oldWs, newWs) {},
 
   action(room, ws, msg) {
-    if (room.phase !== 'playing') return false;
     const seat = room.queue.indexOf(ws);
     if (seat < 0) return false;
+    if (room.phase === 'pickFirst') return msg.type === 'pickFirstCard' ? pickFirstCard(room, seat, Number(msg.index)) : false;
+    if (room.phase !== 'playing') return false;
     if (msg.type === 'play') return playCard(room, seat, String(msg.cardId));     // 손패 1장 내기
     if (msg.type === 'choose') return chooseFloor(room, seat, String(msg.cardId)); // 바닥 동월 2장 선택
     if (msg.type === 'go') return declareGo(room, seat);                           // 고
@@ -604,19 +672,30 @@ module.exports = {
   },
 
   botWants(room, ws) {
-    const r = room.gs.round;
-    if (!r || room.phase !== 'playing' || r.over) return false;
     const seat = room.queue.indexOf(ws);
     if (seat < 0) return false;
+    if (room.phase === 'pickFirst') {                  // 선 정하기: 후보면서 아직 안 뽑았으면
+      const pk = room.gs.pick;
+      return !!pk && pk.seonIdx == null && pk.eligible.includes(seat) && pk.picks[seat] == null;
+    }
+    const r = room.gs.round;
+    if (!r || room.phase !== 'playing' || r.over) return false;
     if (r.pending) return r.pending.seat === seat;
     if (r.decision) return r.decision.seat === seat;
     return r.turnIdx === seat;     // 내 턴(플레이/뒤집기/총통)
   },
 
   bot(room, ws) {
-    const r = room.gs.round;
     const seat = room.queue.indexOf(ws);
-    if (!r || seat < 0) return null;
+    if (seat < 0) return null;
+    if (room.phase === 'pickFirst') {                          // 선 정하기: 남은 뒷면 중 랜덤
+      const pk = room.gs.pick; if (!pk) return null;
+      const avail = pk.pickFloor.map((_, i) => i).filter((i) => !pk.taken.includes(i));
+      if (!avail.length) return null;
+      return { type: 'pickFirstCard', index: avail[Math.floor(Math.random() * avail.length)] };
+    }
+    const r = room.gs.round;
+    if (!r) return null;
     if (r.pending && r.pending.seat === seat) {                 // 바닥 2장 선택 → 가치 높은 패
       const opts = r.pending.options.map((id) => r.floor.find((c) => c.id === id)).filter(Boolean);
       opts.sort((a, b) => cardWorth(b) - cardWorth(a));
@@ -650,6 +729,20 @@ module.exports = {
       canStart: room.host === ws && module.exports.canStart(room),
       wip: false,
     };
+    if (room.phase === 'pickFirst' && gs.pick) {       // 선 정하기 상태
+      const pk = gs.pick;
+      return {
+        ...base,
+        pickCount: pk.pickFloor.length,                // 뒷면 카드 N장
+        pickTaken: pk.taken.slice(),                   // 이미 뽑힌 index
+        pickReveals: pk.reveals.map((rv) => ({ seat: rv.seat, index: rv.index, card: pk.pickFloor[rv.index], name: room.queue[rv.seat] ? room.queue[rv.seat].name : '' })),
+        pickEligible: pk.eligible.slice(),
+        pickRound: pk.round,
+        pickSeon: pk.seonIdx,                          // 확정 시 선 좌석
+        canPick: pk.seonIdx == null && pk.eligible.includes(seatIdx) && pk.picks[seatIdx] == null,
+        myPicked: pk.picks[seatIdx] != null,
+      };
+    }
     if (!r) return base;
     const pend = r.pending && r.pending.seat === seatIdx ? {
       month: r.pending.month,
@@ -658,7 +751,7 @@ module.exports = {
     return {
       ...base,
       seonIdx: r.seonIdx,
-      seonDraws: r.seonDraws || null,
+      pickReveals: r.pickReveals || null,        // 선 뽑기 공개 결과(라운드 첫 진입 UI용)
       turnIdx: r.turnIdx,
       myTurn: seatIdx === r.turnIdx && !r.pending,
       floor: r.floor,

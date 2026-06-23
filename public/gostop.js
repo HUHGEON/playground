@@ -150,10 +150,12 @@
         '<div id="gsMy"><div id="gsMyCap"></div>' +
           '<div id="gsMyRow"><div id="gsMyAva"></div><div id="gsHand"></div><div id="gsActions"></div></div>' +
         '</div>' +
+        '<div id="gsPick" style="display:none"></div>' +
         '<div id="gsToast"></div><div id="gsModal" style="display:none"></div>' +
       '</div></div>';
     info.innerHTML = '<div id="gsSide"></div>';
 
+    $('gsPick').onclick = (e) => { const el = e.target.closest('.gs-pcard.pickable'); if (!el) return; send({ type: 'pickFirstCard', index: Number(el.dataset.i) }); };
     $('gsHand').onclick = (e) => { const im = e.target.closest('.gscard'); if (!im || im.classList.contains('dim')) return; send({ type: 'play', cardId: im.dataset.id }); };
     $('gsFloor').onclick = (e) => { const im = e.target.closest('.gscard.choosable'); if (!im) return; send({ type: 'choose', cardId: im.dataset.id }); };
     $('gsActions').onclick = (e) => {
@@ -169,6 +171,11 @@
 
   R.render = function (s) {
     const me = s.yourSeat;
+
+    // 선 정하기(pickFirst) — 전용 오버레이
+    $('gsPick').style.display = s.phase === 'pickFirst' ? '' : 'none';
+    if (s.phase === 'pickFirst') { renderPickFirst(s); return; }
+    pickFlipped.clear(); lastSeonToast = null;          // pickFirst 벗어나면 리셋
 
     // 대기(로비)
     if (s.phase !== 'playing' && s.phase !== 'finished') {
@@ -225,6 +232,54 @@
     renderModal(s);
     $('gsSide').innerHTML = sideHTML(s);
   };
+
+  // ── 선 정하기(pickFirst) 렌더 ──
+  let pickFlipped = new Set();   // 이미 flip 공개된 카드 index(1회만 애니)
+  let lastSeonToast = null;      // 선 토스트 중복 방지
+  function pname(p) { return esc((p && p.name ? p.name : '').replace(/🤖/g, '')); }
+  function renderPickFirst(s) {
+    const me = s.yourSeat;
+    $('gsTop').innerHTML = ''; $('gsBody').style.display = 'none'; $('gsMy').style.display = 'none'; $('gsModal').style.display = 'none';
+    // 좌석 배지(선 glow)
+    const seats = (s.seats || []).map((p) => {
+      const isSeon = s.pickSeon === p.seat;
+      const picked = (s.pickReveals || []).some((rv) => rv.seat === p.seat && rv.round === s.pickRound);
+      const eligible = (s.pickEligible || []).includes(p.seat);
+      const status = isSeon ? '<span class="gs-seontag">👑 선</span>'
+        : picked ? '<span class="gs-pickok">✓ 선택</span>'
+        : eligible ? '<span class="gs-pickwait">고르는 중…</span>' : '';
+      return `<div class="gs-pseat${isSeon ? ' seon' : ''}${p.seat === me ? ' me' : ''}${!eligible && s.pickSeon == null ? ' out' : ''}">
+        <span class="gs-ava">${avatar(p.name)}</span><b>${pname(p)}</b>${status}</div>`;
+    }).join('');
+    // 카드들(뒷면/공개)
+    const revBy = {}; (s.pickReveals || []).forEach((rv) => { revBy[rv.index] = rv; });
+    let cards = '';
+    for (let i = 0; i < (s.pickCount || 0); i++) {
+      const rv = revBy[i];
+      if (rv) {
+        const just = pickFlipped.has(i) ? '' : ' just'; pickFlipped.add(i);
+        cards += `<div class="gs-pcard reveal${just}${rv.seat === me ? ' mine' : ''}" data-i="${i}">
+          <div class="gs-pflip"><div class="gs-pback"></div><div class="gs-pfront"><img src="${cardSrc(rv.card)}" alt=""></div></div>
+          <span class="gs-pwho">${pname(s.seats[rv.seat])}</span></div>`;
+      } else {
+        cards += `<div class="gs-pcard back${s.canPick ? ' pickable' : ''}" data-i="${i}"><div class="gs-pflip"><div class="gs-pback"></div></div></div>`;
+      }
+    }
+    const title = s.pickSeon != null
+      ? `👑 ${pname(s.seats[s.pickSeon])} 선!`
+      : (s.pickRound > 1 ? '🔁 재대결 — ' : '🎴 선 정하기 — ') + (s.canPick ? '패 한 장을 고르세요' : s.myPicked ? '상대 선택 대기…' : '진행 중…');
+    $('gsPick').innerHTML = `<div class="gs-pickseats">${seats}</div><div class="gs-picktitle">${title}</div><div class="gs-pickrow">${cards}</div>`;
+    if (s.pickSeon != null && lastSeonToast !== s.pickSeon) { lastSeonToast = s.pickSeon; showSeonToast(pname(s.seats[s.pickSeon])); }
+    if (s.pickSeon == null) lastSeonToast = null;
+    $('gsSide').innerHTML = sideHTML(s);
+  }
+  function showSeonToast(name) {
+    const t = document.createElement('div'); t.className = 'gs-seontoast';
+    t.innerHTML = `👑 <b>${name}</b> 선!`;
+    $('gsFelt').appendChild(t);
+    setTimeout(() => t.classList.add('out'), 1500);
+    setTimeout(() => { if (t.parentNode) t.remove(); }, 2000);
+  }
 
   function modalLobby(s) {
     const m = $('gsModal');

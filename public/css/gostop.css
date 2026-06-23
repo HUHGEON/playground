@@ -141,3 +141,37 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 #gsSide .gs-sline { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; gap: 6px; }
 #gsSide .gs-sn { font-size: 11px; color: #ffd98a; }
 .gs-side-hint { margin-top: 8px; font-size: 11px; opacity: .65; line-height: 1.5; }
+
+/* ── 선 정하기(pickFirst) ── */
+#gsPick { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; z-index: 6; }
+.gs-pickseats { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.gs-pseat { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 12px; border-radius: 12px; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.08); min-width: 66px; transition: .3s; }
+.gs-pseat .gs-ava { font-size: 26px; }
+.gs-pseat b { font-size: 12px; color: #eaf6ee; }
+.gs-pseat.me { border-color: rgba(217,164,65,.5); }
+.gs-pseat.out { opacity: .4; }
+.gs-pseat.seon { border-color: #ffd34d; background: rgba(255,211,77,.16); box-shadow: 0 0 0 2px rgba(255,211,77,.4), 0 0 22px rgba(255,211,77,.5); }
+.gs-seontag { font-size: 12px; font-weight: 800; color: #ffe08a; }
+.gs-pickok { font-size: 10px; color: #9fe0b0; }
+.gs-pickwait { font-size: 10px; color: #c8b48a; }
+.gs-picktitle { font-size: 17px; font-weight: 800; color: #f1e9da; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
+.gs-pickrow { display: flex; gap: 9px; flex-wrap: wrap; justify-content: center; max-width: 94%; }
+.gs-pcard { width: 50px; height: 78px; position: relative; perspective: 700px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.gs-pflip { width: 50px; height: 78px; position: relative; transform-style: preserve-3d; }
+.gs-pcard.back .gs-pflip { transform: rotateY(0deg); }
+.gs-pcard.reveal .gs-pflip { transform: rotateY(180deg); }
+.gs-pcard.reveal.just .gs-pflip { animation: gsPFlip .55s cubic-bezier(.4,.1,.2,1); }
+@keyframes gsPFlip { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
+.gs-pback, .gs-pfront { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 6px; overflow: hidden; }
+.gs-pback { background: repeating-linear-gradient(45deg, #b3242a, #b3242a 6px, #951d22 6px, #951d22 12px); border: 2px solid #e8d9a8; box-shadow: inset 0 0 0 1px rgba(0,0,0,.3); }
+.gs-pfront { transform: rotateY(180deg); background: #fff; border: 1px solid rgba(0,0,0,.3); }
+.gs-pfront img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gs-pcard.pickable { cursor: pointer; }
+.gs-pcard.pickable:hover .gs-pflip { transform: translateY(-7px); transition: transform .12s; }
+.gs-pcard.pickable:hover .gs-pback { box-shadow: 0 7px 18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+.gs-pwho { font-size: 10px; font-weight: 700; color: #ffe08a; height: 12px; line-height: 12px; }
+.gs-pcard.mine .gs-pwho { color: #9fe0ff; }
+.gs-seontoast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%); z-index: 30; font-size: 26px; font-weight: 900; color: #fff; background: rgba(180,70,60,.94); padding: 14px 30px; border-radius: 16px; border: 2px solid #ffe08a; box-shadow: 0 8px 30px rgba(0,0,0,.5); animation: gsSeonPop .4s cubic-bezier(.2,1.4,.4,1); white-space: nowrap; }
+.gs-seontoast b { color: #ffe08a; }
+.gs-seontoast.out { opacity: 0; transition: opacity .5s; }
+@keyframes gsSeonPop { from { transform: translate(-50%,-50%) scale(.4); opacity: 0; } to { transform: translate(-50%,-50%) scale(1); opacity: 1; } }
