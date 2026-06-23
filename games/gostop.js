@@ -396,7 +396,10 @@ function endTurn(room) {
   const seat = r.turnIdx;
   const sc = scoreOf(r.captured[seat]).total;
   const baseline = r.goCount[seat] > 0 ? r.goScoreAt[seat] + 1 : r.params.minScore;   // 첫 나기 or 직전 고+1
-  if (sc >= baseline) { r.decision = { seat, score: sc }; return; }   // 고/스톱 선택 대기(턴 멈춤)
+  if (sc >= baseline) {
+    if (r.hands[seat].length === 0) return settle(room, seat);        // 손패 없으면 고(계속) 불가 → 자동 스톱(승)
+    r.decision = { seat, score: sc }; return;                          // 손패 있으면 고/스톱 선택 대기(턴 멈춤)
+  }
   r.turnIdx = nextSeat(r);
 }
 

@@ -518,14 +518,24 @@
     } else { m.style.display = 'flex'; m.innerHTML = '<div class="gs-box"><h2>🃏 고스톱</h2><p class="gs-wait">상대를 기다리는 중…</p></div>'; }
   }
 
+  let decisionTimer = null, decisionShown = false;
   function renderModal(s) {
     const m = $('gsModal');
-    if (s.phase === 'finished' && s.result) { m.style.display = 'flex'; m.innerHTML = resultHTML(s); const n = $('gsNext'); if (n) n.onclick = () => send({ type: 'start' }); return; }
+    if (s.phase === 'finished' && s.result) { clearTimeout(decisionTimer); decisionTimer = null; decisionShown = false; m.style.display = 'flex'; m.innerHTML = resultHTML(s); const n = $('gsNext'); if (n) n.onclick = () => send({ type: 'start' }); return; }
     if (s.decision) {
-      m.style.display = 'flex';
-      m.innerHTML = `<div class="gs-box gs-decision"><h2>${s.decision.score}점!</h2><p>고? 스톱?</p><div class="gs-gobtns"><button id="gsGo">고 ▶</button><button id="gsStop">스톱 ■</button></div></div>`;
-      $('gsGo').onclick = () => send({ type: 'go' }); $('gsStop').onclick = () => send({ type: 'stop' }); return;
+      if (!decisionShown && !decisionTimer) {           // 패가 다 쌓인 뒤(약 1초) 고/스톱 창
+        decisionTimer = setTimeout(() => {
+          decisionTimer = null; decisionShown = true;
+          m.style.display = 'flex';
+          m.innerHTML = `<div class="gs-box gs-decision"><h2>${s.decision.score}점!</h2><p>고? 스톱?</p><div class="gs-gobtns"><button id="gsGo">고 ▶</button><button id="gsStop">스톱 ■</button></div></div>`;
+          const g = $('gsGo'), st = $('gsStop');
+          if (g) g.onclick = () => send({ type: 'go' });
+          if (st) st.onclick = () => send({ type: 'stop' });
+        }, 1000);
+      }
+      return;
     }
+    clearTimeout(decisionTimer); decisionTimer = null; decisionShown = false;
     if (s.pendingChoice) { m.style.display = 'none'; flashHint('같은 월 2장 중 가져올 패를 고르세요'); return; }
     m.style.display = 'none';
   }
