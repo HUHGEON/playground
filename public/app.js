@@ -117,8 +117,9 @@
   // 방 모드 — 'multi'(기본) | 'single'(봇전) + 봇 난이도
   var selectedMode = 'multi';
   var selectedLevel = 'normal';
+  var selectedCount = 2;                 // 고스톱 봇전 인원(2|4)
   (function wireMode() {
-    var pick = $('modePick'), lvl = $('levelPick'); if (!pick) return;
+    var pick = $('modePick'), lvl = $('levelPick'), cnt = $('countPick'); if (!pick) return;
     pick.querySelectorAll('.modebtn').forEach(function (b) {
       b.addEventListener('click', function () {
         selectedMode = b.dataset.mode;
@@ -132,12 +133,19 @@
         lvl.querySelectorAll('.levelbtn').forEach(function (x) { x.classList.toggle('on', x === b); });
       });
     });
+    if (cnt) cnt.querySelectorAll('.countbtn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        selectedCount = Number(b.dataset.count);
+        cnt.querySelectorAll('.countbtn').forEach(function (x) { x.classList.toggle('on', x === b); });
+      });
+    });
   })();
-  // 난이도 선택은 오셀로 전용. 나머지 게임 봇전은 고급봇(hard) 하나만.
+  // 난이도 선택은 오셀로 전용. 인원 선택은 고스톱 봇전 전용(2/4인). 나머지는 고급봇 1.
   function updateLevelUI() {
-    var lvl = $('levelPick');
+    var lvl = $('levelPick'), cnt = $('countPick');
     var isOthello = selectedGame === 'othello';
     if (lvl) lvl.style.display = (selectedMode === 'single' && isOthello) ? 'flex' : 'none';
+    if (cnt) cnt.style.display = (selectedMode === 'single' && selectedGame === 'gostop') ? 'flex' : 'none';
     if (!isOthello) selectedLevel = 'hard';                 // 오셀로 외엔 고급봇 고정
     var hellBtn = document.querySelector('.levelbtn[data-level=hell]');   // 헬은 오셀로만
     if (hellBtn) hellBtn.style.display = isOthello ? '' : 'none';
@@ -151,7 +159,10 @@
     if (!r.ok) return;                                // 범위 벗어나면 생성 막고 안내 표시
     const msg = { type: 'createRoom', gameType: selectedGame, name: $('roomName').value.trim() };
     if (r.vals) msg.opts = r.vals;
-    if (selectedMode === 'single') { msg.singleplayer = true; msg.botLevel = selectedLevel; }   // 봇전 + 난이도
+    if (selectedMode === 'single') {                 // 봇전 + 난이도(오셀로) + 인원(고스톱)
+      msg.singleplayer = true; msg.botLevel = selectedLevel;
+      if (selectedGame === 'gostop') msg.botCount = selectedCount - 1;   // 2인=봇1 / 4인=봇3
+    }
     window.send(msg);
     $('roomName').value = '';
   }

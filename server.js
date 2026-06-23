@@ -210,10 +210,12 @@ function broadcastLobby() { for (const ws of clients) if (ws.joined && !ws.roomI
 
 // ---- 봇전(싱글플레이) ----
 // 룸에 내장 봇을 채워 사람 1명 vs 봇으로 만든다.
-function addBots(room) {
+function addBots(room, botCount) {
   const mod = GAMES[room.gameType];
   room.singleplayer = true;
-  room.bots = SBOT.createBots(SBOT.botCount(room.gameType, mod.maxPlayers), PALETTE, room.botLevel);
+  let n = botCount != null ? botCount : SBOT.botCount(room.gameType, mod.maxPlayers);
+  n = Math.max(1, Math.min(n, (mod.maxPlayers || 2) - 1));   // 1 ~ maxPlayers-1
+  room.bots = SBOT.createBots(n, PALETTE, room.botLevel, room.gameType);
   for (const bot of room.bots) {
     room.queue.push(bot);
     if (mod.onEnter) mod.onEnter(room, bot);
@@ -338,7 +340,8 @@ wss.on('connection', (ws, req) => {
       if (msg.singleplayer) {                         // 봇전: 나머지 좌석 봇으로 채움
         const lv = ['easy', 'normal', 'hard', 'hell'].includes(msg.botLevel) ? msg.botLevel : 'normal';
         room.botLevel = lv;
-        addBots(room);
+        const bc = Number.isFinite(Number(msg.botCount)) ? Number(msg.botCount) : null;   // UI 지정 봇 수(고스톱 2/4인)
+        addBots(room, bc);
       }
       alog(`🎮 방생성  "${name}"  ${gameType}${msg.singleplayer ? `(봇전·${room.botLevel})` : ''}  by ${ws.name}`);
 

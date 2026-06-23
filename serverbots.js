@@ -12,14 +12,17 @@ function botCount(gameType, maxPlayers) {
 }
 
 // ws처럼 보이는 봇 객체(서버의 broadcastRoom/notify가 ws.send를 호출해도 무해하게).
-// 이름 = 난이도별(초급/중급/고급)봇 + 여러 명이면 번호(1,2,3…).
-function createBots(count, palette, level) {
-  const prefix = level === 'easy' ? '🤖초급봇' : level === 'hell' ? '👹헬봇' : level === 'hard' ? '🤖고급봇' : '🤖중급봇';
+// 이름: 오셀로=난이도별(초급/중급/고급/헬)봇, 그 외=게임별(포커봇·고스톱봇·섯다봇)+번호.
+const GAME_BOTNAME = { poker: '🤖포커봇', gostop: '🤖고스톱봇', seotda: '🤖섯다봇' };
+function createBots(count, palette, level, gameType) {
+  const othelloName = level === 'easy' ? '🤖초급봇' : level === 'hell' ? '👹헬봇' : level === 'hard' ? '🤖고급봇' : '🤖중급봇';
+  const isOthello = gameType === 'othello';
+  const prefix = isOthello ? othelloName : (GAME_BOTNAME[gameType] || '🤖봇');
   const bots = [];
   for (let i = 0; i < count; i++) {
     seq++;
     bots.push({
-      name: prefix + (count > 1 ? i + 1 : ''),       // 여러 명일 때만 번호
+      name: prefix + (isOthello ? (count > 1 ? i + 1 : '') : (i + 1)),   // 오셀로는 여럿일 때만 번호, 그 외는 항상 번호
       color: palette[(seq * 3) % palette.length],
       sessionId: 'sbot-' + seq,
       isBot: true, joined: true, roomId: null,
