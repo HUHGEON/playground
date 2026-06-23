@@ -4,6 +4,7 @@ import '../gostop.css';
 import { avatar, nyang, cardSrc, MNAME, pileGroups, floorLayout } from './gostopUtil.js';
 
 const CAT = [['KWANG', '광', 'c-kw'], ['YEOL', '멍', 'c-yeol'], ['TTI', '단', 'c-tti'], ['PI', '피', 'c-pi']];
+const CATNAME = { KWANG: '광', YEOL: '멍', TTI: '단', PI: '피' };
 const pname = (p) => (p ? p.name.replace(/🤖/g, '') : '');
 
 function Card({ c, cls }) {
@@ -78,6 +79,24 @@ export default function Gostop({ ws }) {
   const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
   const lay = floorLayout(s.floor, floorSize.w, floorSize.h);
 
+  const turnName = s.seats && s.turnIdx != null && s.seats[s.turnIdx] ? pname(s.seats[s.turnIdx]) : '';
+  const sideNote = s.phase === 'finished' ? '판 종료' : (s.phase === 'playing' && turnName ? `${turnName} 님의 차례` : '게임 대기 중…');
+
+  // 손패 ▼ 힌트 — 낼 수 있는(.matchable) 손패 위에 화살표(바닐라 renderHandHints, 명령형 측정)
+  useEffect(() => {
+    const el = document.getElementById('gsHandHints'); if (!el) return;
+    const row = document.getElementById('gsMyRow'), hand = document.getElementById('gsHand');
+    if (!myTurn || !row || !hand) { el.innerHTML = ''; return; }
+    const rr = row.getBoundingClientRect();
+    let html = '';
+    hand.querySelectorAll('.gscard.matchable').forEach((card) => {
+      const r = card.getBoundingClientRect();
+      const x = r.left + r.width / 2 - rr.left, y = r.top - rr.top;
+      html += `<div class="gs-hand-hint" style="left:${x}px;top:${y}px">▼</div>`;
+    });
+    el.innerHTML = html;
+  });
+
   // 바닥 같은 월 2장+ 개수 뱃지
   const fbyM = {};
   (s.floor || []).forEach((c) => { if (c.m) (fbyM[c.m] = fbyM[c.m] || []).push(c); });
@@ -107,12 +126,16 @@ export default function Gostop({ ws }) {
         {rulesOpen && (
           <div className="gs-side-hint">
             광 3·4·15 / 고도리 5 / 홍·청·초단 각 3 / 열끗·띠 5장부터 1점+ / 피 10장부터 1점+<br />
-            <span className="dim">· 나는 점수: 맞고 7</span><br />
+            <span className="dim">· 나는 점수: 맞고 7 · 고스톱 3</span><br />
             <span className="dim">· 바닥 2장에 매칭 = 둘 중 1장 선택해 먹기</span><br />
             <span className="dim">· 뻑(자뻑) = 바닥 1장에 냈는데 뒤집기가 같은 월</span><br />
             <span className="dim">· 보너스피 = 더미서 1장 손에 보충 + 상대 피 1, 턴 안 씀</span>
           </div>
         )}
+      </div>
+      <div className="gs-spanel">
+        <div className="gs-spanel-t">알림</div>
+        <div className="gs-snote">{sideNote}</div>
       </div>
     </div>
   );
@@ -181,6 +204,15 @@ export default function Gostop({ ws }) {
   const myCap = (s.captured && s.captured[me]) || [];
   const decision = s.decision;
   const result = s.phase === 'finished' && s.result ? s.result : null;
+  // 결과 화면 태그(고/흔들/멍박/총통×4/박) — 바닐라 resultHTML
+  const resultTags = [];
+  if (result && !result.nagari) {
+    if (result.goCount) resultTags.push(`${result.goCount}고`);
+    if (result.shake) resultTags.push(`흔들×${result.shake}`);
+    if (result.mungBak) resultTags.push('멍박');
+    if (result.chongtong) resultTags.push('총통×4');
+    [...new Set(Object.values(result.bak || {}).flat())].forEach((b) => resultTags.push(b));
+  }
 
   // 액션 버튼
   const actions = [];
@@ -256,9 +288,27 @@ export default function Gostop({ ws }) {
             : <div className="gs-box gs-result">
                 <h2>🏆 {s.seats[result.winner] ? s.seats[result.winner].name : ''} 승</h2>
                 <p className="gs-rscore">{result.baseScore}점{result.reason && result.reason !== 'stop' ? ' · ' + result.reason : ''}</p>
+                {resultTags.length > 0 && <div className="gs-tags">{resultTags.map((t, i) => <span key={i}>{t}</span>)}</div>}
                 <div className="gs-pays">{Object.entries(result.payScore || {}).map(([L, v]) => `${s.seats[L] ? s.seats[L].name : ''} ${v}점`).join(' · ')}</div>
                 {s.canStart ? <button onClick={() => send({ type: 'start' })}>다음 판</button> : <p className="gs-wait">다음 판 대기…</p>}
               </div>}
+        </div>
+      )}
+
+      {/* 먹기 선택 모달 — 바닥 2장 매칭 시 광/멍/단/피 라벨로 선택 */}
+      {s.pendingChoice && s.pendingChoice.options && s.pendingChoice.options.length > 0 && (
+        <div id="gsChoice" style={{ display: 'flex' }}>
+          <div className="gs-choice-box">
+            <div className="gs-choice-title">🖐 어떤 패를 먹을까요?</div>
+            <div className="gs-choice-cards">
+              {s.pendingChoice.options.map((c) => (
+                <button key={c.id} className="gs-choice-card" onClick={() => send({ type: 'choose', cardId: c.id })}>
+                  <span className="gs-choice-img"><img src={cardSrc(c)} alt="" />{c.cat === 'PI' && c.pi >= 2 && <b className="gs-choice-pi">{c.pi}</b>}</span>
+                  <span className="gs-choice-lbl">{CATNAME[c.cat] || '피'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div></div>

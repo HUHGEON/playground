@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import Secs from './Secs.jsx';
+import { useCountdown } from './Secs.jsx';
 import '../othello.css';
 
 const AVATARS = ['🐼', '🦊', '🐯', '🐸', '🐵', '🦁', '🐺', '🐻', '🦝', '🐰', '🦉', '🐢'];
@@ -10,7 +10,7 @@ function avatar(name) {
   return AVATARS[h % AVATARS.length];
 }
 
-function Panel({ s, seat, isMe, danger }) {
+function Panel({ s, seat, isMe }) {
   const name = seat === 'B' ? (s.blackName || '흑') : (s.whiteName || '백');
   const color = seat === 'B' ? s.blackColor : s.whiteColor;
   const sc = seat === 'B' ? s.score.B : s.score.W;
@@ -22,7 +22,10 @@ function Panel({ s, seat, isMe, danger }) {
   else if (s.phase !== 'playing') status = '대기 중';
   else if (isTurn) status = isMe ? '🟢 내 차례 — 둘 곳 클릭' : '🟢 두는 중…';
   else status = '⏳ 대기 중';
-  const prog = (isTurn && s.secondsLeft != null) ? Math.max(6, Math.min(100, Math.round(s.secondsLeft / 30 * 100))) : 0;
+  // 매초 틱하는 값 — 바(olevelfill)·숫자·≤5초 빨강 번쩍 전부 이 값에서 파생(서버 푸시 사이에도 줄어듦)
+  const secs = useCountdown(isTurn && s.secondsLeft != null ? s.secondsLeft : null);
+  const prog = (isTurn && secs != null) ? Math.max(6, Math.min(100, Math.round(secs / 30 * 100))) : 0;
+  const danger = isMe && isTurn && secs != null && secs <= 5;
   const cls = 'opanel' + (isTurn ? ' turn' : '') + (danger ? ' danger' : '');
   return (
     <div className={cls} data-player={name}>
@@ -32,7 +35,7 @@ function Panel({ s, seat, isMe, danger }) {
         <div className="oname">{name} <span className={'osym ' + discCls}>{sym}{isMe ? ' (나)' : ''}</span></div>
         <div className="ostatus">
           {status}
-          {isTurn && s.secondsLeft != null && <> <span className="osecs"><Secs n={s.secondsLeft} />초</span></>}
+          {isTurn && secs != null && <> <span className="osecs">{secs}초</span></>}
         </div>
       </div>
       <div className="oscore"><span className={'disc-mini ' + discCls} /><span className="oscorenum">{sc}</span></div>
@@ -77,7 +80,6 @@ export default function Othello({ ws }) {
   // 하단 = 항상 내 좌석(관전이면 흑), 상단 = 상대
   const botSeat = myColor === 'W' ? 'W' : 'B';
   const topSeat = botSeat === 'B' ? 'W' : 'B';
-  const danger = myTurn && s.secondsLeft != null && s.secondsLeft <= 5;
 
   // 보드 셀
   const lm = s.lastMove;
@@ -138,7 +140,7 @@ export default function Othello({ ws }) {
 
   return (
     <>
-      <Panel s={s} seat={topSeat} isMe={myColor === topSeat} danger={false} />
+      <Panel s={s} seat={topSeat} isMe={myColor === topSeat} />
       <div id="oResult" />
       <div id="oBoardWrap">
         <div id="oFrame">
@@ -173,7 +175,7 @@ export default function Othello({ ws }) {
           )}
         </div>
       </div>
-      <Panel s={s} seat={botSeat} isMe={myColor === botSeat} danger={danger} />
+      <Panel s={s} seat={botSeat} isMe={myColor === botSeat} />
       <div className="btnrow" id="oCtrl">{ctrl}</div>
       {infoEl && createPortal(sidebar, infoEl)}
     </>
