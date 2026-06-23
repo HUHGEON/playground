@@ -125,7 +125,7 @@
   }
 
   let timerInt = null, lastHandId = 0, wasMyTurn = false, prevActs = {}, seatByName = {}, lastCarrySeq = null;
-  let carryToastUntil = 0, rejoinTimer = null;   // 재경기 모달은 "묻고 더블로 가!" 토스트 끝난 뒤
+  let carryToastUntil = 0, rejoinTimer = null, pushTimer = null;   // 재경기 모달/재참가요청은 "묻고 더블로 가!" 토스트 끝난 뒤
   let introUntil = 0, introTimer = null, lastState = null;   // 패 받고 ~1.2초 동안 버튼/턴토스트 보류(섞기 먼저)
 
   // 채팅 말풍선 — 보낸 사람 좌석에 고정(재렌더돼도 그 좌석 따라감)
@@ -192,6 +192,14 @@
   function renderPush(s) {
     const z = pushZone();
     if (!z) return;
+    const wait = carryToastUntil - Date.now();
+    if (wait > 0) {            // "묻고 더블로 가!" 토스트 진행 중 → 끝난 뒤 표시(같이 안 뜨게)
+      z.innerHTML = '';
+      if (pushTimer) clearTimeout(pushTimer);
+      pushTimer = setTimeout(() => renderPush(s), wait + 60);
+      return;
+    }
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
     const want = {};
     (s.buyinRequests || []).forEach((r) => {
       want['buyin-' + r.name] = {
@@ -294,7 +302,7 @@
       tg.textContent = open ? '📖 족보 숨기기' : '📖 족보 보기';
     };
     lastHandId = 0; wasMyTurn = false; seatByName = {}; lastCarrySeq = null;
-    carryToastUntil = 0; if (rejoinTimer) { clearTimeout(rejoinTimer); rejoinTimer = null; }
+    carryToastUntil = 0; if (rejoinTimer) { clearTimeout(rejoinTimer); rejoinTimer = null; } if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
     introUntil = 0; lastState = null; if (introTimer) { clearTimeout(introTimer); introTimer = null; }
     const rjm = document.getElementById('rejoinModal'); if (rjm) rjm.remove();
     window.onRoomChat = showChatBubble;              // 방 채팅 → 좌석 말풍선
@@ -479,6 +487,11 @@
     document.getElementById('leaveBtn').disabled = false;
     window.leaveConfirm = (s.phase === 'playing' && me) ? '판 진행 중 나가면 다이(기권) 처리됩니다. 나가시겠어요?' : null;
 
+    // 동점/재경기 이월 발생 → "묻고 더블로 가!" 토스트. ★모달 렌더보다 먼저 carryToastUntil 세팅
+    //   (안 그러면 모달이 토스트 시작 전에 떠서 같이 뜸)
+    if (lastCarrySeq !== null && (s.carrySeq || 0) > lastCarrySeq) { showCarryToast(); carryToastUntil = Date.now() + 2200; }
+    lastCarrySeq = s.carrySeq || 0;
+
     renderPush(s);              // 재참가 승인(과반수) → 사이드바 푸쉬알람
     renderRejoinModal(s);       // 재경기 합류 → 화면 가운데 모달
 
@@ -490,10 +503,6 @@
     } else {
       felt.classList.remove('myturn');
     }
-
-    // 동점/재경기 이월 발생 → "묻고 더블로 가!" 토스트(첫 진입 땐 안 띄움)
-    if (lastCarrySeq !== null && (s.carrySeq || 0) > lastCarrySeq) { showCarryToast(); carryToastUntil = Date.now() + 2200; }
-    lastCarrySeq = s.carrySeq || 0;
 
     // 대기/관전자
     const wait = document.getElementById('seotdaWait');
