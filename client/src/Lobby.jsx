@@ -8,7 +8,7 @@ const LEVELS = [
 ];
 
 export default function Lobby({ ws }) {
-  const { lobby, send, chat } = ws;
+  const { lobby, send, chat, myName } = ws;
   const games = lobby?.games || [];
   const rooms = lobby?.rooms || [];
   const online = lobby?.online || [];
@@ -38,21 +38,21 @@ export default function Lobby({ ws }) {
           <div className="panel" style={{ minWidth: 360 }}>
             <h3>방 목록</h3>
             <div id="roomList">
-              {rooms.length === 0 && <p className="muted" style={{ fontSize: 13 }}>아직 방이 없어요. 게임을 고르고 아래에서 만들어보세요.</p>}
+              {rooms.length === 0 && <div className="empty">아직 방이 없어요. 게임을 고르고 아래에서 만들어보세요.</div>}
               {rooms.map((r) => {
-                const g = games.find((x) => x.type === r.gameType);
+                const g = games.find((x) => x.type === r.gameType) || {};
+                const meta = r.singleplayer
+                  ? `봇전 · 👁 관전 ${r.spectators || 0}명 · 방장 ${r.hostName || '-'}`
+                  : `${r.count}명 · ${r.max || ''} · 방장 ${r.hostName || '-'}`;
                 return (
                   <div key={r.id} className="roomrow">
                     <span className={`gicon g-${r.gameType}`}>
-                      {g?.img ? <img className="gicon-img" src={'/' + g.img} alt="" /> : (g?.emoji || '🎲')}
+                      {g.img ? <img className="gicon-img" src={'/' + g.img} alt="" /> : (g.emoji || '🎲')}
                     </span>
-                    <div className="rinfo">
-                      <div className="rname">{r.name}</div>
-                      <div className="meta">
-                        {r.singleplayer ? `봇전 · 👁 관전 ${r.spectators || 0}명` : `${r.count}명 · ${r.max || ''}`}
-                        {r.hostName ? ` · 방장 ${r.hostName}` : ''}
-                      </div>
-                    </div>
+                    <span className="rinfo"><div className="rname">{r.name}</div><div className="meta">{meta}</div></span>
+                    <span className={`gtag g-${r.gameType}`}>{g.title || r.gameType}</span>
+                    <span className={'badge' + (r.phase === 'playing' ? ' play' : '')}>{r.phase === 'playing' ? '진행중' : '대기중'}</span>
+                    {r.singleplayer && <span className="badge bot">🤖 봇전</span>}
                     <button onClick={() => send({ type: 'enterRoom', roomId: r.id })}>{r.singleplayer ? '관전' : '입장'}</button>
                   </div>
                 );
@@ -114,15 +114,18 @@ export default function Lobby({ ws }) {
             </div>
           </div>
           <div className="panel" style={{ width: 300 }}>
-            <h3>접속자 <span id="onlineCount">{online.length}</span></h3>
+            <h3>접속자 <span id="onlineCount">({online.length}명)</span></h3>
             <div id="onlineList">
-              {online.map((o, i) => (
-                <div key={i} className="online-row">
-                  <span className="dot" data-st={o.status} />
-                  <span className="on-name">{o.name}</span>
-                  <span className="on-loc">{o.loc}</span>
-                </div>
-              ))}
+              {online.map((u, i) => {
+                const LABEL = { lobby: '접속중', playing: '게임중', seated: '대기중' };
+                const where = u.status === 'lobby' ? '접속중' : `${LABEL[u.status] || ''} · ${u.loc}`;
+                return (
+                  <div key={i} className={'orow' + (u.name === myName ? ' me' : '')}>
+                    <span className="oname" style={{ color: u.color || '#e8eaed' }}>{u.name}</span>
+                    <span className={'ostat ' + u.status}>{where}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
