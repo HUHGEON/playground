@@ -145,7 +145,7 @@
     var lvl = $('levelPick'), cnt = $('countPick');
     var isOthello = selectedGame === 'othello';
     if (lvl) lvl.style.display = (selectedMode === 'single' && isOthello) ? 'flex' : 'none';
-    if (cnt) cnt.style.display = (selectedMode === 'single' && selectedGame === 'gostop') ? 'flex' : 'none';
+    if (cnt) cnt.style.display = 'none';                    // 맞고는 2인 고정(고스톱 3·4인 제거)
     if (!isOthello) selectedLevel = 'hard';                 // 오셀로 외엔 고급봇 고정
     var hellBtn = document.querySelector('.levelbtn[data-level=hell]');   // 헬은 오셀로만
     if (hellBtn) hellBtn.style.display = isOthello ? '' : 'none';
@@ -159,9 +159,8 @@
     if (!r.ok) return;                                // 범위 벗어나면 생성 막고 안내 표시
     const msg = { type: 'createRoom', gameType: selectedGame, name: $('roomName').value.trim() };
     if (r.vals) msg.opts = r.vals;
-    if (selectedMode === 'single') {                 // 봇전 + 난이도(오셀로) + 인원(고스톱)
-      msg.singleplayer = true; msg.botLevel = selectedLevel;
-      if (selectedGame === 'gostop') msg.botCount = selectedCount - 1;   // 2인=봇1 / 4인=봇3
+    if (selectedMode === 'single') {                 // 봇전 + 난이도(오셀로)
+      msg.singleplayer = true; msg.botLevel = selectedLevel;             // 맞고는 봇 1(2인 고정)
     }
     window.send(msg);
     $('roomName').value = '';

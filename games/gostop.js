@@ -78,7 +78,7 @@ function shuffle(a) {
 
 // ── 모드 파라미터 (인원수 → 맞고/고스톱). 카드 수 제약상 더미 ≥ 손패총합 보장 ──
 function modeParams(n) {
-  if (n >= 3) return { mode: 'gostop', players: Math.min(n, 4), hand: 7, floor: 6, minScore: 3, piBak: 5, gobak: true, dokbak: true, mungBakDefault: true };  // 3·4인 동일 7/6(광팔기 없음)
+  // 맞고(2인) 전용 — 고스톱(3·4인) 제거
   return { mode: 'matgo', players: 2, hand: 10, floor: 8, minScore: 7, piBak: 7, gobak: false, dokbak: false, mungBakDefault: false };
 }
 
@@ -201,6 +201,28 @@ function startPickFirst(room, params, deck) {
   };
   room.gs.round = null;
   room.phase = 'pickFirst';
+  schedulePickTimeout(room);
+}
+
+// 10초 안에 안 고르면 안 뽑은 후보 좌석 자동 선택
+function schedulePickTimeout(room) {
+  if (!room.ctx) return;
+  if (room.gs._pickTimeout) clearTimeout(room.gs._pickTimeout);
+  room.gs._pickTimeout = setTimeout(() => {
+    const pk = room.gs.pick;
+    if (!pk || pk.seonIdx != null) return;
+    let changed = false;
+    for (const s of pk.eligible) {
+      if (pk.picks[s] != null) continue;
+      const avail = pk.pickFloor.map((_, i) => i).filter((i) => !pk.taken.includes(i));
+      if (!avail.length) continue;
+      const idx = avail[Math.floor(Math.random() * avail.length)];
+      pk.picks[s] = idx; pk.taken.push(idx); pk.reveals.push({ seat: s, index: idx, round: pk.round });
+      changed = true;
+    }
+    if (changed && pk.eligible.every((s) => pk.picks[s] != null)) resolvePickFirst(room);
+    room.ctx.broadcastRoom(room); room.ctx.broadcastLobby();
+  }, 10000);
 }
 
 function pickFirstCard(room, seat, index) {
@@ -219,6 +241,7 @@ function resolvePickFirst(room) {
   const scored = pk.eligible.map((s) => ({ seat: s, r: seonRank(pk.pickFloor[pk.picks[s]]) }));
   const maxR = Math.max(...scored.map((x) => x.r));
   const top = scored.filter((x) => x.r === maxR);
+  if (room.gs._pickTimeout) { clearTimeout(room.gs._pickTimeout); room.gs._pickTimeout = null; }
   if (top.length === 1) {                          // 선 확정
     pk.seonIdx = top[0].seat;
     room.gs.seonIdx = top[0].seat; room.gs.seonSet = true;
@@ -230,11 +253,13 @@ function resolvePickFirst(room) {
     pk.eligible = top.map((x) => x.seat);
     for (const s of pk.eligible) delete pk.picks[s];
     pk.round++;
+    schedulePickTimeout(room);                      // 재대결도 10초 타임아웃
   }
 }
 
 function finishPickFirst(room) {
   const pk = room.gs.pick;
+  if (room.gs._pickTimeout) { clearTimeout(room.gs._pickTimeout); room.gs._pickTimeout = null; }
   setupRound(room, pk.params, pk.seonIdx, dealFromPick(room), pk.reveals);
   room.gs.pick = null; room.gs._pickTimer = null;
 }
@@ -628,10 +653,10 @@ function botPickPlay(r, seat) {
 module.exports = {
   type: 'gostop',
   order: 3,
-  title: '고스톱',
+  title: '맞고',
   emoji: '🃏',
   img: 'gostop/1-0.png',          // 로비 아이콘 = 화투 송학광
-  maxPlayers: 4,
+  maxPlayers: 2,                   // 맞고 2인 전용(고스톱 3·4인 제거)
   wip: false,                      // ⚠️ 구현 중 — 완성 전까지 로비 노출/생성 차단
 
   init(room, opts) {
@@ -665,6 +690,7 @@ module.exports = {
 
   onLeave(room, ws) {
     if (room.gs && room.gs._pickTimer) { clearTimeout(room.gs._pickTimer); room.gs._pickTimer = null; }
+    if (room.gs && room.gs._pickTimeout) { clearTimeout(room.gs._pickTimeout); room.gs._pickTimeout = null; }
     if (room.phase === 'playing' || room.phase === 'pickFirst') room.phase = 'lobby';
     if (room.gs) { room.gs.pick = null; room.gs.round = null; }
   },
@@ -800,7 +826,7 @@ module.exports = {
   },
 
   lobbyInfo(room) {
-    return { count: room.queue.length, max: `${room.queue.length}/5` };
+    return { count: room.queue.length, max: `${room.queue.length}/2` };
   },
 
   // ── 테스트 훅 ──

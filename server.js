@@ -350,9 +350,10 @@ wss.on('connection', (ws, req) => {
       const room = rooms.get(String(msg.roomId));
       if (!room) { sendLobby(ws); return; }
       if (room.singleplayer) { enterAsSpectator(ws, room); return; }   // 봇전은 관전만(대기열 X)
-      if (room.phase !== 'lobby') {                                    // 판 진행 중 → 관전 + 대기열(다음 판 합류)
+      const gmod = GAMES[room.gameType];
+      if (room.phase !== 'lobby' || room.queue.length >= (gmod.maxPlayers || 99)) {   // 진행 중 or 정원 참 → 관전 + 대기열
         enterAsSpectator(ws, room); ws.waiting = true;
-        roomNotify(room, `🪑 ${ws.name} 님이 대기열 입장 — 다음 판부터 합류`);
+        roomNotify(room, `🪑 ${ws.name} 님이 대기열 입장 — 자리 나면 합류`);
         broadcastRoom(room); broadcastLobby();
         return;
       }
