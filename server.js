@@ -33,20 +33,35 @@ const MIME = {
 };
 // 캐시 대상(자주 안 바뀌는 큰 에셋): 이미지 + Edax 엔진(wasm/data)
 const IMG_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.wasm', '.data']);
+const DIST = path.join(__dirname, 'client', 'dist');   // React(Vite) 빌드
+function sendFile(res, fp, isSpaFallback) {
+  fs.readFile(fp, (err, data) => {
+    if (err) { res.writeHead(404); return res.end('not found'); }
+    const ext = path.extname(fp);
+    const hashed = fp.includes('/assets/');            // Vite 해시 파일 = 영구 캐시
+    res.writeHead(200, {
+      'Content-Type': MIME[ext] || 'application/octet-stream',
+      'Cache-Control': (hashed || IMG_EXT.has(ext)) ? 'public, max-age=604800' : 'no-cache, no-store, must-revalidate',
+    });
+    res.end(data);
+  });
+}
 const httpServer = http.createServer((req, res) => {
   let urlPath = req.url.split('?')[0];           // 쿼리스트링 제거(캐시버스팅 ?v= 등 허용)
   if (urlPath === '/') urlPath = '/index.html';
-  const filePath = path.join(PUBLIC, path.normalize(urlPath));
-  if (!filePath.startsWith(PUBLIC)) { res.writeHead(403); return res.end('forbidden'); }
-  fs.readFile(filePath, (err, data) => {
-    if (err) { res.writeHead(404); return res.end('not found'); }
-    const ext = path.extname(filePath);
-    res.writeHead(200, {
-      'Content-Type': MIME[ext] || 'application/octet-stream',
-      // 이미지(카드·밈)는 캐시해 빠르게, 코드/HTML은 항상 최신
-      'Cache-Control': IMG_EXT.has(ext) ? 'public, max-age=604800' : 'no-cache, no-store, must-revalidate',
+  const norm = path.normalize(urlPath);
+  const distPath = path.join(DIST, norm), pubPath = path.join(PUBLIC, norm);
+  if (!distPath.startsWith(DIST) || !pubPath.startsWith(PUBLIC)) { res.writeHead(403); return res.end('forbidden'); }
+  // 1) React 빌드(dist) → 2) public(카드이미지 등) → 3) SPA 폴백(dist/index.html)
+  fs.access(distPath, fs.constants.R_OK, (e1) => {
+    if (!e1) return sendFile(res, distPath);
+    fs.access(pubPath, fs.constants.R_OK, (e2) => {
+      if (!e2) return sendFile(res, pubPath);
+      fs.access(path.join(DIST, 'index.html'), fs.constants.R_OK, (e3) => {
+        if (!e3) return sendFile(res, path.join(DIST, 'index.html'));   // 빌드 있으면 SPA 폴백
+        sendFile(res, path.join(PUBLIC, 'index.html'));                  // 없으면 기존 바닐라
+      });
     });
-    res.end(data);
   });
 });
 
