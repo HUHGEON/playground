@@ -350,6 +350,12 @@ wss.on('connection', (ws, req) => {
       const room = rooms.get(String(msg.roomId));
       if (!room) { sendLobby(ws); return; }
       if (room.singleplayer) { enterAsSpectator(ws, room); return; }   // 봇전은 관전만(대기열 X)
+      if (room.phase !== 'lobby') {                                    // 판 진행 중 → 관전 + 대기열(다음 판 합류)
+        enterAsSpectator(ws, room); ws.waiting = true;
+        roomNotify(room, `🪑 ${ws.name} 님이 대기열 입장 — 다음 판부터 합류`);
+        broadcastRoom(room); broadcastLobby();
+        return;
+      }
       enterRoom(ws, room);
 
     } else if (msg.type === 'leaveRoom') {
@@ -361,6 +367,17 @@ wss.on('connection', (ws, req) => {
       const room = rooms.get(ws.roomId);
       if (!room || room.host !== ws) return;
       const mod = GAMES[room.gameType];
+      // 대기열(진행 중 입장한 관전자) → 다음 판 큐로 승격(maxPlayers까지)
+      if (room.spectators && room.spectators.length) {
+        const cap = mod.maxPlayers || 99;
+        for (const sp of room.spectators.slice()) {
+          if (!sp.waiting || room.queue.length >= cap) continue;
+          sp.waiting = false; sp.spectator = false;
+          room.spectators = room.spectators.filter((x) => x !== sp);
+          room.queue.push(sp);
+          if (mod.onEnter) mod.onEnter(room, sp);
+        }
+      }
       if (!mod.canStart(room)) return;
       mod.start(room, msg);                            // msg 전달(예: 오셀로 봇전 흑/백 선택)
       broadcastRoom(room);
