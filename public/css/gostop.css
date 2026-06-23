@@ -261,4 +261,4 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 #gsMotion { position: absolute; inset: 0; pointer-events: none; z-index: 9; }
 .gs-ghost { position: absolute; width: 52px; height: 78px; border-radius: 5px; box-shadow: 0 3px 10px rgba(0,0,0,.5); object-fit: cover; background: #fff; }
 @keyframes gsFlipIn { from { transform: translate(-50%,-50%) rotate(var(--rot,0deg)) rotateY(90deg) scale(1.06); } to { transform: translate(-50%,-50%) rotate(var(--rot,0deg)) rotateY(0deg) scale(1); } }
-.floorc.flipin { animation: gsFlipIn .3s cubic-bezier(.3,.8,.4,1) .22s both; }
+.floorc.flipin { animation: gsFlipIn .3s cubic-bezier(.3,.8,.4,1) .36s both; }

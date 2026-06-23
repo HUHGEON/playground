@@ -316,19 +316,20 @@
         { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot * 0.3}deg) scale(1.13)`, offset: 0 },
         { transform: `translate(-50%,-50%) translate(${dx * 0.05}px,${dy * 0.05 - 7}px) rotate(${rot}deg) scale(1.06)`, offset: 0.72 },
         { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1)`, offset: 1 },
-      ], { duration: 270, easing: 'cubic-bezier(.3,.85,.4,1)' });
+      ], { duration: 360, easing: 'cubic-bezier(.3,.85,.4,1)' });
     } catch (e) {}
   }
 
   // 획득 모션 — 먹힌 패가 (내가 던진 패는 손패에서 / 바닥패는 바닥에서) 해당 좌석 더미로 모여 날아감.
   let lastCapCounts = null;
-  function flyGhost(motion, card, from, to, delay) {
+  function flyGhost(motion, card, from, to, delay, dur) {
+    dur = dur || 270;
     setTimeout(() => {
       try {
         const g = document.createElement('img'); g.className = 'gs-ghost'; g.src = cardSrc(card);
         g.style.left = from.x + 'px'; g.style.top = from.y + 'px'; motion.appendChild(g);
-        g.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${to.x - from.x}px,${to.y - from.y}px) scale(.5)`, opacity: .4 }], { duration: 260, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
-        setTimeout(() => g.remove(), 320);
+        g.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${to.x - from.x}px,${to.y - from.y}px) scale(.5)`, opacity: .4 }], { duration: dur, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
+        setTimeout(() => g.remove(), dur + 60);
       } catch (e) {}
     }, delay);
   }
@@ -352,8 +353,10 @@
       const threwAndAte = playedId && capIds.includes(playedId) && prevHandRects[playedId] && !newFloorIds.has(playedId);
       const floorMate = capIds.find((id) => id !== playedId && prevRects[id]);
       const matchPos = (floorMate && prevRects[floorMate]) || feltPt($('gsFloor'), felt);
-      let base = 180;
-      if (threwAndAte) { const c = cardOf(playedId); if (c) { flyGhost(motion, c, prevHandRects[playedId], matchPos, 0); base = 300; } }
+      // 타이밍: 던지기(0~360) → 뒤집기(360~640, flip-in CSS) → 다 같이 가져오기(660~)
+      const threw = threwAndAte || (playedId && prevHandRects[playedId]);   // 이번 턴에 내가 던졌나
+      let base = threw ? 700 : 360;                                          // 던졌으면 던지기+뒤집기 뒤에 가져오기
+      if (threwAndAte) { const c = cardOf(playedId); if (c) flyGhost(motion, c, prevHandRects[playedId], matchPos, 0, 360); }   // phase1: 손패→매칭자리(느린 던지기)
       let n = 0;
       capIds.forEach((id) => {
         const card = cardOf(id); if (!card) return;
@@ -362,7 +365,7 @@
         else if (prevRects[id]) from = prevRects[id];                              // 바닥패 = 바닥에서
         else if (id === playedId && prevHandRects[id]) from = prevHandRects[id];   // 던진 패(매칭 없이 먹은 케이스) = 손패에서
         else return;
-        flyGhost(motion, card, from, tgt, base + n * 55); n++;
+        flyGhost(motion, card, from, tgt, base + n * 60); n++;
       });
     } catch (e) {}
   }
