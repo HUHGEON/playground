@@ -168,7 +168,7 @@
       '<div id="gsStage"><div id="gsFelt">' +
         '<div id="gsTop"></div>' +
         '<div id="gsBody"><div id="gsLeft" class="gs-side"></div>' +
-          '<div id="gsMid"><div id="gsFloor"></div>' +
+          '<div id="gsMid"><div id="gsFloor"></div><div id="gsFloorN"></div>' +
             '<div id="gsCenter"><div id="gsDrawWrap"><div id="gsDraw"></div><div id="gsDrawN"></div></div></div>' +
           '</div>' +
           '<div id="gsRight" class="gs-side"></div>' +
@@ -270,6 +270,16 @@
     drawFly(s, felt);                                                             // 보너스 보충: 더미 → 손/패널
     flipReveal(s, felt);                                                          // 더미서 뒤집힌 패 크게 보여주기
     const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
+    // 같은 월 2장+ 바닥 그룹에 개수 뱃지(겹쳐서 1장처럼 안 보이게 — 내면 뻑 위험 표시)
+    const fbyM = {}; (s.floor || []).forEach((c) => { if (c.m) (fbyM[c.m] = fbyM[c.m] || []).push(c); });
+    let fbadges = '';
+    Object.keys(fbyM).forEach((m) => {
+      const g = fbyM[m]; if (g.length < 2) return;
+      const ps = g.map((c) => lay[c.id]).filter(Boolean); if (!ps.length) return;
+      const x = ps.reduce((a, p) => a + p.x, 0) / ps.length, y = Math.min.apply(null, ps.map((p) => p.y));
+      fbadges += `<div class="gs-floorn" style="left:${x}%;top:${y}%">${g.length}</div>`;
+    });
+    $('gsFloorN').innerHTML = fbadges;
 
     // 더미(가운데) — 큰판/점수 표시 없음(점수는 각 사람 패널에만)
     $('gsDraw').className = s.drawCount > 0 ? 'has' : '';

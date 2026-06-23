@@ -270,3 +270,8 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 /* 더미서 뒤집힌 패 크게 보여주기 */
 .gs-flipreveal { position: absolute; width: 58px; height: 88px; border-radius: 8px; pointer-events: none; z-index: 12; background: #fff; object-fit: cover;
   box-shadow: 0 12px 30px rgba(0,0,0,.6), 0 0 0 2px #e3c878, 0 0 26px rgba(227,200,120,.65); }
+
+/* 바닥 같은 월 2장+ 개수 뱃지(겹쳐 보여 헷갈림 방지) */
+#gsFloorN { position: absolute; inset: 0; pointer-events: none; z-index: 7; }
+.gs-floorn { position: absolute; transform: translate(-50%,-50%); margin-top: -33px; min-width: 18px; height: 18px; line-height: 18px; padding: 0 4px; border-radius: 999px;
+  background: #c0392b; color: #fff; font-size: 11px; font-weight: 900; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,.5), 0 0 0 1.5px #e3c878; }
