@@ -47,7 +47,26 @@ export default function Othello({ ws }) {
   const s = ws.room;
   const send = ws.send;
   const [infoEl, setInfoEl] = useState(null);
+  const [passToast, setPassToast] = useState('');
+  const lastPassSeq = useRef(0);
   useEffect(() => { setInfoEl(document.getElementById('roomInfo')); }, []);
+  // 패스 토스트 — 둘 곳 없어 패스 시 "X님이 둘 곳이 없습니다" 2.2초(바닐라 showOToast)
+  useEffect(() => {
+    if (s.passSeq && s.passSeq !== lastPassSeq.current) {
+      lastPassSeq.current = s.passSeq;
+      if (s.passName) {
+        setPassToast(s.passName + '님이 둘 곳이 없습니다');
+        const t = setTimeout(() => setPassToast(''), 2200);
+        return () => clearTimeout(t);
+      }
+    } else if (!s.passSeq) { lastPassSeq.current = 0; }
+    return undefined;
+  }, [s.passSeq, s.passName]);
+  // 대국 중 나가면 기권 — 나가기 버튼이 확인창 띄우도록 메시지 설정(바닐라와 동일)
+  useEffect(() => {
+    window.leaveConfirm = (s.phase === 'playing' && (myColor === 'B' || myColor === 'W')) ? '대국 중 나가면 기권 처리됩니다. 나가시겠어요?' : null;
+    return () => { window.leaveConfirm = null; };
+  });
 
   // 내 색은 닉네임 기준으로 판별 (yourRole은 종료 시 뒤집히는 버그가 있어 사용 X)
   const myName = s.yourName;
@@ -164,7 +183,7 @@ export default function Othello({ ws }) {
             })}
           </div>
         </div>
-        <div id="oToast" />
+        <div id="oToast" className={passToast ? 'show' : ''}>{passToast}</div>
         <div id="oWinPanel">
           {win && (
             <div className={'owin-card ' + win.cls}>

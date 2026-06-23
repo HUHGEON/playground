@@ -12,6 +12,18 @@ const GAME_COMPONENTS = {
   poker: Poker,
 };
 
+// 금액 억/만 축약(섯다 roomSub용)
+const EOK = 100000000;
+function won(n) {
+  n = Math.round(Number(n) || 0);
+  if (Math.abs(n) < 10000) return n.toLocaleString();
+  const eok = Math.floor(n / EOK), man = Math.floor((n % EOK) / 10000);
+  let s = '';
+  if (eok) s += eok.toLocaleString() + '억';
+  if (man) s += (s ? ' ' : '') + man.toLocaleString() + '만';
+  return s || n.toLocaleString();
+}
+
 export default function Room({ ws }) {
   const { room, send, chat } = ws;
   const GameComp = GAME_COMPONENTS[room.gameType];
@@ -34,9 +46,16 @@ export default function Room({ ws }) {
     <div id="roomView">
       <ChatBubbleLayer chat={chat} bubbleClass={room.gameType === 'othello' ? 'obubble' : 'chat-bubble'} />
       <div id="roomTopbar">
-        <button id="leaveBtn" className="sub" onClick={() => send({ type: 'leaveRoom' })}>← 나가기</button>
+        <button id="leaveBtn" className="sub" onClick={() => {
+          const msg = window.leaveConfirm;          // 게임이 진행 중이면 기권 확인(게임별로 설정)
+          if (msg && !window.confirm(msg)) return;
+          window.leaveConfirm = null;
+          send({ type: 'leaveRoom' });
+        }}>← 나가기</button>
         <div id="roomTitle">{room.title} · {room.roomName}</div>
-        <div id="roomSub">{sub}{room.hostName ? ` · 방장 ${room.hostName}` : ''}</div>
+        <div id="roomSub">{room.gameType === 'seotda' && room.ante != null
+          ? `점당 ${won(room.ante)} · 시작 ${won(room.startChips)}`
+          : `${sub}${room.hostName ? ` · 방장 ${room.hostName}` : ''}`}</div>
       </div>
       <div className="layout">
         <div className="col" id="roomMain">

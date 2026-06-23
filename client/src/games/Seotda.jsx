@@ -172,6 +172,11 @@ export default function Seotda({ ws }) {
   const players = s.players || [];
   const me = players.find((p) => p.isMe);
   const myName = s.yourName;
+  // 판 진행 중 나가면 다이(기권) — 나가기 확인창(바닐라와 동일)
+  useEffect(() => {
+    window.leaveConfirm = (s.phase === 'playing' && me) ? '판 진행 중 나가면 다이(기권) 처리됩니다. 나가시겠어요?' : null;
+    return () => { window.leaveConfirm = null; };
+  });
   let meEntry = null;
   if (me) meEntry = me;
   else if (myName) meEntry = { name: myName, color: s.yourColor || '#fff', chips: s.myChips ?? 0, isMe: true, waiting: true, bankrupt: (s.myChips ?? 0) < s.ante };
