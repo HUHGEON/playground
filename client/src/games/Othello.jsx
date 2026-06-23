@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Secs from './Secs.jsx';
 import '../othello.css';
@@ -50,6 +50,29 @@ export default function Othello({ ws }) {
   const myName = s.yourName;
   const myColor = myName && myName === s.blackName ? 'B' : (myName && myName === s.whiteName ? 'W' : null);
   const myTurn = s.phase === 'playing' && myColor != null && myColor === s.turn;
+
+  // 봇전: 봇 차례면 브라우저 워커가 수 계산 → botMove 전송(서버는 합법성만 검증). 바닐라 maybeDriveBot 이전.
+  const workerRef = useRef(null);
+  const lastBotSeq = useRef(-1);
+  useEffect(() => () => { if (workerRef.current) { workerRef.current.terminate(); workerRef.current = null; } }, []);
+  useEffect(() => {
+    if (!s.singleplayer || s.phase !== 'playing' || !myColor || s.turn === myColor) return undefined;
+    const seq = s.lastMove ? s.lastMove.seq : 0;
+    if (seq === lastBotSeq.current) return undefined;       // 이 상태엔 이미 요청함
+    lastBotSeq.current = seq;
+    const level = s.botLevel || 'normal';
+    const budget = (level === 'hard' || level === 'hell') ? 3000 : (level === 'normal' ? 1200 : 350);
+    if (!workerRef.current) {
+      try {
+        workerRef.current = new Worker('/othello-worker.js');
+        workerRef.current.onmessage = (e) => { const mv = e.data; if (mv) send({ type: 'botMove', r: mv[0], c: mv[1] }); };
+        workerRef.current.onerror = () => { workerRef.current = null; };
+      } catch { workerRef.current = null; }
+    }
+    const w = workerRef.current;
+    const t = setTimeout(() => { if (w) w.postMessage({ board: s.board, me: s.turn, level, budgetMs: budget }); }, 550 + Math.random() * 650);
+    return () => clearTimeout(t);
+  }, [s, myColor, send]);
 
   // 하단 = 항상 내 좌석(관전이면 흑), 상단 = 상대
   const botSeat = myColor === 'W' ? 'W' : 'B';
