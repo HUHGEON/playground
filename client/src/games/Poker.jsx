@@ -141,8 +141,10 @@ export default function Poker({ ws }) {
   const send = ws.send;
   const [infoEl, setInfoEl] = useState(null);
   const [rankOpen, setRankOpen] = useState(false);
+  const [acted, setActed] = useState(false);          // 액션/버리기 클릭 즉시 버튼 숨김(중복베팅 방지)
   useFitStage('pokerStage', 'pokerFelt', { max: 2.2, reserveBottom: 100 });
   useEffect(() => { setInfoEl(document.getElementById('roomInfo')); }, []);
+  useEffect(() => { setActed(false); }, [s]);          // 새 서버 상태 오면 버튼 복원
 
   // ── 사이드바(대기열 + 족보) — #roomInfo로 포털 ──
   const overflow = (() => {
@@ -264,17 +266,19 @@ export default function Poker({ ws }) {
 
   // ── 하단 액션 바 ──
   let barLeft = null, actions = null;
-  if (s.myTurn && s.actions) {
+  if (s.myTurn && s.actions && !acted) {
     const callA = s.actions.find((a) => a.act === 'call');
     barLeft = callA
       ? <div className="callwrap"><span className="calllbl">콜 금액</span><span className="callamt">{callA.amount || ''}</span></div>
       : <span className="barhint">베팅 / 체크</span>;
     actions = s.actions.map((a, i) => (
-      <button key={i} className={'b-' + a.act} onClick={() => send({ type: 'bet', act: a.act })}>
+      <button key={i} className={'b-' + a.act} onClick={() => { send({ type: 'bet', act: a.act }); setActed(true); }}>
         <span className="blabel">{a.name}</span>
         {a.amount ? <span className="bamt">{a.amount}</span> : null}
       </button>
     ));
+  } else if (s.myTurn && acted) {
+    actions = <span className="barhint">처리 중…</span>;
   } else {
     let hint;
     if (s.stage === 'discard') hint = s.myDiscarded ? '다른 플레이어가 카드를 버리는 중…' : '🃏 버릴 카드 1장을 고르세요';
@@ -285,18 +289,18 @@ export default function Poker({ ws }) {
   // ── 관전/재참가/버리기 안내(테이블 위 notice) ──
   let notice = null;
   if (s.stage === 'discard' && me) {
-    if (s.canDiscard && me.cards && me.cards.length) {
+    if (s.canDiscard && me.cards && me.cards.length && !acted) {
       notice = (
         <div className="notice-card">
           <div className="nc-line">🃏 버릴 카드 1장 선택{s.secondsLeft != null ? <> · <Secs n={s.secondsLeft} />초</> : ''}</div>
           <div className="discardrow">
             {me.cards.map((c, i) => (
-              <TCard key={i} card={c} w={64} h={90} selectable onClick={() => send({ type: 'discard', idx: i })} />
+              <TCard key={i} card={c} w={64} h={90} selectable onClick={() => { send({ type: 'discard', idx: i }); setActed(true); }} />
             ))}
           </div>
         </div>
       );
-    } else if (s.myDiscarded) {
+    } else if (s.myDiscarded || (s.canDiscard && acted)) {
       notice = <div className="notice-card spectate">✅ 버림 완료 — 다른 플레이어 대기 중…</div>;
     }
   } else if (!me) {
