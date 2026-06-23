@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useFitStage } from './useFitStage.js';
+import Secs from './Secs.jsx';
 import '../poker.css';
 
 // 세븐포커 — 바닐라 public/poker.js의 R.render(s)를 React로 이전.
@@ -287,7 +288,7 @@ export default function Poker({ ws }) {
     if (s.canDiscard && me.cards && me.cards.length) {
       notice = (
         <div className="notice-card">
-          <div className="nc-line">🃏 버릴 카드 1장 선택{s.secondsLeft != null ? ' · ' + s.secondsLeft + '초' : ''}</div>
+          <div className="nc-line">🃏 버릴 카드 1장 선택{s.secondsLeft != null ? <> · <Secs n={s.secondsLeft} />초</> : ''}</div>
           <div className="discardrow">
             {me.cards.map((c, i) => (
               <TCard key={i} card={c} w={64} h={90} selectable onClick={() => send({ type: 'discard', idx: i })} />
@@ -352,7 +353,7 @@ export default function Poker({ ws }) {
           <div id="pokerPot">
             <div className="potpill"><span className="lbl">POT</span><span className="val">₩ {won(s.pot || 0)}</span></div>
             {s.streetLabel ? <div className="streetlabel">{s.streetLabel}</div> : null}
-            {s.secondsLeft != null ? <div className="pottimer" id="pTimer">⏱ {s.secondsLeft}초</div> : null}
+            {s.secondsLeft != null ? <div className="pottimer" id="pTimer">⏱ <Secs n={s.secondsLeft} />초</div> : null}
             <div id="pokerPotCtrl">{potCtrl}</div>
           </div>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useFitStage } from './useFitStage.js';
+import Secs from './Secs.jsx';
 import '../seotda.css';
 
 // 큰 금액을 억/만 단위로 읽기 쉽게 — 100억, 1억 5,000만, 1,000만, 2,500
@@ -283,7 +284,7 @@ export default function Seotda({ ws }) {
       <div id="rejoinModal" className="rejoin-modal" style={{ left: '50%', top: '50%' }}>
         <div className="rjtitle">🔁 재경기 합류</div>
         <div className="rjbody">묻힌 판돈의 절반 <b>{won(s.rejoinCost)}</b>을 내고<br />이번 재경기 판에 참여하시겠습니까?</div>
-        {s.secondsLeft != null && <div className="rjtimer">⏱ {s.secondsLeft}초 후 자동 빠지기</div>}
+        {s.secondsLeft != null && <div className="rjtimer">⏱ <Secs n={s.secondsLeft} />초 후 자동 빠지기</div>}
         <div className="rjbtns">
           <button className="pok" onClick={() => send({ type: 'rejoin' })}>합류</button>
           <button className="pno" onClick={() => send({ type: 'passRejoin' })}>빠지기</button>
@@ -295,7 +296,7 @@ export default function Seotda({ ws }) {
       <div id="rejoinModal" className="rejoin-modal" style={{ left: '50%', top: '50%' }}>
         <div className="rjtitle">🔁 재경기</div>
         <div className="rjbody">묻고 더블로 갑니다!<br /><span className="pushmeta">다른 분들의 합류 결정을 기다리는 중…</span></div>
-        {s.secondsLeft != null && <div className="rjtimer">⏱ {s.secondsLeft}초</div>}
+        {s.secondsLeft != null && <div className="rjtimer">⏱ <Secs n={s.secondsLeft} />초</div>}
       </div>
     );
   }
@@ -365,7 +366,7 @@ export default function Seotda({ ws }) {
             <div className="potamt">₩ {won(pot)}</div>
             <div className="potlabel">판돈 POT</div>
             {(s.carryPot > 0 && s.phase === 'playing') && <div className="potsub">묻힌 {won(s.carryPot)}</div>}
-            {s.secondsLeft != null && <div className="pottimer" id="sTimer">⏱ {s.secondsLeft}초</div>}
+            {s.secondsLeft != null && <div className="pottimer" id="sTimer">⏱ <Secs n={s.secondsLeft} />초</div>}
             <div id="potCtrl">{potCtrl}</div>
           </div>
         </div>

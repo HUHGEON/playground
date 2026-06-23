@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import Secs from './Secs.jsx';
 import '../othello.css';
 
 const AVATARS = ['🐼', '🦊', '🐯', '🐸', '🐵', '🦁', '🐺', '🐻', '🦝', '🐰', '🦉', '🐢'];
@@ -31,7 +32,7 @@ function Panel({ s, seat, isMe, danger }) {
         <div className="oname">{name} <span className={'osym ' + discCls}>{sym}{isMe ? ' (나)' : ''}</span></div>
         <div className="ostatus">
           {status}
-          {isTurn && s.secondsLeft != null && <> <span className="osecs">{s.secondsLeft}초</span></>}
+          {isTurn && s.secondsLeft != null && <> <span className="osecs"><Secs n={s.secondsLeft} />초</span></>}
         </div>
       </div>
       <div className="oscore"><span className={'disc-mini ' + discCls} /><span className="oscorenum">{sc}</span></div>
