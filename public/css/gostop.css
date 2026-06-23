@@ -275,3 +275,14 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 #gsFloorN { position: absolute; inset: 0; pointer-events: none; z-index: 7; }
 .gs-floorn { position: absolute; transform: translate(-50%,-50%); margin-top: -33px; min-width: 18px; height: 18px; line-height: 18px; padding: 0 4px; border-radius: 999px;
   background: #c0392b; color: #fff; font-size: 11px; font-weight: 900; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,.5), 0 0 0 1.5px #e3c878; }
+
+/* ── 채팅 말풍선(오셀로처럼 패널 위 위치 + 섯다 모양) ── */
+.gs-bubble { position: absolute; transform: translate(-50%,-100%); z-index: 36; max-width: 200px;
+  background: linear-gradient(180deg, #f8f1dd, #ece0c2); color: #3a2718; font-size: 13px; font-weight: 700;
+  padding: 8px 13px; border-radius: 16px; border: 2px solid #8a1020;
+  box-shadow: 0 7px 20px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.5); animation: gsBubbleIn .2s cubic-bezier(.34,1.56,.64,1) both; word-break: break-word; pointer-events: none; }
+.gs-bubble::before { content: ''; position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); border: 9px solid transparent; border-top-color: #8a1020; border-bottom: 0; }
+.gs-bubble::after { content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); border: 7px solid transparent; border-top-color: #ece0c2; border-bottom: 0; }
+.gs-bubble.out { animation: gsBubbleOut .35s ease forwards; }
+@keyframes gsBubbleIn { from { opacity: 0; transform: translate(-50%,-78%) scale(.7); } to { opacity: 1; transform: translate(-50%,-100%) scale(1); } }
+@keyframes gsBubbleOut { to { opacity: 0; transform: translate(-50%,-118%); } }

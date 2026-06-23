@@ -195,7 +195,36 @@
       else if (a === 'bomb') send({ type: 'bomb', month: Number(b.dataset.m) });
       else if (a === 'shake') send({ type: 'shake', month: Number(b.dataset.m) });
     };
+    window.onRoomChat = showGsBubble;                // 방 채팅 → 패널 위 말풍선
   };
+
+  // 채팅 말풍선 — 해당 플레이어 패널 위에 표시(섯다 모양)
+  function panelForName(name) {
+    const clean = (s) => (s || '').replace(/🤖/g, '').trim();
+    const target = clean(name);
+    for (const sel of ['#gsTop .gs-opp', '#gsLeft .gs-opp', '#gsRight .gs-opp']) {
+      const el = document.querySelector(sel); if (!el) continue;
+      const nm = el.querySelector('.gs-opp-info b, .gs-sname2');
+      if (nm && clean(nm.textContent) === target) return el;
+    }
+    const myb = document.querySelector('#gsMyAva .gs-my-meta b');
+    if (myb && clean(myb.textContent) === target) return $('gsMyAva');
+    return null;
+  }
+  function showGsBubble(name, text) {
+    try {
+      const felt = $('gsFelt'); if (!felt) return;
+      const panel = panelForName(name); if (!panel) return;
+      const fr = felt.getBoundingClientRect(), pr = panel.getBoundingClientRect();
+      felt.querySelectorAll('.gs-bubble').forEach((b) => { if (b.dataset.who === name) b.remove(); });
+      const el = document.createElement('div'); el.className = 'gs-bubble'; el.dataset.who = name; el.textContent = text;
+      el.style.left = (pr.left + pr.width / 2 - fr.left) + 'px';
+      el.style.top = (pr.top - 6 - fr.top) + 'px';
+      felt.appendChild(el);
+      setTimeout(() => el.classList.add('out'), 3200);
+      setTimeout(() => { if (el.parentNode) el.remove(); }, 3600);
+    } catch (e) {}
+  }
 
   let lastEvtKey = '';
 
