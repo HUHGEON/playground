@@ -210,3 +210,8 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 .gs-choice-pi { position: absolute; right: -4px; bottom: -4px; background: #e8540e; color: #fff; font-size: 12px; font-weight: 800; min-width: 20px; height: 20px; line-height: 20px; border-radius: 999px; text-align: center; padding: 0 2px; }
 .gs-choice-lbl { font-size: 14px; font-weight: 800; color: #f1e9da; }
 @keyframes gsChoicePop { from { transform: scale(.7); } to { transform: scale(1); } }
+
+/* ── 바닥 매칭 힌트 화살표 ── */
+#gsHints { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.gs-hint { position: absolute; color: #ffe23a; font-size: 19px; font-weight: 900; line-height: 1; text-shadow: 0 2px 5px rgba(0,0,0,.75), 0 0 10px rgba(255,210,40,.6); animation: gsHintBounce .72s ease-in-out infinite; }
+@keyframes gsHintBounce { 0%,100% { transform: translate(-50%,-330%); } 50% { transform: translate(-50%,-275%); } }

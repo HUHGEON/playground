@@ -164,7 +164,7 @@
       '<div id="gsStage"><div id="gsFelt">' +
         '<div id="gsTop"></div>' +
         '<div id="gsBody"><div id="gsLeft" class="gs-side"></div>' +
-          '<div id="gsMid"><div id="gsFloor"></div>' +
+          '<div id="gsMid"><div id="gsFloor"></div><div id="gsHints"></div>' +
             '<div id="gsCenter"><div id="gsDrawWrap"><div id="gsDraw"></div><div id="gsDrawN"></div></div></div>' +
           '</div>' +
           '<div id="gsRight" class="gs-side"></div>' +
@@ -245,6 +245,7 @@
       reconcileCards($('gsFloor'), items);
     }, 0);
     prevFloorIds = new Set(fids);
+    renderHints(s.floor || [], s.myHand || [], s.myTurn && s.phase === 'playing', lay);
 
     // 더미(가운데) — 큰판/점수 표시 없음(점수는 각 사람 패널에만)
     $('gsDraw').className = s.drawCount > 0 ? 'has' : '';
@@ -275,6 +276,23 @@
     renderChoice(s);
     $('gsSide').innerHTML = sideHTML(s);
   };
+
+  // 바닥 매칭 힌트 — 내 손패와 같은 월인 바닥패 위에 화살표(내 턴에만, 월 그룹당 1개)
+  function renderHints(floor, myHand, show, lay) {
+    const el = $('gsHints'); if (!el) return;
+    if (!show) { el.innerHTML = ''; return; }
+    const handM = new Set(); for (const c of myHand) if (c.m) handM.add(c.m);
+    const byMonth = {};
+    for (const c of floor) if (handM.has(c.m) && lay[c.id]) (byMonth[c.m] = byMonth[c.m] || []).push(lay[c.id]);
+    let html = '';
+    for (const m of Object.keys(byMonth)) {
+      const ps = byMonth[m];
+      const x = ps.reduce((a, p) => a + p.x, 0) / ps.length;
+      const y = Math.min.apply(null, ps.map((p) => p.y));
+      html += `<div class="gs-hint" style="left:${x}%;top:${y}%">▼</div>`;
+    }
+    el.innerHTML = html;
+  }
 
   // 먹을 패 선택 모달 — 같은 월 2장(다른 타입: 광/멍/단/피)일 때 어느 걸 먹을지
   const CATNAME = { KWANG: '광', YEOL: '멍', TTI: '단', PI: '피' };
