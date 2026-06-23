@@ -235,17 +235,25 @@
 
     // 바닥 — 같은 월만 한 셀에 겹침, 다른 월은 분리 셀(안 겹침). keyed diff + FLIP.
     const fids = [];
+    const felt = $('gsFelt').getBoundingClientRect();
     const fr = $('gsFloor').getBoundingClientRect();
     const lay = floorLayout(s.floor || [], fr.width, fr.height);
+    const placedDeck = new Set((s.events || []).filter((e) => e.ev === 'place').map((e) => e.card));   // 더미서 깔린 패 → flip-in
+    const prevRects = {};                                  // 재렌더 전 바닥 카드 위치(획득 이동용)
+    for (const el of $('gsFloor').querySelectorAll('.gscard')) { const r = el.getBoundingClientRect(); prevRects[el.dataset.id] = { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top }; }
     flipLayer($('gsFloor'), () => {
       const items = (s.floor || []).map((c) => {
         const ch = s.pendingChoice && s.pendingChoice.options.some((o) => o.id === c.id);
-        const p = lay[c.id] || { x: 50, y: 50, rot: 0 }; const slam = prevFloorIds.has(c.id) ? '' : ' slam'; fids.push(c.id);
-        return { id: c.id, m: c.m, src: cardSrc(c), cls: `gscard floorc${ch ? ' choosable' : ''}${slam}`, style: `left:${p.x}%;top:${p.y}%;--rot:${p.rot}deg` };
+        const p = lay[c.id] || { x: 50, y: 50, rot: 0 };
+        const isNew = !prevFloorIds.has(c.id);
+        const anim = isNew ? (placedDeck.has(c.id) ? ' flipin' : ' slam') : '';   // 더미서=flip / 손패서=slam
+        fids.push(c.id);
+        return { id: c.id, m: c.m, src: cardSrc(c), cls: `gscard floorc${ch ? ' choosable' : ''}${anim}`, style: `left:${p.x}%;top:${p.y}%;--rot:${p.rot}deg` };
       });
       reconcileCards($('gsFloor'), items);
     }, 0);
     prevFloorIds = new Set(fids);
+    captureFly(s, prevRects, felt);                        // 획득한 패 → 더미로 날아가기
     const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
 
     // 더미(가운데) — 큰판/점수 표시 없음(점수는 각 사람 패널에만)
@@ -280,7 +288,43 @@
     renderModal(s);
     renderChoice(s);
     $('gsSide').innerHTML = sideHTML(s);
+    lastCapCounts = s.captured ? s.captured.map((c) => c.length) : null;   // 다음 턴 캡처 좌석 판정용
   };
+
+  // 획득한 패가 바닥→해당 좌석 더미로 날아가는 모션(ghost). 실패해도 게임엔 영향 없음.
+  let lastCapCounts = null;
+  function captureFly(s, prevRects, felt) {
+    try {
+      const capIds = [];
+      for (const ev of (s.events || [])) { if (Array.isArray(ev.cards)) capIds.push(...ev.cards); if (ev.ev === 'bonus' && ev.card) capIds.push(ev.card); }
+      if (!capIds.length || !s.captured) return;
+      let capturer = s.turnIdx;                            // 캡처 좌석 = 직전 대비 더미 늘어난 좌석
+      if (lastCapCounts) for (let i = 0; i < s.captured.length; i++) {
+        if ((s.captured[i] ? s.captured[i].length : 0) > (lastCapCounts[i] || 0)) { capturer = i; break; }
+      }
+      const me = s.yourSeat;
+      let pileEl = null;
+      if (capturer === me) pileEl = $('gsMyCap');
+      else { const opps = (s.seats || []).map((_, i) => i).filter((i) => i !== me); const k = opps.indexOf(capturer); const box = [$('gsTop'), $('gsLeft'), $('gsRight')][k]; pileEl = box && (box.querySelector('.gs-opp') || box); }
+      const tgt = feltPt(pileEl, felt); if (!tgt) return;
+      const motion = $('gsMotion'); if (!motion) return;
+      let n = 0;
+      capIds.forEach((id) => {
+        const from = prevRects[id]; if (!from) return;     // 바닥에 보였던 패만(즉시 캡처는 스킵)
+        const card = s.captured[capturer] && s.captured[capturer].find((c) => c.id === id);
+        if (!card) return;
+        const delay = 470 + n * 55; n++;
+        setTimeout(() => {
+          try {
+            const g = document.createElement('img'); g.className = 'gs-ghost'; g.src = cardSrc(card);
+            g.style.left = from.x + 'px'; g.style.top = from.y + 'px'; motion.appendChild(g);
+            g.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${tgt.x - from.x}px,${tgt.y - from.y}px) scale(.5)`, opacity: .35 }], { duration: 250, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
+            setTimeout(() => g.remove(), 300);
+          } catch (e) {}
+        }, delay);
+      });
+    } catch (e) {}
+  }
 
   // 낼 수 있는 손패 표시 — 바닥에 같은 월 있는 내 손패 위에 화살표(내 턴에만)
   function renderHandHints(show) {

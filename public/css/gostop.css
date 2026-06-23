@@ -216,3 +216,9 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 #gsHandHints { position: absolute; inset: 0; pointer-events: none; z-index: 7; }
 .gs-hand-hint { position: absolute; transform: translate(-50%,-100%); color: #ffe23a; font-size: 18px; font-weight: 900; line-height: 1; text-shadow: 0 2px 5px rgba(0,0,0,.8), 0 0 10px rgba(255,210,40,.7); }
 .gscard.matchable { box-shadow: 0 0 0 2px #ffe23a, 0 7px 15px rgba(0,0,0,.5); }
+
+/* ── 턴 모션: 더미 뒤집기(flip-in) + 획득 이동(ghost) ── */
+#gsMotion { position: absolute; inset: 0; pointer-events: none; z-index: 9; }
+.gs-ghost { position: absolute; width: 52px; height: 78px; border-radius: 5px; box-shadow: 0 3px 10px rgba(0,0,0,.5); object-fit: cover; background: #fff; }
+@keyframes gsFlipIn { from { transform: translate(-50%,-50%) rotate(var(--rot,0deg)) rotateY(90deg) scale(1.06); } to { transform: translate(-50%,-50%) rotate(var(--rot,0deg)) rotateY(0deg) scale(1); } }
+.floorc.flipin { animation: gsFlipIn .3s cubic-bezier(.3,.8,.4,1) .22s both; }
