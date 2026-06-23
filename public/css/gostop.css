@@ -28,7 +28,7 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 
 /* 상대(위) — 먹색 패널 + 금색 인셋 */
 #gsTop { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; min-height: 64px; }
-.gs-opp { width: 392px; max-width: 96%; padding: 12px 14px; border-radius: 16px;
+.gs-opp { width: 100%; padding: 11px 13px; border-radius: 16px;
   background: linear-gradient(180deg, rgba(9,28,17,.62), rgba(6,18,11,.7));
   box-shadow: inset 0 0 0 1px rgba(201,162,75,.3), 0 12px 26px rgba(0,0,0,.4); }
 .gs-opp.turn { box-shadow: inset 0 0 0 1px rgba(227,200,120,.75), 0 0 18px rgba(227,200,120,.45), 0 12px 26px rgba(0,0,0,.4); }
@@ -47,7 +47,7 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 .gs-cap-empty { font-size: 11px; color: rgba(243,234,214,.3); }
 
 /* 획득더미 — 광/멍/단/피 박스(헤더: 라벨+개수, 카드 스트립, 카테고리 컬러 링) */
-.gs-opp-cap { display: flex; gap: 8px; }
+.gs-opp-cap { display: flex; gap: 9px; }
 #gsMyCap { display: flex; gap: 9px; }
 .gs-cgrp { flex: 1; min-width: 0; background: rgba(0,0,0,.24); border-radius: 10px; padding: 6px 8px 8px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
 .gs-cgrp-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
@@ -55,7 +55,8 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 .gs-cgrp-n { font-size: 10px; font-weight: 700; color: #e3c878; }
 .gs-cgrp-cards { position: relative; display: flex; min-height: 38px; }
 #gsMyCap .gs-cgrp-cards { min-height: 40px; }
-.gs-opp-cap .gscard.mini { width: 25px; height: 38px; border-radius: 4px; margin-left: -15px; }
+.gs-opp-cap .gscard.mini { width: 26px; height: 40px; border-radius: 4px; margin-left: -15px; }
+.gs-opp-cap .gs-cgrp-cards { min-height: 40px; }
 #gsMyCap .gscard.mini { width: 26px; height: 40px; border-radius: 4px; margin-left: -15px; }
 .gs-cgrp-cards .gscard.mini:first-child, .gs-cgrp-cards .gs-pic:first-child .gscard.mini { margin-left: 0; }
 /* 카테고리 컬러 링 */

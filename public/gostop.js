@@ -157,7 +157,7 @@
           <span class="gs-chips">${nyang(p.chips)}냥</span></span>
         <span class="gs-badge-col"><span class="gs-sc">${sc}점</span>${tags.map((t) => `<span class="gs-tag">${t}</span>`).join('')}${turn ? '<span class="gs-now">차례</span>' : ''}</span>
       </div>
-      <div class="gs-opp-cap">${capStrips((s.captured && s.captured[seat]) || [], det, true) || '<span class="gs-cap-empty">획득 없음</span>'}</div>
+      <div class="gs-opp-cap">${capStrips((s.captured && s.captured[seat]) || [], det, false) || '<span class="gs-cap-empty">획득 없음</span>'}</div>
     </div>`;
   }
 
