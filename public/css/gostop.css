@@ -144,27 +144,43 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 .gs-act.shake { background: #1aa86b; } .gs-act.bomb { background: #c0392b; } .gs-act.flip { background: #2F6FB0; } .gs-act.ct { background: #8a2be2; }
 
 /* 토스트 */
-#gsToast { position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%) scale(.7); background: rgba(20,10,5,.92); color: #ffd34d; font-weight: 900; font-size: 28px; padding: 12px 28px; border-radius: 14px; border: 2px solid #ffd34d; opacity: 0; pointer-events: none; transition: all .18s; white-space: nowrap; z-index: 15; }
+#gsToast { position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%) scale(.7); background: rgba(20,12,5,.94); color: #e3c878; font-weight: 900; font-size: 28px; padding: 12px 28px; border-radius: 14px; box-shadow: inset 0 0 0 1.5px rgba(227,200,120,.6), 0 12px 30px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: all .18s; white-space: nowrap; z-index: 15; }
 #gsToast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
-#gsToast.hint { font-size: 15px; color: #eaf6ee; border-color: #eaf6ee; }
+#gsToast.hint { font-size: 15px; color: #f3ead6; }
 
 /* 모달 */
-#gsModal { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.45); z-index: 20; }
-.gs-box { background: linear-gradient(180deg, #243b2e, #16241c); border: 2px solid #5a3a1c; border-radius: 16px; padding: 22px 28px; text-align: center; color: #eaf6ee; min-width: 240px; box-shadow: 0 12px 40px rgba(0,0,0,.55); }
-.gs-box h2 { margin: 0 0 8px; color: #ffe08a; }
-.gs-box button { margin-top: 12px; padding: 10px 22px; border: none; border-radius: 10px; font-weight: 800; font-size: 15px; cursor: pointer; background: #d9a72e; color: #2a1a08; }
+#gsModal { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(7,4,2,.55); z-index: 20; }
+.gs-box { background: linear-gradient(180deg, #241c12, #160e07); border-radius: 18px; padding: 24px 30px; text-align: center; color: #f3ead6; min-width: 250px; box-shadow: inset 0 0 0 1px rgba(201,162,75,.35), 0 24px 60px rgba(0,0,0,.6); }
+.gs-box h2 { margin: 0 0 8px; color: #ecd8a6; font-weight: 700; }
+.gs-box p { color: rgba(243,234,214,.7); }
+.gs-box button { margin-top: 14px; padding: 11px 26px; border: none; border-radius: 12px; font-weight: 800; font-size: 15px; cursor: pointer; color: #231708;
+  background: linear-gradient(180deg, #d8b25c, #a9852f); box-shadow: 0 8px 18px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,240,200,.6); }
 .gs-gobtns { display: flex; gap: 10px; justify-content: center; }
-.gs-gobtns #gsGo { background: #e8540e; color: #fff; } .gs-gobtns #gsStop { background: #2d7dd2; color: #fff; }
-.gs-result .gs-rscore { font-size: 20px; font-weight: 900; color: #ffe08a; }
+.gs-gobtns #gsGo { background: linear-gradient(180deg, #d98a4a, #b3592a); color: #fff; } .gs-gobtns #gsStop { background: linear-gradient(180deg, #4a86c0, #2c5e92); color: #fff; }
+.gs-result .gs-rscore { font-size: 20px; font-weight: 900; color: #e3c878; }
 .gs-tags { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 8px 0; }
-.gs-tags span { background: rgba(255,211,77,.18); color: #ffd34d; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-.gs-pays { font-size: 13px; color: #b7d4c2; margin: 6px 0; }
-.gs-wait { font-size: 13px; opacity: .7; }
+.gs-tags span { background: rgba(227,200,120,.18); color: #e3c878; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.gs-pays { font-size: 13px; color: rgba(243,234,214,.6); margin: 6px 0; }
+.gs-wait { font-size: 13px; color: rgba(243,234,214,.55); }
 
-/* 사이드 */
-#gsSide .gs-sline { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; gap: 6px; }
-#gsSide .gs-sn { font-size: 11px; color: #ffd98a; }
-.gs-side-hint { margin-top: 8px; font-size: 11px; opacity: .65; line-height: 1.5; }
+/* 사이드바 — 먹·금 패널 */
+#gsSide { display: flex; flex-direction: column; gap: 14px; font-family: inherit; }
+.gs-spanel { border-radius: 18px; padding: 16px 18px; background: linear-gradient(180deg, #241c12, #1a140d);
+  box-shadow: inset 0 0 0 1px rgba(201,162,75,.2), 0 14px 30px rgba(0,0,0,.45); }
+.gs-spanel-t { font-weight: 700; font-size: 14px; color: #ecd8a6; letter-spacing: .06em; margin-bottom: 12px; }
+.gs-slist { display: flex; flex-direction: column; gap: 2px; }
+#gsSide .gs-sline { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: 10px; font-size: 14px; }
+#gsSide .gs-sline.me { background: rgba(201,162,75,.12); }
+.gs-sl-ava { font-size: 18px; line-height: 1; }
+.gs-sl-name { flex: 1; min-width: 0; font-weight: 700; color: #f3ead6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#gsSide .gs-sline.me .gs-sl-name { color: #e3c878; }
+.gs-sl-sc { font-weight: 900; font-size: 15px; color: #f3ead6; }
+.gs-sl-pt { font-size: 11px; color: rgba(243,234,214,.5); margin-left: -3px; }
+#gsSide .gs-sn { font-size: 13px; font-weight: 700; color: #e3c878; width: 44px; text-align: right; }
+.gs-sdiv { height: 1px; background: linear-gradient(90deg, transparent, rgba(201,162,75,.35), transparent); margin: 13px 0; }
+.gs-side-hint { font-size: 12px; line-height: 1.8; color: rgba(243,234,214,.62); }
+.gs-side-hint .dim { color: rgba(243,234,214,.45); }
+.gs-snote { font-size: 12.5px; color: rgba(243,234,214,.55); }
 
 /* ── 선 정하기(pickFirst) ── */
 #gsPick { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; z-index: 6; }

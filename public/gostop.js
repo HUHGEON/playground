@@ -571,9 +571,22 @@
   const nextBtn = (s) => s.canStart ? '<button id="gsNext">다음 판</button>' : '<p class="gs-wait">다음 판 대기…</p>';
 
   function sideHTML(s) {
-    return '<h3 style="margin-top:0">점수 / 냥</h3>' +
-      (s.seats || []).map((p) => `<div class="gs-sline"><span>${avatar(p.name)} ${esc(p.name)}</span><b>${s.scores ? s.scores[p.seat] : 0}점</b><span class="gs-sn">${nyang(p.chips)}</span></div>`).join('') +
-      '<div class="gs-side-hint">광3·4·15 / 고도리5 / 홍청초단 각3 / 열끗·띠 5장1점+ / 피10점1점+<br>· 나는점수 맞고7·고스톱3</div>';
+    const rows = (s.seats || []).map((p) => {
+      const me = p.seat === s.yourSeat;
+      return `<div class="gs-sline${me ? ' me' : ''}"><span class="gs-sl-ava">${avatar(p.name)}</span><span class="gs-sl-name">${esc(p.name.replace(/🤖/g, ''))}</span><b class="gs-sl-sc">${s.scores ? s.scores[p.seat] : 0}</b><span class="gs-sl-pt">점</span><span class="gs-sn">${nyang(p.chips)}</span></div>`;
+    }).join('');
+    const turnName = s.seats && s.turnIdx != null && s.seats[s.turnIdx] ? esc(s.seats[s.turnIdx].name.replace(/🤖/g, '')) : '';
+    const note = s.phase === 'finished' ? '판 종료' : (s.phase === 'playing' && turnName ? `${turnName} 님의 차례` : '게임 대기 중…');
+    return `<div class="gs-spanel">
+        <div class="gs-spanel-t">점수 / 냥</div>
+        <div class="gs-slist">${rows}</div>
+        <div class="gs-sdiv"></div>
+        <div class="gs-side-hint">광3·4·15 / 고도리5 / 홍청초단 각3 / 열끗·띠 5장1점+ / 피10점1점+<br><span class="dim">· 나는점수 맞고7·고스톱3</span></div>
+      </div>
+      <div class="gs-spanel">
+        <div class="gs-spanel-t">알림</div>
+        <div class="gs-snote">${note}</div>
+      </div>`;
   }
 
   R.meta = { chat: 'felt', options: { fields: [], hint: '' } };
