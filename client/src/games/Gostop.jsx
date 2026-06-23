@@ -207,6 +207,46 @@ export default function Gostop({ ws }) {
     el.innerHTML = html;
   });
 
+  // 이벤트 토스트 — 쪽/따닥/뻑/싹쓸이/보너스피/흔들기/폭탄/고/피뺏김(바닐라 showEvents)
+  const lastEvtKey = useRef('');
+  useEffect(() => {
+    const evs = (s.events || []).filter((e) => ['jjok', 'ttadak', 'bbeok', 'bbeok-eat', 'sweep', 'steal', 'bonus', 'shake', 'bomb', 'go'].includes(e.ev));
+    if (!evs.length) return undefined;
+    const key = JSON.stringify(evs); if (key === lastEvtKey.current) return undefined; lastEvtKey.current = key;
+    const NM = { jjok: '쪽!', ttadak: '따닥!', bbeok: '뻑!', 'bbeok-eat': '뻑 회수!', sweep: '싹쓸이!', bonus: '보너스피!', shake: '흔들기!', bomb: '폭탄!', go: '고!' };
+    const txt = evs.map((e) => (e.ev === 'steal' ? `피 ${e.got}장!` : NM[e.ev])).filter(Boolean).join('  ');
+    const t = document.getElementById('gsToast'); if (!txt || !t) return undefined;
+    t.textContent = txt; t.className = 'show';
+    const id = setTimeout(() => { t.className = ''; }, 1400);
+    return () => clearTimeout(id);
+  }, [s]);
+
+  // 뒤집기 리빌 — 더미서 뒤집힌 패를 크게 보여줌(바닐라 flipReveal, 던지기 뒤 330ms)
+  const lastFlipKey = useRef('');
+  useEffect(() => {
+    const fc = s.flippedCard;
+    const key = fc ? s.handNo + ':' + fc.id : '';
+    if (!fc || key === lastFlipKey.current) return undefined; lastFlipKey.current = key;
+    const feltEl = document.getElementById('gsFelt'); if (!feltEl) return undefined;
+    const deckPt = feltPt(document.getElementById('gsCenter'), feltEl.getBoundingClientRect());
+    const motion = document.getElementById('gsMotion');
+    if (!deckPt || !motion) return undefined;
+    const t = setTimeout(() => {
+      try {
+        const el = document.createElement('img'); el.className = 'gs-flipreveal'; el.src = cardSrc(fc);
+        el.style.left = deckPt.x + 'px'; el.style.top = (deckPt.y - 8) + 'px'; motion.appendChild(el);
+        el.animate([
+          { transform: 'translate(-50%,-50%) rotateY(90deg) scale(.8)', opacity: 0, offset: 0 },
+          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.5)', opacity: 1, offset: 0.18 },
+          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.5)', opacity: 1, offset: 0.72 },
+          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.15)', opacity: 0, offset: 1 },
+        ], { duration: 1000, easing: 'cubic-bezier(.3,.7,.4,1)' });
+        setTimeout(() => el.remove(), 1050);
+      } catch (e) { /* noop */ }
+    }, 330);
+    return () => clearTimeout(t);
+  }, [s]);
+
   // 바닥 같은 월 2장+ 개수 뱃지
   const fbyM = {};
   (s.floor || []).forEach((c) => { if (c.m) (fbyM[c.m] = fbyM[c.m] || []).push(c); });
