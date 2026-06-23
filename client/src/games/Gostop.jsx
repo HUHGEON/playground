@@ -1,10 +1,41 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import '../gostop.css';
 import { avatar, nyang, cardSrc, MNAME, pileGroups, floorLayout } from './gostopUtil.js';
 
 const CAT = [['KWANG', '광', 'c-kw'], ['YEOL', '멍', 'c-yeol'], ['TTI', '단', 'c-tti'], ['PI', '피', 'c-pi']];
 const CATNAME = { KWANG: '광', YEOL: '멍', TTI: '단', PI: '피' };
+
+// 컨테이너 안 .gscard들의 중심좌표(felt 기준) 측정
+function measureRects(containerId, felt) {
+  const rects = {};
+  const cont = document.getElementById(containerId);
+  if (cont) {
+    for (const el of cont.querySelectorAll('.gscard')) {
+      if (el.dataset.id == null) continue;
+      const r = el.getBoundingClientRect();
+      rects[el.dataset.id] = { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top };
+    }
+  }
+  return rects;
+}
+// 손→바닥 던지기(WAAPI) — 바닥 카드를 이전 손 위치에서 날아오게
+function animThrow(id, from, rot) {
+  let node;
+  try { node = document.querySelector(`#gsFloor .gscard[data-id="${(window.CSS && CSS.escape) ? CSS.escape(id) : id}"]`); } catch { node = null; }
+  if (!node || !from) return;
+  const r = node.getBoundingClientRect();
+  const felt = document.getElementById('gsFelt').getBoundingClientRect();
+  const to = { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top };
+  const dx = from.x - to.x, dy = from.y - to.y;
+  try {
+    node.animate([
+      { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot * 0.3}deg) scale(1.15)`, offset: 0 },
+      { transform: `translate(-50%,-50%) translate(${dx * 0.05}px,${dy * 0.05 - 7}px) rotate(${rot}deg) scale(1.06)`, offset: 0.72 },
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1)`, offset: 1 },
+    ], { duration: 420, easing: 'cubic-bezier(.3,.85,.4,1)' });
+  } catch (e) { /* noop */ }
+}
 const pname = (p) => (p ? p.name.replace(/🤖/g, '') : '');
 
 function Card({ c, cls }) {
@@ -78,6 +109,38 @@ export default function Gostop({ ws }) {
   const myTurn = s.myTurn && s.phase === 'playing';
   const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
   const lay = floorLayout(s.floor, floorSize.w, floorSize.h);
+
+  // 카드 모션 — 매 렌더 위치를 ref에 저장해, 다음 렌더 때 '이전 위치'에서 날아오게(바닐라 throwToFloor 방식)
+  const prevHandRects = useRef({});
+  const prevHandIds = useRef(new Set());
+  const prevFloorIds = useRef(new Set());
+  const layRef = useRef(lay);
+  layRef.current = lay;
+  useLayoutEffect(() => {
+    const feltEl = document.getElementById('gsFelt');
+    if (!feltEl || s.phase !== 'playing') {
+      // 비플레이 단계: ref만 갱신
+      const f = feltEl && feltEl.getBoundingClientRect();
+      prevHandRects.current = f ? measureRects('gsHand', f) : {};
+      prevHandIds.current = new Set(Object.keys(prevHandRects.current));
+      prevFloorIds.current = new Set(f ? Object.keys(measureRects('gsFloor', f)) : []);
+      return;
+    }
+    const felt = feltEl.getBoundingClientRect();
+    const newHandRects = measureRects('gsHand', felt);
+    const newFloorRects = measureRects('gsFloor', felt);
+    const newFloorIds = new Set(Object.keys(newFloorRects));
+    const newHandIds = new Set(Object.keys(newHandRects));
+    // 내 손에서 빠졌고 바닥에 새로 생긴 패 = 내가 던진 패 → 손 위치에서 날아오게
+    const playedId = [...prevHandIds.current].find((id) => !newHandIds.has(id) && newFloorIds.has(id) && !prevFloorIds.current.has(id));
+    if (playedId && prevHandRects.current[playedId]) {
+      const rot = (layRef.current[playedId] && layRef.current[playedId].rot) || 0;
+      animThrow(playedId, prevHandRects.current[playedId], rot);
+    }
+    prevHandRects.current = newHandRects;
+    prevHandIds.current = newHandIds;
+    prevFloorIds.current = newFloorIds;
+  }, [s]);
 
   const turnName = s.seats && s.turnIdx != null && s.seats[s.turnIdx] ? pname(s.seats[s.turnIdx]) : '';
   const sideNote = s.phase === 'finished' ? '판 종료' : (s.phase === 'playing' && turnName ? `${turnName} 님의 차례` : '게임 대기 중…');
