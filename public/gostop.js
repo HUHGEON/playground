@@ -164,16 +164,17 @@
       '<div id="gsStage"><div id="gsFelt">' +
         '<div id="gsTop"></div>' +
         '<div id="gsBody"><div id="gsLeft" class="gs-side"></div>' +
-          '<div id="gsMid"><div id="gsFloor"></div><div id="gsHints"></div>' +
+          '<div id="gsMid"><div id="gsFloor"></div>' +
             '<div id="gsCenter"><div id="gsDrawWrap"><div id="gsDraw"></div><div id="gsDrawN"></div></div></div>' +
           '</div>' +
           '<div id="gsRight" class="gs-side"></div>' +
         '</div>' +
         '<div id="gsMy"><div id="gsMyCap"></div>' +
-          '<div id="gsMyRow"><div id="gsMyAva"></div><div id="gsHand"></div><div id="gsActions"></div></div>' +
+          '<div id="gsMyRow"><div id="gsMyAva"></div><div id="gsHand"></div><div id="gsActions"></div><div id="gsHandHints"></div></div>' +
         '</div>' +
         '<div id="gsPick" style="display:none"></div>' +
         '<div id="gsIntro" style="display:none"></div>' +
+        '<div id="gsMotion"></div>' +
         '<div id="gsChoice" style="display:none"></div>' +
         '<div id="gsToast"></div><div id="gsModal" style="display:none"></div>' +
       '</div></div>';
@@ -245,7 +246,7 @@
       reconcileCards($('gsFloor'), items);
     }, 0);
     prevFloorIds = new Set(fids);
-    renderHints(s.floor || [], s.myHand || [], s.myTurn && s.phase === 'playing', lay);
+    const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
 
     // 더미(가운데) — 큰판/점수 표시 없음(점수는 각 사람 패널에만)
     $('gsDraw').className = s.drawCount > 0 ? 'has' : '';
@@ -259,9 +260,13 @@
     $('gsMyCap').innerHTML = capStrips((s.captured && s.captured[me]) || [], s.scoreDetails ? s.scoreDetails[me] : {}, false) || '<span class="gs-cap-empty">획득한 패가 여기 쌓여요</span>';
     $('gsHand').className = myTurn ? 'myturn' : '';
     flipLayer($('gsHand'), () => {
-      const items = (s.myHand || []).map((c) => ({ id: c.id, m: c.m, src: cardSrc(c), cls: 'gscard' + (myTurn ? '' : ' dim') }));
+      const items = (s.myHand || []).map((c) => {
+        const mat = myTurn && floorMonths.has(c.m);    // 바닥에 같은 월 있으면 = 낼 수 있음
+        return { id: c.id, m: c.m, src: cardSrc(c), cls: 'gscard' + (myTurn ? '' : ' dim') + (mat ? ' matchable' : '') };
+      });
       reconcileCards($('gsHand'), items);
     }, 0);
+    renderHandHints(myTurn);
 
     // 액션 버튼
     let acts = '';
@@ -277,19 +282,16 @@
     $('gsSide').innerHTML = sideHTML(s);
   };
 
-  // 바닥 매칭 힌트 — 내 손패와 같은 월인 바닥패 위에 화살표(내 턴에만, 월 그룹당 1개)
-  function renderHints(floor, myHand, show, lay) {
-    const el = $('gsHints'); if (!el) return;
+  // 낼 수 있는 손패 표시 — 바닥에 같은 월 있는 내 손패 위에 화살표(내 턴에만)
+  function renderHandHints(show) {
+    const el = $('gsHandHints'); if (!el) return;
     if (!show) { el.innerHTML = ''; return; }
-    const handM = new Set(); for (const c of myHand) if (c.m) handM.add(c.m);
-    const byMonth = {};
-    for (const c of floor) if (handM.has(c.m) && lay[c.id]) (byMonth[c.m] = byMonth[c.m] || []).push(lay[c.id]);
+    const row = $('gsMyRow').getBoundingClientRect();
     let html = '';
-    for (const m of Object.keys(byMonth)) {
-      const ps = byMonth[m];
-      const x = ps.reduce((a, p) => a + p.x, 0) / ps.length;
-      const y = Math.min.apply(null, ps.map((p) => p.y));
-      html += `<div class="gs-hint" style="left:${x}%;top:${y}%">▼</div>`;
+    for (const card of $('gsHand').querySelectorAll('.gscard.matchable')) {
+      const r = card.getBoundingClientRect();
+      const x = r.left + r.width / 2 - row.left, y = r.top - row.top;
+      html += `<div class="gs-hand-hint" style="left:${x}px;top:${y}px">▼</div>`;
     }
     el.innerHTML = html;
   }
