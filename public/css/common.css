@@ -82,6 +82,9 @@
   .gamepick .opt { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #3a4350; background: rgba(0,0,0,.22); cursor: pointer; text-align: center; font-weight: 700; transition: .15s; }
   .gamepick .opt .em { font-size: 22px; display: block; margin-bottom: 3px; }
   .gamepick .opt.on { border-color: #d9a441; background: rgba(217,164,65,.16); box-shadow: 0 0 0 2px rgba(217,164,65,.28) inset; }
+  .gamepick .opt .em-img { display: block; width: 26px; height: 39px; margin: 0 auto 4px; border-radius: 4px; object-fit: cover; box-shadow: 0 2px 5px rgba(0,0,0,.45); }
+  .roomrow .gicon .gicon-img { width: 27px; height: 40px; border-radius: 4px; object-fit: cover; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+  .roomrow .gicon.g-gostop { background: rgba(180,70,60,.18); }
   /* 모드 토글 — 멀티 / 봇전 */
   .modepick { display: flex; gap: 8px; margin-bottom: 9px; }
   .modepick .modebtn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 9px 8px; border-radius: 12px; border: 1px solid #3a4350; background: rgba(0,0,0,.22); color: var(--muted); cursor: pointer; font-size: 14px; font-weight: 800; box-shadow: none; transition: .15s; }

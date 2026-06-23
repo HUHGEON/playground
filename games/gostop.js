@@ -501,6 +501,7 @@ module.exports = {
   order: 3,
   title: '고스톱',
   emoji: '🃏',
+  img: 'gostop/1-0.png',          // 로비 아이콘 = 화투 송학광
   maxPlayers: 4,
   wip: false,                      // ⚠️ 구현 중 — 완성 전까지 로비 노출/생성 차단
 

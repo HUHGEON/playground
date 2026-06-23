@@ -176,7 +176,7 @@ function lobbyStateFor(ws) {
     type: 'lobby',
     yourName: ws.name || null,
     yourColor: ws.color || null,
-    games: Object.values(GAMES).filter((g) => !g.wip).map((g) => ({ type: g.type, title: g.title, emoji: g.emoji })),   // WIP 게임은 숨김
+    games: Object.values(GAMES).filter((g) => !g.wip).map((g) => ({ type: g.type, title: g.title, emoji: g.emoji, img: g.img || null })),   // WIP 게임은 숨김
     rooms: [...rooms.values()].map((r) => ({   // 봇전 방도 보임(관전 전용)
       id: r.id, name: r.name, gameType: r.gameType,
       phase: r.phase, hostName: r.host?.name || null,

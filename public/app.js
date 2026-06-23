@@ -239,7 +239,7 @@
     games.forEach((g) => {
       const o = document.createElement('div');
       o.className = 'opt' + (g.type === selectedGame ? ' on' : '');
-      o.innerHTML = `<span class="em">${g.emoji}</span>${esc(g.title)}`;
+      o.innerHTML = `${g.img ? `<img class="em-img" src="${g.img}" alt="">` : `<span class="em">${g.emoji}</span>`}${esc(g.title)}`;
       o.onclick = () => { selectedGame = g.type; renderGamePick(); };
       wrap.appendChild(o);
     });
@@ -265,7 +265,7 @@
         ? `봇전 · 👁 관전 ${r.spectators || 0}명 · 방장 ${esc(r.hostName || '-')}`
         : `${r.count}명 · ${esc(r.max || '')} · 방장 ${esc(r.hostName || '-')}`;
       row.innerHTML =
-        `<span class="gicon g-${r.gameType}">${g.emoji || '🎲'}</span>` +
+        `<span class="gicon g-${r.gameType}">${g.img ? `<img class="gicon-img" src="${g.img}" alt="">` : (g.emoji || '🎲')}</span>` +
         `<span class="rinfo"><div class="rname">${esc(r.name)}</div>` +
         `<div class="meta">${meta}</div></span>` +
         `<span class="gtag g-${r.gameType}">${esc(g.title || r.gameType)}</span>${badge}${spTag}`;
