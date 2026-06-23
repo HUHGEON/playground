@@ -287,11 +287,12 @@ function playCard(room, seat, cardId) {
   if (ci < 0) return false;
   const card = hand.splice(ci, 1)[0];
   r.events = [];
-  if (card.flags.includes('BONUS')) {            // 손패 보너스: 즉시 획득+뺏기, 핸드월 없음
+  if (card.flags.includes('BONUS')) {            // 손패 보너스: 내 피로 + 상대 피 뺏고 + 더미 한 장 손으로 보충(공짜) → 한 장 더 냄
     capture(r, seat, [card]); r.events.push({ ev: 'bonus', card: card.id, src: 'hand' });
     if (cfg.bonusStealPi) stealPi(room, seat, 1, 'bonus');
-    r.turn = { m: 0, cBefore: 0, hand: null };
-    flipStep(room, seat); return true;
+    if (r.draw.length) { const d = r.draw.shift(); r.hands[seat].push(d); r.events.push({ ev: 'draw', card: d.id, seat }); }   // 더미→내 손 보충
+    if (r.hands[seat].length === 0) { r.turn = { m: 0, cBefore: 0, hand: null }; flipStep(room, seat); return true; }           // 보충 못해 손패 0 → 정상 종료 흐름
+    return true;                                 // 턴 계속 — 같은 좌석이 한 장 더 냄
   }
   const cBefore = floorCount(r, card.m);          // 내기 전 바닥의 같은 월 수
   r.floor.push(card);                             // 손패를 바닥에 올림(먹기 미확정)
