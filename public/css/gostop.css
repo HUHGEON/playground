@@ -26,40 +26,48 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 .gscard.choosable { outline: 3px solid #ffd34d; cursor: pointer; animation: gsP 1s infinite; }
 @keyframes gsP { 0%,100% { outline-color: #ffd34d; } 50% { outline-color: #ff7b00; } }
 
-/* 상대(위) */
-#gsTop { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; min-height: 64px; }
-.gs-opp { background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 6px 9px; min-width: 230px; max-width: 360px; }
-.gs-opp.turn { border-color: #ffd34d; box-shadow: 0 0 12px rgba(255,211,77,.55); }
-.gs-opp-head { display: flex; align-items: center; gap: 7px; }
-.gs-ava { font-size: 26px; line-height: 1; }
-.gs-ava.big { font-size: 40px; }
+/* 상대(위) — 먹색 패널 + 금색 인셋 */
+#gsTop { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; min-height: 64px; }
+.gs-opp { width: 392px; max-width: 96%; padding: 12px 14px; border-radius: 16px;
+  background: linear-gradient(180deg, rgba(9,28,17,.62), rgba(6,18,11,.7));
+  box-shadow: inset 0 0 0 1px rgba(201,162,75,.3), 0 12px 26px rgba(0,0,0,.4); }
+.gs-opp.turn { box-shadow: inset 0 0 0 1px rgba(227,200,120,.75), 0 0 18px rgba(227,200,120,.45), 0 12px 26px rgba(0,0,0,.4); }
+.gs-opp-head { display: flex; align-items: center; gap: 11px; margin-bottom: 10px; }
+.gs-ava { width: 38px; height: 38px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 21px; line-height: 1;
+  background: radial-gradient(circle at 35% 30%, #33301f, #16130b); box-shadow: inset 0 0 0 2px rgba(227,200,120,.55); }
+.gs-ava.big { width: 44px; height: 44px; font-size: 24px; box-shadow: inset 0 0 0 2px #e3c878, 0 0 16px rgba(227,200,120,.35); }
 .gs-opp-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.gs-opp-info b { color: #eaf6ee; font-size: 13px; }
-.gs-chips { font-size: 11px; color: #ffd98a; }
-.gs-badge-col { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.gs-sc { color: #ffe08a; font-weight: 800; font-size: 14px; }
-.gs-tag { font-size: 10px; background: rgba(255,211,77,.2); color: #ffd34d; padding: 1px 6px; border-radius: 999px; }
-.gs-now { font-size: 10px; background: #e8540e; color: #fff; padding: 1px 6px; border-radius: 999px; font-weight: 700; }
-.gs-opp-cap { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
-.gs-cap-empty { font-size: 11px; color: rgba(255,255,255,.3); }
+.gs-opp-info b { color: #f3ead6; font-size: 15px; font-weight: 700; }
+.gs-chips { font-size: 11.5px; color: rgba(243,234,214,.55); }
+.gs-badge-col { display: flex; align-items: center; gap: 6px; }
+.gs-sc { display: inline-flex; align-items: baseline; gap: 3px; padding: 5px 13px; border-radius: 9px; font-weight: 900; font-size: 17px; color: #231708;
+  background: linear-gradient(180deg, #caa24f, #9b7a30); box-shadow: 0 3px 8px rgba(0,0,0,.35); }
+.gs-tag { font-size: 10px; background: rgba(227,200,120,.2); color: #e3c878; padding: 2px 7px; border-radius: 999px; font-weight: 700; }
+.gs-now { font-size: 10px; background: #c0392b; color: #fff; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+.gs-cap-empty { font-size: 11px; color: rgba(243,234,214,.3); }
 
-/* 획득더미 — 광·멍·단·피 고정 슬롯(그리드, 위치 안 움직임), 거기에만 카드 적립 */
-#gsMyCap { display: grid; grid-template-columns: 80px 104px 104px 1fr; align-items: end; gap: 4px; }
-.gs-opp-cap { display: grid; grid-template-columns: 50px 64px 64px 1fr; align-items: end; gap: 3px; }
-.gs-cgrp { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
-.gs-cgrp-cards { display: flex; min-height: 14px; }
-.gs-cgrp-lb { font-size: 11px; color: #aecdb9; white-space: nowrap; }
-.gs-cgrp.c-kw .gs-cgrp-lb { color: #ffe08a; } .gs-cgrp.c-pi .gs-cgrp-lb { color: #ff9a6a; }
-#gsMyCap .gscard.mini { width: 30px; height: 45px; margin-left: -16px; }
-#gsMyCap .gscard.mini:first-child { margin-left: 0; }
-.gs-opp-cap .gscard.mini { margin-left: -12px; }
-.gs-opp-cap .gscard.mini:first-child { margin-left: 0; }
+/* 획득더미 — 광/멍/단/피 박스(헤더: 라벨+개수, 카드 스트립, 카테고리 컬러 링) */
+.gs-opp-cap { display: flex; gap: 8px; }
+#gsMyCap { display: flex; gap: 9px; }
+.gs-cgrp { flex: 1; min-width: 0; background: rgba(0,0,0,.24); border-radius: 10px; padding: 6px 8px 8px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
+.gs-cgrp-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.gs-cgrp-lb { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; color: rgba(243,234,214,.72); }
+.gs-cgrp-n { font-size: 10px; font-weight: 700; color: #e3c878; }
+.gs-cgrp-cards { position: relative; display: flex; min-height: 38px; }
+#gsMyCap .gs-cgrp-cards { min-height: 40px; }
+.gs-opp-cap .gscard.mini { width: 25px; height: 38px; border-radius: 4px; margin-left: -15px; }
+#gsMyCap .gscard.mini { width: 26px; height: 40px; border-radius: 4px; margin-left: -15px; }
+.gs-cgrp-cards .gscard.mini:first-child, .gs-cgrp-cards .gs-pic:first-child .gscard.mini { margin-left: 0; }
+/* 카테고리 컬러 링 */
+.c-kw .gscard.mini  { box-shadow: 0 2px 5px rgba(0,0,0,.45), 0 0 0 1.5px #C9A24B; }
+.c-yeol .gscard.mini{ box-shadow: 0 2px 5px rgba(0,0,0,.45), 0 0 0 1.5px #2F6FB0; }
+.c-tti .gscard.mini { box-shadow: 0 2px 5px rgba(0,0,0,.45), 0 0 0 1.5px #C0392B; }
+.c-pi .gscard.mini  { box-shadow: 0 2px 5px rgba(0,0,0,.45), 0 0 0 1.5px #8C8276; }
 /* 피 값 뱃지(쌍피2·쓰리피3·보너스) */
 .c-pi .gs-pic { position: relative; display: inline-block; }
-.c-pi .gs-pic .gscard.mini { margin-left: 0; }
-#gsMyCap .c-pi .gs-pic + .gs-pic { margin-left: -16px; }
-.gs-opp-cap .c-pi .gs-pic + .gs-pic { margin-left: -12px; }
-.gs-piv { position: absolute; bottom: -2px; right: -4px; background: #e8540e; color: #fff; font-size: 10px; font-weight: 900; min-width: 14px; height: 14px; line-height: 14px; text-align: center; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.c-pi .gs-pic .gscard.mini { margin-left: -15px; }
+.c-pi .gs-pic:first-child .gscard.mini { margin-left: 0; }
+.gs-piv { position: absolute; bottom: -2px; right: -4px; background: #c0392b; color: #fff; font-size: 10px; font-weight: 900; min-width: 14px; height: 14px; line-height: 14px; text-align: center; border-radius: 50%; border: 1.5px solid #e3c878; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
 .gs-opp-cap .gs-piv { font-size: 8px; min-width: 11px; height: 11px; line-height: 11px; }
 
 /* 본문(좌 | 가운데 | 우) */

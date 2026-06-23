@@ -117,11 +117,11 @@
   function capStrips(captured, detail, small) {
     const { g } = pileGroups(captured);
     const mini = small ? 'mini xs' : 'mini';
-    // 광·멍·단·피 고정 슬롯(빈 칸도 자리 유지), 거기에만 카드 적립. 숫자 라벨 없음.
-    const grp = (label, html, cls) => `<div class="gs-cgrp ${cls}"><div class="gs-cgrp-cards">${html}</div><div class="gs-cgrp-lb">${label}</div></div>`;
+    // 광/멍/단/피 박스 — 헤더(라벨+개수) + 카드 스트립(카테고리 컬러 링)
+    const grp = (label, html, cls, n) => `<div class="gs-cgrp ${cls}"><div class="gs-cgrp-hd"><span class="gs-cgrp-lb">${label}</span><span class="gs-cgrp-n">${n}</span></div><div class="gs-cgrp-cards">${html}</div></div>`;
     const plain = (cards) => cards.map((c) => cardHTML(c, mini)).join('');
     const piHtml = g.PI.map((c) => `<span class="gs-pic">${cardHTML(c, mini)}${c.pi >= 2 ? `<b class="gs-piv">${c.pi}</b>` : ''}</span>`).join('');  // 쌍피/쓰리피 값 뱃지만 유지
-    return grp('광', plain(g.KWANG), 'c-kw') + grp('멍', plain(g.YEOL), 'c-yeol') + grp('단', plain(g.TTI), 'c-tti') + grp('피', piHtml, 'c-pi');
+    return grp('광', plain(g.KWANG), 'c-kw', g.KWANG.length) + grp('멍', plain(g.YEOL), 'c-yeol', g.YEOL.length) + grp('단', plain(g.TTI), 'c-tti', g.TTI.length) + grp('피', piHtml, 'c-pi', g.PI.length);
   }
 
   // 상대 패널 — pos: 'top'|'left'|'right'. 사이드는 카드만 90° 회전(사이드뷰), 닉/이모지/점수는 세로 정자.
