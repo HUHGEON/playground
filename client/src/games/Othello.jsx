@@ -25,7 +25,7 @@ function Panel({ s, seat, isMe, danger }) {
   const prog = (isTurn && s.secondsLeft != null) ? Math.max(6, Math.min(100, Math.round(s.secondsLeft / 30 * 100))) : 0;
   const cls = 'opanel' + (isTurn ? ' turn' : '') + (danger ? ' danger' : '');
   return (
-    <div className={cls}>
+    <div className={cls} data-player={name}>
       <div className="olevel"><div className="olevelfill" style={{ width: prog + '%' }} /></div>
       <div className="oavatar" style={{ borderColor: color || '#ecc659' }}>{avatar(name)}</div>
       <div className="oinfo">

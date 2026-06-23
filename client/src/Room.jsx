@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import ChatBubbleLayer from './ChatBubbleLayer.jsx';
 import Gostop from './games/Gostop.jsx';
 import Othello from './games/Othello.jsx';
 import Seotda from './games/Seotda.jsx';
@@ -31,6 +32,7 @@ export default function Room({ ws }) {
 
   return (
     <div id="roomView">
+      <ChatBubbleLayer chat={chat} bubbleClass={room.gameType === 'othello' ? 'obubble' : 'chat-bubble'} />
       <div id="roomTopbar">
         <button id="leaveBtn" className="sub" onClick={() => send({ type: 'leaveRoom' })}>← 나가기</button>
         <div id="roomTitle">{room.title} · {room.roomName}</div>

@@ -48,7 +48,7 @@ function OppTop({ s, seat }) {
   if (s.shake && s.shake[seat]) tags.push(`흔들×${s.shake[seat]}`);
   const cap = (s.captured && s.captured[seat]) || [];
   return (
-    <div className={'gs-opp' + (turn ? ' turn' : '')}>
+    <div className={'gs-opp' + (turn ? ' turn' : '')} data-player={p.name}>
       <div className="gs-opp-head">
         <span className="gs-ava">{avatar(p.name)}</span>
         <span className="gs-opp-info"><b>{p.name}{p.isBot ? '🤖' : ''}</b><span className="gs-chips">{nyang(p.chips)}냥</span></span>
@@ -217,7 +217,7 @@ export default function Gostop({ ws }) {
       <div id="gsMy">
         <div id="gsMyCap">{myCap.length ? <CapStrips captured={myCap} /> : <span className="gs-cap-empty">획득한 패가 여기 쌓여요</span>}</div>
         <div id="gsMyRow">
-          <div id="gsMyAva">
+          <div id="gsMyAva" data-player={s.seats[me] ? s.seats[me].name : undefined}>
             <span className="gs-ava big">{avatar(s.seats[me] ? s.seats[me].name : '나')}</span>
             <div className="gs-my-meta">
               <b>{s.seats[me] ? s.seats[me].name : '나'}</b>

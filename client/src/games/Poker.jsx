@@ -130,7 +130,7 @@ function Seat({ p, topHalf, style }) {
   );
 
   return (
-    <div className={cls} style={style}>
+    <div className={cls} style={style} data-player={p.name}>
       {topHalf ? <>{pill}{area}</> : <>{area}{pill}</>}
     </div>
   );

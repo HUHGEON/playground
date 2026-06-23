@@ -110,7 +110,7 @@ function HwatuCard({ card, win }) {
 function Seat({ p, style }) {
   if (p.waiting) {
     return (
-      <div className={'seat waiting' + (p.bankrupt ? ' bust' : '') + (p.isMe ? ' me' : '')} style={style}>
+      <div className={'seat waiting' + (p.bankrupt ? ' bust' : '') + (p.isMe ? ' me' : '')} style={style} data-player={p.name}>
         <div className="cards"><span className="emptycard">{p.bankrupt ? '💸' : '🪑'}</span></div>
         <div className="namebar"><span className="nm" style={{ color: p.color }}>{p.name}</span></div>
         <div className="ch">💵 {won(p.chips)}</div>
@@ -127,7 +127,7 @@ function Seat({ p, style }) {
     for (let j = 0; j < 2; j++) cards.push(<HwatuCard key={j} card={null} />);
   }
   return (
-    <div className={'seat' + (p.isMe ? ' me' : '') + (p.isTurn ? ' turn' : '') + (p.folded ? ' folded' : '') + (p.win ? ' win' : '')} style={style}>
+    <div className={'seat' + (p.isMe ? ' me' : '') + (p.isTurn ? ' turn' : '') + (p.folded ? ' folded' : '') + (p.win ? ' win' : '')} style={style} data-player={p.name}>
       <div className="cards">{cards}</div>
       <div className="betrow">
         {ac && <span className={'actbadge ab-' + ac}>{p.act}</span>}
