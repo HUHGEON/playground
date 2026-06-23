@@ -4,7 +4,7 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 #gsStage { display: flex; justify-content: center; padding: 13px; }
 /* 나무 프레임(그라데이션) + 초록 펠트(안) */
 #gsFelt {
-  position: relative; width: min(900px, 96vw); min-height: 588px;
+  position: relative; width: min(840px, 96vw); min-height: 580px;
   background:
     radial-gradient(125% 95% at 50% 32%, #2c834f 0%, #1d5d36 48%, #103f25 100%) padding-box,
     linear-gradient(150deg, #7c5c30 0%, #4a3318 45%, #2f2010 100%) border-box;
