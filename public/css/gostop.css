@@ -175,3 +175,25 @@ body.game-gostop { background: radial-gradient(circle at 50% 25%, #2f7a4a, #123a
 .gs-seontoast b { color: #ffe08a; }
 .gs-seontoast.out { opacity: 0; transition: opacity .5s; }
 @keyframes gsSeonPop { from { transform: translate(-50%,-50%) scale(.4); opacity: 0; } to { transform: translate(-50%,-50%) scale(1); opacity: 1; } }
+
+/* ── 본 딜 인트로(셔플→컷→나눠주기) ── */
+#gsIntro { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.gs-ideck { position: absolute; transform: translate(-50%,-50%); width: 46px; height: 70px; }
+.gs-deckbase, .gs-half, .gs-cuttop, .gs-flycard {
+  position: absolute; width: 46px; height: 70px; border-radius: 6px;
+  background: repeating-linear-gradient(45deg, #b3242a, #b3242a 6px, #951d22 6px, #951d22 12px);
+  border: 2px solid #e8d9a8;
+  box-shadow: 0 2px 6px rgba(0,0,0,.45), 2px 2px 0 -1px #8a1b20, 4px 4px 0 -2px #7a181c;
+}
+.gs-deckbase { left: 0; top: 0; }
+/* 셔플: 두 묶음 리플 3회 */
+.gs-half { left: 0; top: 0; }
+.gs-half.l { animation: gsShufL 220ms ease-in-out 3; }
+.gs-half.r { animation: gsShufR 220ms ease-in-out 3; }
+@keyframes gsShufL { 0%,100% { transform: translate(0,0) rotate(0); } 40% { transform: translate(-44px,-7px) rotate(-5deg); } 72% { transform: translate(-8px,4px) rotate(-1deg); } }
+@keyframes gsShufR { 0%,100% { transform: translate(0,0) rotate(0); } 40% { transform: translate(44px,7px) rotate(5deg); } 72% { transform: translate(8px,-4px) rotate(1deg); } }
+/* 기리(컷): 위 절반 들어 아래로 */
+.gs-cuttop { left: 0; top: 0; animation: gsCut 320ms ease-in-out; }
+@keyframes gsCut { 0% { transform: translateY(0); } 45% { transform: translateY(-42px); } 100% { transform: translateY(0); } }
+/* 나눠주기 카드 */
+.gs-flycard { left: 0; top: 0; transform: translate(-50%,-50%); }

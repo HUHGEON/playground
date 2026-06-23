@@ -15,15 +15,37 @@
   const cardSrc = (c) => c.img || ('gostop/' + c.m + '-' + c.idx + '.png');
   const cardHTML = (c, cls) => `<img class="gscard${cls ? ' ' + cls : ''}" src="${cardSrc(c)}" data-id="${c.id}" data-m="${c.m}" draggable="false" alt="">`;
   // 바닥 카드 위치 — 카드 id 해시로 안정. 중앙 더미를 회피하는 타원 '밖'에만 배치(절대 안 겹침).
-  function floorPos(id) {
-    let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-    const ang = (h % 360) * Math.PI / 180;
-    const rf = 1.0 + ((h >> 9) & 7) / 11;     // 1.0~1.64 바깥 링
-    const EXX = 18, EXY = 33;                  // 더미 회피 타원 반지름(%) — 이 안엔 절대 안 들어옴
-    let x = 50 + Math.cos(ang) * EXX * rf;
-    let y = 50 + Math.sin(ang) * EXY * rf;
-    x = Math.max(9, Math.min(91, x)); y = Math.max(13, Math.min(87, y));
-    return { x, y, rot: ((h >> 3) % 26) - 13 };
+  function hashId(id) { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h; }
+  // 바닥 레이아웃: 같은 월끼리만 한 셀에 약간 겹쳐 쌓고, 다른 월은 분리된 셀에 배치(절대 안 겹침).
+  // w,h = #gsFloor 픽셀 크기. 반환 id→{x,y(%), rot}
+  function floorLayout(floor, w, h) {
+    const pos = {};
+    if (!floor.length || !w || !h) return pos;
+    const byMonth = {};
+    for (const c of floor) (byMonth[c.m] = byMonth[c.m] || []).push(c);
+    const months = Object.keys(byMonth).sort((a, b) => byMonth[b].length - byMonth[a].length || a - b);
+    const CW = 52, CH = 78, GO = 12;                 // 카드 크기 + 같은 월 겹침 오프셋(px)
+    const cellW = CW + GO * 2 + 24, cellH = CH + 24;  // 셀 = 카드 + 같은월 펼침 + 넉넉한 여백(다른 월 분리 보장)
+    const cols = Math.max(2, Math.floor((w - 2) / cellW));
+    const rows = Math.max(2, Math.floor((h - 2) / cellH));
+    const gw = cols * cellW, gh = rows * cellH, ox = (w - gw) / 2, oy = (h - gh) / 2;
+    const fx = w / 2, fy = h / 2;
+    const cells = [];
+    for (let r = 0; r < rows; r++) for (let cc = 0; cc < cols; cc++) {
+      const x = ox + cc * cellW + cellW / 2, y = oy + r * cellH + cellH / 2;
+      if (Math.hypot(x - fx, y - fy) < 64) continue; // 중앙 더미 영역 회피
+      cells.push({ x, y, d: Math.hypot(x - fx, y - fy) });
+    }
+    cells.sort((a, b) => a.d - b.d);                  // 안쪽 셀부터 채움(적을 때 모이게)
+    months.forEach((m, i) => {
+      const cell = cells[i % cells.length] || { x: fx, y: fy };
+      const g = byMonth[m];
+      const x0 = cell.x - (g.length - 1) * GO / 2;     // 같은 월 그룹 가로 중앙정렬
+      g.forEach((c, k) => {
+        pos[c.id] = { x: (x0 + k * GO) / w * 100, y: cell.y / h * 100, rot: (hashId(c.id) % 10) - 5 };
+      });
+    });
+    return pos;
   }
   let prevFloorIds = new Set();
 
@@ -151,6 +173,7 @@
           '<div id="gsMyRow"><div id="gsMyAva"></div><div id="gsHand"></div><div id="gsActions"></div></div>' +
         '</div>' +
         '<div id="gsPick" style="display:none"></div>' +
+        '<div id="gsIntro" style="display:none"></div>' +
         '<div id="gsToast"></div><div id="gsModal" style="display:none"></div>' +
       '</div></div>';
     info.innerHTML = '<div id="gsSide"></div>';
@@ -170,13 +193,28 @@
   let lastEvtKey = '';
 
   R.render = function (s) {
-    const me = s.yourSeat;
-
     // 선 정하기(pickFirst) — 전용 오버레이
     $('gsPick').style.display = s.phase === 'pickFirst' ? '' : 'none';
     if (s.phase === 'pickFirst') { renderPickFirst(s); return; }
     pickFlipped.clear(); lastSeonToast = null;          // pickFirst 벗어나면 리셋
 
+    // 본 딜 인트로(셔플→컷→나눠주기) 1회 — 시퀀스 동안 정상 render 보류, 끝나면 인계
+    if (s.phase === 'playing' && s.handNo !== introHandNo && !introPlaying && isFreshDeal(s)) {
+      introHandNo = s.handNo; introPlaying = true; introPending = s;
+      runIntro(s).then(() => {
+        introPlaying = false; const st = introPending || s; introPending = null;
+        $('gsIntro').style.display = 'none'; $('gsIntro').innerHTML = '';
+        renderBoard(st);
+      });
+      return;
+    }
+    if (introPlaying) { introPending = s; return; }      // 인트로 중: 최신 상태만 보관, 그리지 않음
+    if (s.phase === 'playing') introHandNo = s.handNo;    // 인트로 스킵 시에도 가드 갱신(reattach 등)
+    renderBoard(s);
+  };
+
+  function renderBoard(s) {
+    const me = s.yourSeat;
     // 대기(로비)
     if (s.phase !== 'playing' && s.phase !== 'finished') {
       $('gsTop').innerHTML = (s.seats || []).map((p, i) => oppHTML(s, i)).join('');
@@ -192,12 +230,14 @@
     $('gsLeft').innerHTML = opps[1] != null ? oppHTML(s, opps[1], 'left') : '';
     $('gsRight').innerHTML = opps[2] != null ? oppHTML(s, opps[2], 'right') : '';
 
-    // 바닥 — keyed diff(노드 보존) + FLIP(duration 0). 새 패는 슬램(내려치기) class.
+    // 바닥 — 같은 월만 한 셀에 겹침, 다른 월은 분리 셀(안 겹침). keyed diff + FLIP.
     const fids = [];
+    const fr = $('gsFloor').getBoundingClientRect();
+    const lay = floorLayout(s.floor || [], fr.width, fr.height);
     flipLayer($('gsFloor'), () => {
       const items = (s.floor || []).map((c) => {
         const ch = s.pendingChoice && s.pendingChoice.options.some((o) => o.id === c.id);
-        const p = floorPos(c.id); const slam = prevFloorIds.has(c.id) ? '' : ' slam'; fids.push(c.id);
+        const p = lay[c.id] || { x: 50, y: 50, rot: 0 }; const slam = prevFloorIds.has(c.id) ? '' : ' slam'; fids.push(c.id);
         return { id: c.id, m: c.m, src: cardSrc(c), cls: `gscard floorc${ch ? ' choosable' : ''}${slam}`, style: `left:${p.x}%;top:${p.y}%;--rot:${p.rot}deg` };
       });
       reconcileCards($('gsFloor'), items);
@@ -232,6 +272,75 @@
     renderModal(s);
     $('gsSide').innerHTML = sideHTML(s);
   };
+
+  // ── 본 딜 인트로(셔플→컷→나눠주기) ──
+  let introHandNo = -1, introPlaying = false, introPending = null;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  function isFreshDeal(s) {                       // 갓 딜된 라운드인가(손패 full + 바닥 full) — reattach 중엔 false
+    if (!s.handCounts || !s.handCounts.length) return false;
+    const hand = s.mode === 'matgo' ? 10 : 7, floor = s.mode === 'matgo' ? 8 : 6;
+    return s.handCounts.every((c) => c === hand) && (s.floor ? s.floor.length >= floor - 1 : false);
+  }
+  function feltPt(el, felt) { if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top }; }
+  function introScaffold(s) {                     // 좌석·빈 바닥/손패만 그려 타겟 위치 확보
+    const me = s.yourSeat;
+    $('gsModal').style.display = 'none'; $('gsPick').style.display = 'none';
+    $('gsBody').style.display = ''; $('gsMy').style.display = '';
+    const opps = (s.seats || []).map((_, i) => i).filter((i) => i !== me);
+    $('gsTop').innerHTML = opps[0] != null ? oppHTML(s, opps[0], 'top') : '';
+    $('gsLeft').innerHTML = opps[1] != null ? oppHTML(s, opps[1], 'left') : '';
+    $('gsRight').innerHTML = opps[2] != null ? oppHTML(s, opps[2], 'right') : '';
+    $('gsFloor').innerHTML = ''; $('gsHand').innerHTML = ''; $('gsActions').innerHTML = '';
+    prevFloorIds = new Set();
+    $('gsMyAva').innerHTML = `<span class="gs-ava big">${avatar(s.seats[me] ? s.seats[me].name : '나')}</span>
+      <div class="gs-my-meta"><b>${esc(s.seats[me] ? s.seats[me].name : '나')}</b><span class="gs-sc">0점</span></div>`;
+    $('gsMyCap').innerHTML = '<span class="gs-cap-empty">획득한 패가 여기 쌓여요</span>';
+    $('gsDraw').className = ''; $('gsDrawN').textContent = '';
+  }
+  async function runIntro(s) {
+    introScaffold(s);
+    const intro = $('gsIntro'); intro.style.display = '';
+    const felt = $('gsFelt').getBoundingClientRect();
+    const c = $('gsCenter').getBoundingClientRect();
+    const cx = c.left + c.width / 2 - felt.left, cy = c.top + c.height / 2 - felt.top;
+    // 1) 셔플: 두 묶음 리플 3회
+    intro.innerHTML = `<div class="gs-ideck" style="left:${cx}px;top:${cy}px"><div class="gs-half l"></div><div class="gs-half r"></div></div>`;
+    await wait(700);                               // 3×220 + 여유
+    // 2) 기리(컷): 위 절반 들어 아래로
+    intro.innerHTML = `<div class="gs-ideck" style="left:${cx}px;top:${cy}px"><div class="gs-deckbase"></div><div class="gs-cuttop"></div></div>`;
+    await wait(330);
+    // 3) 나눠주기: 중앙에서 각 자리로 한 장씩(WAAPI)
+    intro.innerHTML = `<div class="gs-ideck" style="left:${cx}px;top:${cy}px"><div class="gs-deckbase"></div></div>`;
+    await dealPhase(s, intro, cx, cy, felt);
+  }
+  async function dealPhase(s, intro, cx, cy, felt) {
+    const me = s.yourSeat;
+    const tgt = {};
+    tgt[me] = feltPt($('gsHand'), felt) || { x: cx, y: cy + 210 };
+    const opps = (s.seats || []).map((_, i) => i).filter((i) => i !== me);
+    const oppEls = [$('gsTop').querySelector('.gs-opp'), $('gsLeft').querySelector('.gs-opp'), $('gsRight').querySelector('.gs-opp')];
+    opps.forEach((seat, k) => { tgt[seat] = feltPt(oppEls[k], felt) || { x: cx, y: cy - 200 }; });
+    const floorPt = feltPt($('gsFloor'), felt) || { x: cx, y: cy };
+    const hand = s.mode === 'matgo' ? 10 : 7;
+    const order = [];                              // 서버 분배 순서(손패 라운드로빈 → 바닥)
+    const seatOrder = (s.seats || []).map((_, i) => i);
+    for (let k = 0; k < hand; k++) for (const seat of seatOrder) order.push(tgt[seat]);
+    const fcount = s.floor ? s.floor.length : (s.mode === 'matgo' ? 8 : 6);
+    for (let k = 0; k < fcount; k++) order.push({ x: floorPt.x + (((k * 37) % 70) - 35), y: floorPt.y + (((k * 53) % 44) - 22) });
+    const STEP = 80, DUR = 180;
+    order.forEach((t, i) => {                        // 장당 stagger(80ms), 비행 180ms
+      setTimeout(() => {
+        const card = document.createElement('div'); card.className = 'gs-flycard';
+        card.style.left = cx + 'px'; card.style.top = cy + 'px';
+        intro.appendChild(card);
+        const dx = t.x - cx, dy = t.y - cy, rot = ((i * 31) % 30) - 15;
+        card.animate(
+          [{ transform: 'translate(-50%,-50%)' }, { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot}deg)` }],
+          { duration: DUR, easing: 'cubic-bezier(.3,.7,.4,1)', fill: 'forwards' });
+      }, i * STEP);
+    });
+    await wait((order.length - 1) * STEP + DUR + 120);   // 시퀀서는 계산된 시간으로(WAAPI throttle 무관)
+  }
 
   // ── 선 정하기(pickFirst) 렌더 ──
   let pickFlipped = new Set();   // 이미 flip 공개된 카드 index(1회만 애니)
