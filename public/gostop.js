@@ -135,15 +135,19 @@
     if (s.shake && s.shake[seat]) tags.push(`흔들×${s.shake[seat]}`);
     if (pos === 'left' || pos === 'right') {
       const { g } = pileGroups((s.captured && s.captured[seat]) || []);
-      const row = (lb, cards, extra) => `<div class="gs-srow${extra || ''}"><span class="gs-slb">${lb}</span><span class="gs-scards">${cards}</span></div>`;
       const cardsH = (arr) => arr.map((c) => cardHTML(c, 'mini xs')).join('');
       const piH = g.PI.map((c) => `<span class="gs-pic">${cardHTML(c, 'mini xs')}${c.pi >= 2 ? `<b class="gs-piv">${c.pi}</b>` : ''}</span>`).join('');
+      const row = (lb, cls, cards, n) => `<div class="gs-srow ${cls}"><span class="gs-slb">${lb}</span><span class="gs-scards">${cards}</span><span class="gs-srn">${n}</span></div>`;
       return `<div class="gs-opp side ${pos}${turn ? ' turn' : ''}">
-        <div class="gs-stop2"><span class="gs-ava">${avatar(p.name)}</span><span class="gs-sname2">${esc(p.name)}</span></div>
-        <div class="gs-scap">
-          ${row('광', cardsH(g.KWANG))}${row('멍', cardsH(g.YEOL))}${row('단', cardsH(g.TTI))}${row('피', piH, ' pi')}
+        <div class="gs-shead">
+          <span class="gs-ava">${avatar(p.name)}</span>
+          <div class="gs-sinfo"><div class="gs-sname2">${esc(p.name.replace(/🤖/g, ''))}</div><div class="gs-snyang">${nyang(p.chips)}냥</div></div>
+          <div class="gs-sscore2"><b>${sc}</b>점</div>
         </div>
-        <div class="gs-sbottom">${sc}점${turn ? ' <span class="gs-now">차례</span>' : ''}</div>
+        <div class="gs-scap">
+          ${row('광', 'c-kw', cardsH(g.KWANG), g.KWANG.length)}${row('멍', 'c-yeol', cardsH(g.YEOL), g.YEOL.length)}${row('단', 'c-tti', cardsH(g.TTI), g.TTI.length)}${row('피', 'c-pi', piH, g.PI.length)}
+        </div>
+        ${turn ? '<div class="gs-snow">차례</div>' : ''}
       </div>`;
     }
     return `<div class="gs-opp${turn ? ' turn' : ''}">
@@ -267,7 +271,7 @@
 
     // 더미(가운데) — 큰판/점수 표시 없음(점수는 각 사람 패널에만)
     $('gsDraw').className = s.drawCount > 0 ? 'has' : '';
-    $('gsDrawN').textContent = s.drawCount > 0 ? s.drawCount : '';
+    $('gsDrawN').textContent = s.drawCount > 0 ? '남은 패 ' + s.drawCount : '';
 
     // 내 영역
     const myTurn = s.myTurn && s.phase === 'playing';
