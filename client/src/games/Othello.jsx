@@ -105,6 +105,19 @@ export default function Othello({ ws }) {
   const placedIdx = lm ? lm.placed.r * 8 + lm.placed.c : -1;
   const legalSet = new Set((s.legal || []).map(([r, c]) => r * 8 + c));
 
+  // 뒤집힌 돌을 놓은 위치에서 거리순으로 촤르르륵 — 이전 보드와 비교해 바뀐 칸에 딜레이 부여
+  const prevBoard = useRef(null);
+  const flipDelay = {};
+  if (prevBoard.current && lm) {
+    const pr = lm.placed.r, pc = lm.placed.c;
+    for (let i = 0; i < 64; i++) {
+      const r = Math.floor(i / 8), c = i % 8;
+      const old = prevBoard.current[r] && prevBoard.current[r][c], cur = s.board[r][c];
+      if (old && cur && old !== cur) flipDelay[i] = (Math.max(Math.abs(r - pr), Math.abs(c - pc)) - 1) * 70;   // 거리 1=먼저
+    }
+  }
+  useEffect(() => { prevBoard.current = s.board; });   // 렌더 후 현재 보드 저장(다음 렌더의 '이전')
+
   // 결과 패널
   let win = null;
   if (s.phase === 'finished') {
@@ -173,7 +186,12 @@ export default function Othello({ ws }) {
               if (lm && i === placedIdx && v) cls += ' last';
               let inner = null;
               if (v) {
-                inner = <div className={'disc ' + (v === 'B' ? 'black' : 'white')} />;
+                const fd = flipDelay[i];
+                const isPlaced = lm && i === placedIdx;
+                inner = <div
+                  className={'disc ' + (v === 'B' ? 'black' : 'white') + (fd != null ? ' oflip' : (isPlaced ? ' place' : ''))}
+                  style={fd != null ? { animationDelay: fd + 'ms', transitionDelay: fd + 'ms' } : undefined}
+                />;
               } else if (s.phase === 'playing' && legalSet.has(i)) {
                 cls += myTurn ? ' playable' : ' hint';
               }

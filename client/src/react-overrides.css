@@ -31,3 +31,7 @@
   box-shadow: 0 8px 22px rgba(0,0,0,.35); animation: oBubbleIn .2s cubic-bezier(.34,1.56,.64,1) both;
   word-break: break-word; pointer-events: none; }
 @keyframes oBubbleIn { from { opacity: 0; transform: translate(-50%,-78%) scale(.7); } to { opacity: 1; transform: translate(-50%,-100%) scale(1); } }
+
+/* 오셀로 — 사이에 낀 돌이 놓은 위치에서 거리순으로 촤르르륵 뒤집힘(React 전용 연출) */
+@keyframes oFlip { 0% { transform: scaleX(1); } 48% { transform: scaleX(.12); } 100% { transform: scaleX(1); } }
+.disc.oflip { animation: oFlip .42s cubic-bezier(.45,.05,.4,1) both; }
