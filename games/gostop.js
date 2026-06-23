@@ -344,47 +344,60 @@ function resolveTurn(room, seat, d) {
         const fm = floorOf(r, M);
         capture(r, seat, fm); removeFloor(r, fm.map((c) => c.id));
         r.events.push({ ev: 'take', cards: fm.map((c) => c.id), src: 'hand' }); captured = true;
-      } else if (cB === 2) {                       // 뻑(바닥2 + 손패 = 3 스택)
-        markBbeok(r, seat, M); r.events.push({ ev: 'bbeok', month: M, by: seat });
-      } else if (cB >= 3) {                         // 스택 먹기
+      } else if (cB === 2) {                       // 바닥 2장 → 낸 패 + 1장 선택해 먹기(나머지 남김). 뒤집기는 선택 뒤 처리
+        r.pending = { phase: 'play', seat, month: M, options: floorOf(r, M).filter((c) => c.id !== h.id).map((c) => c.id), card: h, pendD: d || null };
+        return;
+      } else if (cB >= 3) {                         // 스택(뻑) 먹기
         const fm = floorOf(r, M);
         capture(r, seat, fm); removeFloor(r, fm.map((c) => c.id));
         r.events.push({ ev: 'bbeok-eat', cards: fm.map((c) => c.id) });
         stealPi(room, seat, 1, '뻑먹기'); captured = true;
       } // cB===0: 그냥 깔림(이미 바닥)
     }
-    if (d) {
-      const N = d.m, cN = floorCount(r, N);
-      if (cN === 0) { r.floor.push(d); r.events.push({ ev: 'place', card: d.id, src: 'flip' }); }
-      else if (cN === 1) {
-        const fn = floorOf(r, N);
-        capture(r, seat, [d, ...fn]); removeFloor(r, fn.map((c) => c.id));
-        r.events.push({ ev: 'take', cards: [d.id, ...fn.map((c) => c.id)], src: 'flip' }); captured = true;
-      } else if (cN === 2) {                       // 선택(§3.1) → 보류
-        r.pending = { phase: 'flip', seat, month: N, options: floorOf(r, N).map((c) => c.id), card: d };
-        return;
-      } else {                                      // cN≥3 스택 먹기
-        const fn = floorOf(r, N);
-        capture(r, seat, [d, ...fn]); removeFloor(r, fn.map((c) => c.id));
-        r.events.push({ ev: 'bbeok-eat', cards: [d.id, ...fn.map((c) => c.id)] });
-        stealPi(room, seat, 1, '뻑먹기'); captured = true;
-      }
-    }
+    const fr = resolveFlip(room, seat, d);
+    if (fr === 'pending') return;                  // 뒤집기 동월 2장 → 선택 대기
+    if (fr === true) captured = true;
   }
   if (captured && r.floor.length === 0) { r.events.push({ ev: 'sweep' }); stealPi(room, seat, 1, '싹쓸이'); }  // 쓸(쪽/따닥과 중첩)
   endTurn(room);
 }
 
-// 바닥 동월 2장 선택 해소(뒤집기 케이스)
+// 뒤집기 d 처리(낸 패 월과 다른 월). 반환: true(먹음)|false(깔림)|'pending'(동월 2장 선택)
+function resolveFlip(room, seat, d) {
+  const r = room.gs.round;
+  if (!d) return false;
+  const N = d.m, cN = floorCount(r, N);
+  if (cN === 0) { r.floor.push(d); r.events.push({ ev: 'place', card: d.id, src: 'flip' }); return false; }
+  if (cN === 1) {
+    const fn = floorOf(r, N);
+    capture(r, seat, [d, ...fn]); removeFloor(r, fn.map((c) => c.id));
+    r.events.push({ ev: 'take', cards: [d.id, ...fn.map((c) => c.id)], src: 'flip' }); return true;
+  }
+  if (cN === 2) { r.pending = { phase: 'flip', seat, month: N, options: floorOf(r, N).map((c) => c.id), card: d }; return 'pending'; }
+  const fn = floorOf(r, N);                        // cN≥3 스택 먹기
+  capture(r, seat, [d, ...fn]); removeFloor(r, fn.map((c) => c.id));
+  r.events.push({ ev: 'bbeok-eat', cards: [d.id, ...fn.map((c) => c.id)] });
+  stealPi(room, seat, 1, '뻑먹기'); return true;
+}
+
+// 바닥 동월 2장 선택 해소 — 낼 때(play)/뒤집기(flip) 둘 다
 function chooseFloor(room, seat, floorCardId) {
   const r = room.gs.round;
   if (!r || !r.pending || seat !== r.pending.seat) return false;
   const p = r.pending;
   if (!p.options.includes(floorCardId)) return false;
   const chosen = r.floor.find((c) => c.id === floorCardId);
-  capture(r, seat, [p.card, chosen]); removeFloor(r, [floorCardId]);
-  r.events.push({ ev: 'take', cards: [p.card.id, floorCardId], src: 'flip', chosen: true });
   r.pending = null;
+  if (p.phase === 'play') {                        // 낼 때 선택: 낸 패(바닥에 있음)+선택 먹고 나머지 남김 → 이어서 뒤집기
+    capture(r, seat, [p.card, chosen]); removeFloor(r, [p.card.id, floorCardId]);
+    r.events.push({ ev: 'take', cards: [p.card.id, floorCardId], src: 'hand', chosen: true });
+    const fr = resolveFlip(room, seat, p.pendD);
+    if (fr === 'pending') return true;             // 뒤집기도 동월 2장 → 추가 선택
+    if (r.floor.length === 0) { r.events.push({ ev: 'sweep' }); stealPi(room, seat, 1, '싹쓸이'); }
+    endTurn(room); return true;
+  }
+  capture(r, seat, [p.card, chosen]); removeFloor(r, [floorCardId]);   // 뒤집기 선택: 뒤집은 패(바닥X)+선택
+  r.events.push({ ev: 'take', cards: [p.card.id, floorCardId], src: 'flip', chosen: true });
   if (r.floor.length === 0) { r.events.push({ ev: 'sweep' }); stealPi(room, seat, 1, '싹쓸이'); }
   endTurn(room);
   return true;
