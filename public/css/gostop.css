@@ -262,3 +262,7 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 .gs-ghost { position: absolute; width: 52px; height: 78px; border-radius: 5px; box-shadow: 0 3px 10px rgba(0,0,0,.5); object-fit: cover; background: #fff; }
 @keyframes gsFlipIn { from { transform: translate(-50%,-50%) rotate(var(--rot,0deg)) rotateY(90deg) scale(1.06); } to { transform: translate(-50%,-50%) rotate(var(--rot,0deg)) rotateY(0deg) scale(1); } }
 .floorc.flipin { animation: gsFlipIn .3s cubic-bezier(.3,.8,.4,1) .36s both; }
+
+/* 보너스 보충 ghost(더미→손) */
+.gs-drawghost { position: absolute; width: 46px; height: 70px; border-radius: 6px; pointer-events: none;
+  background: linear-gradient(160deg, #a51f27, #771319); box-shadow: 0 6px 14px rgba(0,0,0,.5), inset 0 0 0 1.5px rgba(227,200,120,.45); }

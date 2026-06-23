@@ -267,6 +267,7 @@
     // 내가 낸 패가 바닥에 남았으면(매칭X) 손패→바닥으로 던지기
     if (playedId && newFloorIds.has(playedId) && prevHandRects[playedId]) throwToFloor(playedId, prevHandRects[playedId], lay[playedId], felt);
     captureFly(s, prevRects, prevHandRects, playedId, newFloorIds, lay, felt);   // 획득 모션(던진 패 매칭 포함)
+    drawFly(s, felt);                                                             // 보너스 보충: 더미 → 손/패널
     const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
 
     // 더미(가운데) — 큰판/점수 표시 없음(점수는 각 사람 패널에만)
@@ -366,6 +367,33 @@
         else if (id === playedId && prevHandRects[id]) from = prevHandRects[id];   // 던진 패(매칭 없이 먹은 케이스) = 손패에서
         else return;
         flyGhost(motion, card, from, tgt, base + n * 60); n++;
+      });
+    } catch (e) {}
+  }
+
+  // 보너스 보충 — 더미 → 손(내) / 상대 패널(상대) 카드뒷면 ghost
+  let lastDrawKey = '';
+  function drawFly(s, felt) {
+    try {
+      const evs = (s.events || []).filter((e) => e.ev === 'draw');
+      const key = JSON.stringify(evs.map((e) => e.card + ':' + e.seat));
+      if (key === lastDrawKey) return; lastDrawKey = key;
+      if (!evs.length) return;
+      const me = s.yourSeat;
+      const deckPt = feltPt($('gsCenter'), felt); const motion = $('gsMotion'); if (!deckPt || !motion) return;
+      evs.forEach((e, i) => {
+        let toEl = null;
+        if (e.seat === me) toEl = $('gsHand');
+        else { const opps = (s.seats || []).map((_, j) => j).filter((j) => j !== me); const k = opps.indexOf(e.seat); const box = [$('gsTop'), $('gsLeft'), $('gsRight')][k]; toEl = box && (box.querySelector('.gs-opp') || box); }
+        const to = feltPt(toEl, felt); if (!to) return;
+        setTimeout(() => {
+          try {
+            const g = document.createElement('div'); g.className = 'gs-drawghost';
+            g.style.left = deckPt.x + 'px'; g.style.top = deckPt.y + 'px'; motion.appendChild(g);
+            g.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${to.x - deckPt.x}px,${to.y - deckPt.y}px) scale(.7)`, opacity: .25 }], { duration: 330, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
+            setTimeout(() => g.remove(), 390);
+          } catch (e2) {}
+        }, 120 + i * 130);
       });
     } catch (e) {}
   }
