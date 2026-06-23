@@ -241,19 +241,28 @@
     const placedDeck = new Set((s.events || []).filter((e) => e.ev === 'place').map((e) => e.card));   // 더미서 깔린 패 → flip-in
     const prevRects = {};                                  // 재렌더 전 바닥 카드 위치(획득 이동용)
     for (const el of $('gsFloor').querySelectorAll('.gscard')) { const r = el.getBoundingClientRect(); prevRects[el.dataset.id] = { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top }; }
+    // 내 손패 위치(아직 리렌더 전이라 DOM에 직전 손패 있음) + 내가 낸 패 id
+    const prevHandRects = {};
+    for (const el of $('gsHand').querySelectorAll('.gscard')) { const r = el.getBoundingClientRect(); prevHandRects[el.dataset.id] = { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top }; }
+    const myHandIds = new Set((s.myHand || []).map((c) => c.id));
+    const playedId = Object.keys(prevHandRects).find((id) => !myHandIds.has(id)) || null;   // 내 손패에서 빠진 패 = 내가 낸 패
+    const newFloorIds = new Set((s.floor || []).map((c) => c.id));
     flipLayer($('gsFloor'), () => {
       const items = (s.floor || []).map((c) => {
         const ch = s.pendingChoice && s.pendingChoice.options.some((o) => o.id === c.id);
         const p = lay[c.id] || { x: 50, y: 50, rot: 0 };
         const isNew = !prevFloorIds.has(c.id);
-        const anim = isNew ? (placedDeck.has(c.id) ? ' flipin' : ' slam') : '';   // 더미서=flip / 손패서=slam
+        // 내가 낸 패는 손패→바닥 던지기(WAAPI)로 따로 처리 → mount 애니 없음. 더미서=flip / 그 외 새 패=slam
+        const anim = !isNew ? '' : (c.id === playedId ? '' : placedDeck.has(c.id) ? ' flipin' : ' slam');
         fids.push(c.id);
         return { id: c.id, m: c.m, src: cardSrc(c), cls: `gscard floorc${ch ? ' choosable' : ''}${anim}`, style: `left:${p.x}%;top:${p.y}%;--rot:${p.rot}deg` };
       });
       reconcileCards($('gsFloor'), items);
     }, 0);
     prevFloorIds = new Set(fids);
-    captureFly(s, prevRects, felt);                        // 획득한 패 → 더미로 날아가기
+    // 내가 낸 패가 바닥에 남았으면(매칭X) 손패→바닥으로 던지기
+    if (playedId && newFloorIds.has(playedId) && prevHandRects[playedId]) throwToFloor(playedId, prevHandRects[playedId], lay[playedId], felt);
+    captureFly(s, prevRects, prevHandRects, playedId, newFloorIds, lay, felt);   // 획득 모션(던진 패 매칭 포함)
     const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
 
     // 더미(가운데) — 큰판/점수 표시 없음(점수는 각 사람 패널에만)
@@ -291,9 +300,35 @@
     lastCapCounts = s.captured ? s.captured.map((c) => c.length) : null;   // 다음 턴 캡처 좌석 판정용
   };
 
-  // 획득한 패가 바닥→해당 좌석 더미로 날아가는 모션(ghost). 실패해도 게임엔 영향 없음.
+  // 내가 낸 패가 손패→바닥(매칭 자리)으로 날아가는 던지기(실제 floor 노드 WAAPI). 매칭 안 돼 바닥에 남을 때.
+  function throwToFloor(id, from, lp, felt) {
+    try {
+      const node = $('gsFloor').querySelector('.gscard[data-id="' + id + '"]');
+      if (!node || !from) return;
+      const r = node.getBoundingClientRect();
+      const to = { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top };
+      const dx = from.x - to.x, dy = from.y - to.y, rot = (lp && lp.rot) || 0;
+      node.animate([
+        { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot * 0.3}deg) scale(1.13)`, offset: 0 },
+        { transform: `translate(-50%,-50%) translate(${dx * 0.05}px,${dy * 0.05 - 7}px) rotate(${rot}deg) scale(1.06)`, offset: 0.72 },
+        { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1)`, offset: 1 },
+      ], { duration: 270, easing: 'cubic-bezier(.3,.85,.4,1)' });
+    } catch (e) {}
+  }
+
+  // 획득 모션 — 먹힌 패가 (내가 던진 패는 손패에서 / 바닥패는 바닥에서) 해당 좌석 더미로 모여 날아감.
   let lastCapCounts = null;
-  function captureFly(s, prevRects, felt) {
+  function flyGhost(motion, card, from, to, delay) {
+    setTimeout(() => {
+      try {
+        const g = document.createElement('img'); g.className = 'gs-ghost'; g.src = cardSrc(card);
+        g.style.left = from.x + 'px'; g.style.top = from.y + 'px'; motion.appendChild(g);
+        g.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${to.x - from.x}px,${to.y - from.y}px) scale(.5)`, opacity: .4 }], { duration: 260, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
+        setTimeout(() => g.remove(), 320);
+      } catch (e) {}
+    }, delay);
+  }
+  function captureFly(s, prevRects, prevHandRects, playedId, newFloorIds, lay, felt) {
     try {
       const capIds = [];
       for (const ev of (s.events || [])) { if (Array.isArray(ev.cards)) capIds.push(...ev.cards); if (ev.ev === 'bonus' && ev.card) capIds.push(ev.card); }
@@ -308,20 +343,22 @@
       else { const opps = (s.seats || []).map((_, i) => i).filter((i) => i !== me); const k = opps.indexOf(capturer); const box = [$('gsTop'), $('gsLeft'), $('gsRight')][k]; pileEl = box && (box.querySelector('.gs-opp') || box); }
       const tgt = feltPt(pileEl, felt); if (!tgt) return;
       const motion = $('gsMotion'); if (!motion) return;
+      const cardOf = (id) => s.captured[capturer] && s.captured[capturer].find((c) => c.id === id);
+      // 내가 던져서 바로 먹은 패: 손패→매칭자리로 던진 뒤(phase1) 다 같이 더미로(phase2)
+      const threwAndAte = playedId && capIds.includes(playedId) && prevHandRects[playedId] && !newFloorIds.has(playedId);
+      const floorMate = capIds.find((id) => id !== playedId && prevRects[id]);
+      const matchPos = (floorMate && prevRects[floorMate]) || feltPt($('gsFloor'), felt);
+      let base = 180;
+      if (threwAndAte) { const c = cardOf(playedId); if (c) { flyGhost(motion, c, prevHandRects[playedId], matchPos, 0); base = 300; } }
       let n = 0;
       capIds.forEach((id) => {
-        const from = prevRects[id]; if (!from) return;     // 바닥에 보였던 패만(즉시 캡처는 스킵)
-        const card = s.captured[capturer] && s.captured[capturer].find((c) => c.id === id);
-        if (!card) return;
-        const delay = 470 + n * 55; n++;
-        setTimeout(() => {
-          try {
-            const g = document.createElement('img'); g.className = 'gs-ghost'; g.src = cardSrc(card);
-            g.style.left = from.x + 'px'; g.style.top = from.y + 'px'; motion.appendChild(g);
-            g.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${tgt.x - from.x}px,${tgt.y - from.y}px) scale(.5)`, opacity: .35 }], { duration: 250, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
-            setTimeout(() => g.remove(), 300);
-          } catch (e) {}
-        }, delay);
+        const card = cardOf(id); if (!card) return;
+        let from;
+        if (id === playedId && threwAndAte) from = matchPos;                       // 던진 패 = 매칭자리에서 더미로
+        else if (prevRects[id]) from = prevRects[id];                              // 바닥패 = 바닥에서
+        else if (id === playedId && prevHandRects[id]) from = prevHandRects[id];   // 던진 패(매칭 없이 먹은 케이스) = 손패에서
+        else return;
+        flyGhost(motion, card, from, tgt, base + n * 55); n++;
       });
     } catch (e) {}
   }
