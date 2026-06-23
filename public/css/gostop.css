@@ -240,8 +240,8 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 
 /* ── 먹을 패 선택 모달 ── */
 #gsChoice { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.5); }
-.gs-choice-box { background: linear-gradient(#1f5a36, #173f28); border: 2px solid #e8d9a8; border-radius: 16px; padding: 18px 22px; box-shadow: 0 12px 40px rgba(0,0,0,.6); text-align: center; animation: gsChoicePop .25s cubic-bezier(.2,1.3,.4,1); }
-.gs-choice-title { font-size: 16px; font-weight: 800; color: #ffe08a; margin-bottom: 14px; }
+.gs-choice-box { background: linear-gradient(180deg, #241c12, #160e07); border-radius: 18px; padding: 18px 22px; box-shadow: inset 0 0 0 1px rgba(201,162,75,.4), 0 24px 60px rgba(0,0,0,.6); text-align: center; animation: gsChoicePop .25s cubic-bezier(.2,1.3,.4,1); }
+.gs-choice-title { font-size: 16px; font-weight: 800; color: #ecd8a6; margin-bottom: 14px; }
 .gs-choice-cards { display: flex; gap: 16px; }
 .gs-choice-card { background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px; border-radius: 12px; transition: .15s; }
 .gs-choice-card:hover { background: rgba(255,224,138,.18); transform: translateY(-4px); }
