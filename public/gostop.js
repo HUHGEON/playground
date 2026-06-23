@@ -183,6 +183,13 @@
         '<div id="gsToast"></div><div id="gsModal" style="display:none"></div>' +
       '</div></div>';
     info.innerHTML = '<div id="gsSide"></div>';
+    $('gsSide').onclick = (e) => {                    // 룰 접기/펴기(상태 보존)
+      if (!e.target.closest('#gsRuleToggle')) return;
+      rulesOpen = !rulesOpen;
+      const p = $('gsRulePanel'), b = $('gsRuleToggle');
+      if (p) p.style.display = rulesOpen ? 'block' : 'none';
+      if (b) b.textContent = '📖 룰 ' + (rulesOpen ? '숨기기' : '보기');
+    };
 
     $('gsPick').onclick = (e) => { const el = e.target.closest('.gs-pcard.pickable'); if (!el) return; send({ type: 'pickFirstCard', index: Number(el.dataset.i) }); };
     $('gsChoice').onclick = (e) => { const el = e.target.closest('.gs-choice-card'); if (!el) return; send({ type: 'choose', cardId: el.dataset.id }); };
@@ -227,6 +234,7 @@
   }
 
   let lastEvtKey = '';
+  let rulesOpen = false;   // 사이드바 룰 접기/펴기 상태(렌더 넘어 보존)
 
   R.render = function (s) {
     // 선 정하기(pickFirst) — 전용 오버레이
@@ -675,8 +683,14 @@
     return `<div class="gs-spanel">
         <div class="gs-spanel-t">점수 / 냥</div>
         <div class="gs-slist">${rows}</div>
-        <div class="gs-sdiv"></div>
-        <div class="gs-side-hint">광3·4·15 / 고도리5 / 홍청초단 각3 / 열끗·띠 5장1점+ / 피10점1점+<br><span class="dim">· 나는점수 맞고7·고스톱3</span></div>
+        <button id="gsRuleToggle" class="gs-ruletoggle">📖 룰 ${rulesOpen ? '숨기기' : '보기'}</button>
+        <div id="gsRulePanel" class="gs-side-hint" style="display:${rulesOpen ? 'block' : 'none'}">
+          광 3·4·15 / 고도리 5 / 홍·청·초단 각 3 / 열끗·띠 5장부터 1점+ / 피 10장부터 1점+<br>
+          <span class="dim">· 나는 점수: 맞고 7 · 고스톱 3</span><br>
+          <span class="dim">· 바닥 2장에 매칭 = 둘 중 1장 선택해 먹기</span><br>
+          <span class="dim">· 뻑(자뻑) = 바닥 1장에 냈는데 뒤집기가 같은 월</span><br>
+          <span class="dim">· 보너스피 = 더미서 1장 손에 보충 + 상대 피 1, 턴 안 씀</span>
+        </div>
       </div>
       <div class="gs-spanel">
         <div class="gs-spanel-t">알림</div>

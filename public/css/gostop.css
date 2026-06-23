@@ -286,3 +286,10 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 .gs-bubble.out { animation: gsBubbleOut .35s ease forwards; }
 @keyframes gsBubbleIn { from { opacity: 0; transform: translate(-50%,-78%) scale(.7); } to { opacity: 1; transform: translate(-50%,-100%) scale(1); } }
 @keyframes gsBubbleOut { to { opacity: 0; transform: translate(-50%,-118%); } }
+
+/* 룰 접기/펴기 토글 */
+.gs-ruletoggle { width: 100%; margin-top: 12px; padding: 8px; border: none; border-radius: 10px; cursor: pointer;
+  font-family: inherit; font-weight: 700; font-size: 12.5px; color: #e3c878;
+  background: rgba(201,162,75,.12); box-shadow: inset 0 0 0 1px rgba(201,162,75,.28); transition: .15s; }
+.gs-ruletoggle:hover { background: rgba(201,162,75,.2); }
+#gsRulePanel { margin-top: 10px; }
