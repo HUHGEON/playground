@@ -1,0 +1,15 @@
+/* React 전용 — 바닐라가 JS로 display 토글하던 요소를 조건부 렌더에 맞게 항상 보이게 */
+#root { display: contents; }
+#userbar { display: flex !important; }
+#lobbyView, #roomView { display: block !important; width: 100%; }
+.loading { display: flex; align-items: center; justify-content: center; min-height: 40vh; color: var(--muted); }
+
+/* 접속자 목록 + 채팅 메시지(common.css에 없는 것만 보강) */
+#onlineList { display: flex; flex-direction: column; gap: 2px; }
+.online-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 1px; }
+.online-row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: #5fbf7a; }
+.online-row .dot[data-st="playing"] { background: var(--gold); }
+.online-row .dot[data-st="seated"] { background: var(--accent); }
+.online-row .on-name { font-weight: 700; }
+.online-row .on-loc { margin-left: auto; color: var(--muted); font-size: 12px; }
+.chatmsg b { font-weight: 800; margin-right: 4px; }
