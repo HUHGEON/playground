@@ -174,11 +174,13 @@
         '</div>' +
         '<div id="gsPick" style="display:none"></div>' +
         '<div id="gsIntro" style="display:none"></div>' +
+        '<div id="gsChoice" style="display:none"></div>' +
         '<div id="gsToast"></div><div id="gsModal" style="display:none"></div>' +
       '</div></div>';
     info.innerHTML = '<div id="gsSide"></div>';
 
     $('gsPick').onclick = (e) => { const el = e.target.closest('.gs-pcard.pickable'); if (!el) return; send({ type: 'pickFirstCard', index: Number(el.dataset.i) }); };
+    $('gsChoice').onclick = (e) => { const el = e.target.closest('.gs-choice-card'); if (!el) return; send({ type: 'choose', cardId: el.dataset.id }); };
     $('gsHand').onclick = (e) => { const im = e.target.closest('.gscard'); if (!im || im.classList.contains('dim')) return; send({ type: 'play', cardId: im.dataset.id }); };
     $('gsFloor').onclick = (e) => { const im = e.target.closest('.gscard.choosable'); if (!im) return; send({ type: 'choose', cardId: im.dataset.id }); };
     $('gsActions').onclick = (e) => {
@@ -270,8 +272,24 @@
 
     showEvents(s);
     renderModal(s);
+    renderChoice(s);
     $('gsSide').innerHTML = sideHTML(s);
   };
+
+  // 먹을 패 선택 모달 — 같은 월 2장(다른 타입: 광/멍/단/피)일 때 어느 걸 먹을지
+  const CATNAME = { KWANG: '광', YEOL: '멍', TTI: '단', PI: '피' };
+  function renderChoice(s) {
+    const ch = $('gsChoice');
+    const opts = s.pendingChoice && s.pendingChoice.options;
+    if (!opts || !opts.length) { ch.style.display = 'none'; ch.innerHTML = ''; return; }
+    const cards = opts.map((c) => {
+      const lbl = CATNAME[c.cat] || '피';
+      const piv = c.cat === 'PI' && c.pi >= 2 ? `<b class="gs-choice-pi">${c.pi}</b>` : '';
+      return `<button class="gs-choice-card" data-id="${c.id}"><span class="gs-choice-img"><img src="${cardSrc(c)}" alt="">${piv}</span><span class="gs-choice-lbl">${lbl}</span></button>`;
+    }).join('');
+    ch.innerHTML = `<div class="gs-choice-box"><div class="gs-choice-title">🖐 어떤 패를 먹을까요?</div><div class="gs-choice-cards">${cards}</div></div>`;
+    ch.style.display = 'flex';
+  }
 
   // ── 본 딜 인트로(셔플→컷→나눠주기) ──
   let introHandNo = -1, introPlaying = false, introPending = null;
