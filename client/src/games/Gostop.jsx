@@ -52,7 +52,7 @@ function OppTop({ s, seat }) {
     <div className={'gs-opp' + (turn ? ' turn' : '')} data-player={p.name}>
       <div className="gs-opp-head">
         <span className="gs-ava">{avatar(p.name)}</span>
-        <span className="gs-opp-info"><b>{p.name}{p.isBot ? '🤖' : ''}</b><span className="gs-chips">{nyang(p.chips)}냥</span></span>
+        <span className="gs-opp-info"><b>{p.name}</b><span className="gs-chips">{nyang(p.chips)}냥</span></span>
         <span className="gs-badge-col">
           <span className="gs-sc">{sc}점</span>
           {tags.map((t, i) => <span key={i} className="gs-tag">{t}</span>)}
@@ -141,16 +141,19 @@ export default function Gostop({ ws }) {
   );
   const withSidebar = (felt) => <>{felt}{infoEl && createPortal(sidebar, infoEl)}</>;
 
-  // ── 로비/대기 ──
-  if (s.phase === 'lobby') {
+  // ── 로비/대기 (playing·finished·pickFirst 외 모든 단계) ──
+  if (s.phase !== 'playing' && s.phase !== 'finished' && s.phase !== 'pickFirst') {
     return withSidebar(
       <div id="gsStage"><div id="gsFelt">
-        <div className="gs-box">
-          <h2>🃏 맞고</h2>
-          <p>{(s.seats ? s.seats.length : 0)}명 · 맞고(10장)</p>
-          {s.canStart
-            ? <button id="gsStart" onClick={() => send({ type: 'start' })}>시작하기</button>
-            : <p className="gs-wait">방장이 시작하길 기다리는 중…</p>}
+        <div id="gsTop">{(s.seats || []).map((p, i) => <OppTop key={i} s={s} seat={i} />)}</div>
+        <div id="gsModal" style={{ display: 'flex' }}>
+          <div className="gs-box">
+            <h2>🃏 맞고</h2>
+            <p>{(s.seats ? s.seats.length : 0)}명 · 맞고(10장)</p>
+            {s.canStart
+              ? <button id="gsStart" onClick={() => send({ type: 'start' })}>시작하기</button>
+              : <p className="gs-wait">방장이 시작하길 기다리는 중…</p>}
+          </div>
         </div>
       </div></div>
     );
