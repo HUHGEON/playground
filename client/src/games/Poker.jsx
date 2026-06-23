@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useFitStage } from './useFitStage.js';
 import '../poker.css';
 
 // 세븐포커 — 바닐라 public/poker.js의 R.render(s)를 React로 이전.
@@ -139,6 +140,7 @@ export default function Poker({ ws }) {
   const send = ws.send;
   const [infoEl, setInfoEl] = useState(null);
   const [rankOpen, setRankOpen] = useState(false);
+  useFitStage('pokerStage', 'pokerFelt', { max: 2.2, reserveBottom: 100 });
   useEffect(() => { setInfoEl(document.getElementById('roomInfo')); }, []);
 
   // ── 사이드바(대기열 + 족보) — #roomInfo로 포털 ──

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useFitStage } from './useFitStage.js';
 import '../seotda.css';
 
 // 큰 금액을 억/만 단위로 읽기 쉽게 — 100억, 1억 5,000만, 1,000만, 2,500
@@ -163,6 +164,7 @@ export default function Seotda({ ws }) {
   const send = ws.send;
   const [jokboOpen, setJokboOpen] = useState(false);
   const [infoEl, setInfoEl] = useState(null);
+  useFitStage('seotdaStage', 'seotdaFelt', { max: 1.12, reserveBottom: 92 });
   useEffect(() => { setInfoEl(document.getElementById('roomInfo')); }, []);
 
   // ── 좌석 정렬 (나=6시, 나머지 시계방향, 빈 자리는 대기/파산) ──
