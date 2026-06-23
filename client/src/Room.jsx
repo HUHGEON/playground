@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Gostop from './games/Gostop.jsx';
 
 // 게임별 React 컴포넌트(점진 이전). 미이전 게임은 안내 표시.
@@ -7,9 +7,11 @@ const GAME_COMPONENTS = {
 };
 
 export default function Room({ ws }) {
-  const { room, send } = ws;
+  const { room, send, chat } = ws;
   const GameComp = GAME_COMPONENTS[room.gameType];
   const [chatText, setChatText] = useState('');
+  const chatEnd = useRef(null);
+  useEffect(() => { chatEnd.current?.scrollIntoView({ block: 'end' }); }, [chat]);
 
   const sendChat = () => {
     const t = chatText.trim(); if (!t) return;
@@ -28,6 +30,14 @@ export default function Room({ ws }) {
           ? <GameComp ws={ws} />
           : <div className="muted" style={{ padding: 40 }}>이 게임은 아직 React로 이전 안 됨: <b>{room.gameType}</b></div>}
       </div>
+      {chat.length > 0 && (
+        <div className="room-chatlog">
+          {chat.slice(-6).map((c, i) => (
+            <div key={i} className="chatline"><b style={{ color: c.color || 'var(--gold)' }}>{c.name}</b> {c.text}</div>
+          ))}
+          <div ref={chatEnd} />
+        </div>
+      )}
       <div className="chatbar">
         <input
           placeholder="여기에 채팅 입력... (Enter)" value={chatText}

@@ -12,6 +12,7 @@ export function useWS() {
   const [connected, setConnected] = useState(false);
   const [chat, setChat] = useState([]); // {name,text,room?} 최근 채팅
   const wsRef = useRef(null);
+  const roomIdRef = useRef(null);
   const sidRef = useRef(localStorage.getItem('hub.sid'));
   if (!sidRef.current) { sidRef.current = genId(); localStorage.setItem('hub.sid', sidRef.current); }
 
@@ -34,9 +35,11 @@ export function useWS() {
       let m; try { m = JSON.parse(e.data); } catch { return; }
       if (m.type === 'lobby') {
         setLobby(m); setRoom(null);
+        if (roomIdRef.current !== null) { roomIdRef.current = null; setChat([]); }   // 방→로비 전환: 채팅 초기화
         if (m.yourName) { setMyName(m.yourName); localStorage.setItem('hub.name', m.yourName); }
       } else if (m.type === 'roomState') {
         setRoom(m);
+        if (m.roomId !== roomIdRef.current) { roomIdRef.current = m.roomId; setChat([]); }   // 새 방 진입: 채팅 초기화
         if (m.yourName) { setMyName(m.yourName); localStorage.setItem('hub.name', m.yourName); }
       } else if (m.type === 'chat') {
         setChat((prev) => [...prev.slice(-49), m]);

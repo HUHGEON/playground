@@ -81,3 +81,26 @@ button { font-family: inherit; }
 .room-body { flex: 1; display: flex; justify-content: center; }
 .chatbar { display: flex; gap: 10px; padding: 12px 20px; max-width: 1180px; margin: 0 auto; width: 100%; }
 .chatbar input { flex: 1; padding: 12px 16px; border-radius: 13px; border: none; background: rgba(0,0,0,.32); color: #f3ead6; box-shadow: inset 0 0 0 1px var(--panel-brd); }
+
+/* 로비 2열(메인 + 사이드: 접속자·채팅) */
+.lobby-grid { display: flex; gap: 16px; align-items: flex-start; padding: 0 20px; flex-wrap: wrap; }
+.lobby-grid > .panel { flex: 1; min-width: 300px; margin: 8px 0; }
+.lobby-side { flex: 0 0 300px; display: flex; flex-direction: column; gap: 16px; }
+.lobby-side .panel { margin: 8px 0; }
+.small { font-size: 12px; }
+
+.online-list { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+.online-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 2px; }
+.online-row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: #6c7; }
+.online-row .dot[data-st="playing"] { background: #e8a23a; }
+.online-row .dot[data-st="seated"] { background: #4a86c0; }
+.on-name { font-weight: 700; }
+.on-loc { margin-left: auto; color: var(--muted); font-size: 12px; }
+
+.chatpanel { display: flex; flex-direction: column; }
+.chatlog { display: flex; flex-direction: column; gap: 5px; max-height: 260px; min-height: 120px; overflow-y: auto; margin-bottom: 10px; }
+.chatline { font-size: 13px; line-height: 1.5; word-break: break-word; }
+.chatline b { font-weight: 800; margin-right: 4px; }
+
+/* 방 안 채팅 로그(채팅바 위) */
+.room-chatlog { max-width: 1180px; margin: 0 auto; width: 100%; padding: 4px 20px; display: flex; flex-direction: column; gap: 4px; }
