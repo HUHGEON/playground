@@ -27,6 +27,54 @@
   }
   let prevFloorIds = new Set();
 
+  // ── [Phase0] 카드 레이어 노드 보존(keyed diff) + FLIP ──
+  // data-id 기준 reconcile: 유지 노드는 재사용(파괴 금지), 신규만 생성·사라진 것만 제거. class/style만 갱신.
+  // items: [{ id, m, src, cls, style? }]
+  function reconcileCards(container, items) {
+    const cur = new Map();
+    for (const el of Array.from(container.children)) if (el.dataset && el.dataset.id != null) cur.set(el.dataset.id, el);
+    let created = 0, reused = 0, removed = 0;
+    const desired = [];
+    for (const it of items) {
+      let el = cur.get(it.id);
+      if (el) { reused++; cur.delete(it.id); }                 // 재사용(노드 보존)
+      else {                                                   // 신규
+        el = document.createElement('img');
+        el.draggable = false; el.alt = '';
+        el.setAttribute('data-id', it.id);
+        el.src = it.src;                                       // src는 생성 시 1회(같은 카드 = 같은 이미지)
+        created++;
+      }
+      if (it.m != null && el.dataset.m !== String(it.m)) el.dataset.m = it.m;
+      if (el.className !== it.cls) el.className = it.cls;        // 위치·상태는 class/style만 갱신
+      if (it.style != null) { if (el.getAttribute('style') !== it.style) el.setAttribute('style', it.style); }
+      else if (el.hasAttribute('style')) el.removeAttribute('style');
+      desired.push(el);
+    }
+    for (const el of cur.values()) { el.remove(); removed++; }  // 사라진 노드만 제거
+    desired.forEach((el, i) => { if (container.children[i] !== el) container.insertBefore(el, container.children[i] || null); });
+    if (window.GS_DEBUG) console.log(`[gs reconcile] #${container.id}: 생성 ${created} / 재사용 ${reused} / 제거 ${removed}`);
+  }
+
+  // FLIP(WAAPI): mutate 전 위치(First) → mutate → 후 위치(Last) → 차이를 transform invert→0 애니.
+  // 이번 단계 duration 0 (시각변화 없이 구조만). base transform과 합성해 위치 유지.
+  function flipLayer(container, mutate, duration) {
+    const first = new Map();
+    for (const el of container.querySelectorAll('.gscard')) if (el.dataset.id != null) first.set(el.dataset.id, el.getBoundingClientRect());
+    mutate();
+    const dur = duration || 0;
+    for (const el of container.querySelectorAll('.gscard')) {
+      const f = first.get(el.dataset.id); if (!f) continue;     // 신규 노드는 FLIP 제외
+      const l = el.getBoundingClientRect();
+      const dx = f.left - l.left, dy = f.top - l.top;
+      if (!dx && !dy) continue;
+      if (typeof el.animate !== 'function') continue;
+      const base = getComputedStyle(el).transform;
+      const baseT = base && base !== 'none' ? ' ' + base : '';
+      el.animate([{ transform: `translate(${dx}px,${dy}px)${baseT}` }, { transform: base === 'none' ? 'none' : base }], { duration: dur, easing: 'ease' });
+    }
+  }
+
   // 획득더미: 광/열끗/띠/피 4분류 스트립 + 카테고리 점수
   function catPoints(detail) {
     const d = detail || {};
@@ -137,13 +185,16 @@
     $('gsLeft').innerHTML = opps[1] != null ? oppHTML(s, opps[1], 'left') : '';
     $('gsRight').innerHTML = opps[2] != null ? oppHTML(s, opps[2], 'right') : '';
 
-    // 바닥 — 더미(중앙) 주변 분산 + 새 패는 슬램(내려치기)
+    // 바닥 — keyed diff(노드 보존) + FLIP(duration 0). 새 패는 슬램(내려치기) class.
     const fids = [];
-    $('gsFloor').innerHTML = (s.floor || []).map((c) => {
-      const ch = s.pendingChoice && s.pendingChoice.options.some((o) => o.id === c.id);
-      const p = floorPos(c.id); const slam = prevFloorIds.has(c.id) ? '' : ' slam'; fids.push(c.id);
-      return `<img class="gscard floorc${ch ? ' choosable' : ''}${slam}" style="left:${p.x}%;top:${p.y}%;--rot:${p.rot}deg" src="${cardSrc(c)}" data-id="${c.id}" data-m="${c.m}" draggable="false" alt="">`;
-    }).join('');
+    flipLayer($('gsFloor'), () => {
+      const items = (s.floor || []).map((c) => {
+        const ch = s.pendingChoice && s.pendingChoice.options.some((o) => o.id === c.id);
+        const p = floorPos(c.id); const slam = prevFloorIds.has(c.id) ? '' : ' slam'; fids.push(c.id);
+        return { id: c.id, m: c.m, src: cardSrc(c), cls: `gscard floorc${ch ? ' choosable' : ''}${slam}`, style: `left:${p.x}%;top:${p.y}%;--rot:${p.rot}deg` };
+      });
+      reconcileCards($('gsFloor'), items);
+    }, 0);
     prevFloorIds = new Set(fids);
 
     // 더미(가운데) — 큰판/점수 표시 없음(점수는 각 사람 패널에만)
@@ -157,7 +208,10 @@
       <span class="gs-chips">${nyang(s.seats[me] ? s.seats[me].chips : 0)}냥</span></div>`;
     $('gsMyCap').innerHTML = capStrips((s.captured && s.captured[me]) || [], s.scoreDetails ? s.scoreDetails[me] : {}, false) || '<span class="gs-cap-empty">획득한 패가 여기 쌓여요</span>';
     $('gsHand').className = myTurn ? 'myturn' : '';
-    $('gsHand').innerHTML = (s.myHand || []).map((c) => cardHTML(c, myTurn ? '' : 'dim')).join('');
+    flipLayer($('gsHand'), () => {
+      const items = (s.myHand || []).map((c) => ({ id: c.id, m: c.m, src: cardSrc(c), cls: 'gscard' + (myTurn ? '' : ' dim') }));
+      reconcileCards($('gsHand'), items);
+    }, 0);
 
     // 액션 버튼
     let acts = '';
