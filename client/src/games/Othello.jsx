@@ -1,0 +1,157 @@
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import '../othello.css';
+
+const AVATARS = ['🐼', '🦊', '🐯', '🐸', '🐵', '🦁', '🐺', '🐻', '🦝', '🐰', '🦉', '🐢'];
+function avatar(name) {
+  let h = 0; const s = name || '?';
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return AVATARS[h % AVATARS.length];
+}
+
+function Panel({ s, seat, isMe, danger }) {
+  const name = seat === 'B' ? (s.blackName || '흑') : (s.whiteName || '백');
+  const color = seat === 'B' ? s.blackColor : s.whiteColor;
+  const sc = seat === 'B' ? s.score.B : s.score.W;
+  const isTurn = s.phase === 'playing' && s.turn === seat;
+  const discCls = seat === 'B' ? 'black' : 'white';
+  const sym = seat === 'B' ? '흑 ●' : '백 ○';
+  let status;
+  if (s.phase === 'finished') status = '대국 종료';
+  else if (s.phase !== 'playing') status = '대기 중';
+  else if (isTurn) status = isMe ? '🟢 내 차례 — 둘 곳 클릭' : '🟢 두는 중…';
+  else status = '⏳ 대기 중';
+  const prog = (isTurn && s.secondsLeft != null) ? Math.max(6, Math.min(100, Math.round(s.secondsLeft / 30 * 100))) : 0;
+  const cls = 'opanel' + (isTurn ? ' turn' : '') + (danger ? ' danger' : '');
+  return (
+    <div className={cls}>
+      <div className="olevel"><div className="olevelfill" style={{ width: prog + '%' }} /></div>
+      <div className="oavatar" style={{ borderColor: color || '#ecc659' }}>{avatar(name)}</div>
+      <div className="oinfo">
+        <div className="oname">{name} <span className={'osym ' + discCls}>{sym}{isMe ? ' (나)' : ''}</span></div>
+        <div className="ostatus">
+          {status}
+          {isTurn && s.secondsLeft != null && <> <span className="osecs">{s.secondsLeft}초</span></>}
+        </div>
+      </div>
+      <div className="oscore"><span className={'disc-mini ' + discCls} /><span className="oscorenum">{sc}</span></div>
+    </div>
+  );
+}
+
+export default function Othello({ ws }) {
+  const s = ws.room;
+  const send = ws.send;
+  const [infoEl, setInfoEl] = useState(null);
+  useEffect(() => { setInfoEl(document.getElementById('roomInfo')); }, []);
+
+  // 내 색은 닉네임 기준으로 판별 (yourRole은 종료 시 뒤집히는 버그가 있어 사용 X)
+  const myName = s.yourName;
+  const myColor = myName && myName === s.blackName ? 'B' : (myName && myName === s.whiteName ? 'W' : null);
+  const myTurn = s.phase === 'playing' && myColor != null && myColor === s.turn;
+
+  // 하단 = 항상 내 좌석(관전이면 흑), 상단 = 상대
+  const botSeat = myColor === 'W' ? 'W' : 'B';
+  const topSeat = botSeat === 'B' ? 'W' : 'B';
+  const danger = myTurn && s.secondsLeft != null && s.secondsLeft <= 5;
+
+  // 보드 셀
+  const lm = s.lastMove;
+  const placedIdx = lm ? lm.placed.r * 8 + lm.placed.c : -1;
+  const legalSet = new Set((s.legal || []).map(([r, c]) => r * 8 + c));
+
+  // 결과 패널
+  let win = null;
+  if (s.phase === 'finished') {
+    const winnerName = s.winner === 'B' ? (s.blackName || '흑') : (s.whiteName || '백');
+    const scoreLine = '● ' + s.score.B + ' : ' + s.score.W + ' ○';
+    let cls, emoji, title;
+    if (s.winner === 'draw') { cls = 'draw'; emoji = '🤝'; title = '무승부'; }
+    else if (myColor && myColor === s.winner) { cls = 'win'; emoji = '🏆'; title = '승리!'; }
+    else if (myColor) { cls = 'lose'; emoji = '😢'; title = '패배'; }
+    else { cls = 'spec'; emoji = '🏆'; title = winnerName + ' 승리'; }
+    win = { cls, emoji, title, scoreLine };
+  }
+
+  // 컨트롤 버튼
+  const ctrl = [];
+  if (s.canStart && s.singleplayer) {
+    ctrl.push(<button key="cb" className="ostart oblack" onClick={() => send({ type: 'start', color: 'B' })}>⚫ 흑 (선)</button>);
+    ctrl.push(<button key="cw" className="ostart owhite" onClick={() => send({ type: 'start', color: 'W' })}>⚪ 백 (후)</button>);
+  } else if (s.canStart) {
+    ctrl.push(<button key="cs" className="ostart" onClick={() => send({ type: 'start' })}>{s.phase === 'finished' ? '다음 대국 시작' : '게임 시작'}</button>);
+  } else if (s.isHost && (s.phase === 'lobby' || s.phase === 'finished')) {
+    ctrl.push(<button key="cw0" className="ostart" disabled>상대 입장 대기 중</button>);
+  }
+  if (s.canResign) ctrl.push(<button key="cr" className="danger" onClick={() => { if (confirm('기권하시겠습니까?')) send({ type: 'resign' }); }}>기권</button>);
+  if (s.canDefer) ctrl.push(<button key="cd" className="sub" onClick={() => send({ type: 'defer' })}>순위 미루기</button>);
+
+  // 대기열(사이드바) — #roomInfo 포털
+  const sidebar = (
+    <>
+      <h3>대기열 (승자 잔류 · 패자 후순위)</h3>
+      <div id="queue">
+        {(s.queue || []).map((p, i) => {
+          const rowCls = 'qrow' + (i === s.yourQueueIndex ? ' me' : '') + (i < 2 ? ' play' : '');
+          const num = i < 2 ? '▶' : (i - 1);
+          let tag;
+          if (p.seat === 'B') tag = <span className="tag b">흑 ●</span>;
+          else if (p.seat === 'W') tag = <span className="tag w">백 ○</span>;
+          else if (p.seat === 'next') tag = <span className="tag">다음 대국</span>;
+          else tag = <span className="tag">대기 {i - 1}</span>;
+          return (
+            <div key={i} className={rowCls}>
+              <span className="qnum">{num}</span>
+              <span className="qname" style={{ color: p.color || '#e8eaed' }}>{p.name}</span>
+              {tag}
+              {p.host && <span className="tag host">방장</span>}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      <Panel s={s} seat={topSeat} isMe={myColor === topSeat} danger={false} />
+      <div id="oResult" />
+      <div id="oBoardWrap">
+        <div id="oFrame">
+          <div className="ocorner tl" /><div className="ocorner tr" />
+          <div className="ocorner bl" /><div className="ocorner br" />
+          <div id="board">
+            {Array.from({ length: 64 }).map((_, i) => {
+              const r = Math.floor(i / 8), c = i % 8;
+              const v = s.board[r][c];
+              let cls = 'ocell';
+              if (lm && i === placedIdx && v) cls += ' last';
+              let inner = null;
+              if (v) {
+                inner = <div className={'disc ' + (v === 'B' ? 'black' : 'white')} />;
+              } else if (s.phase === 'playing' && legalSet.has(i)) {
+                cls += myTurn ? ' playable' : ' hint';
+              }
+              return (
+                <div key={i} className={cls} onClick={() => { if (myTurn) send({ type: 'move', r, c }); }}>{inner}</div>
+              );
+            })}
+          </div>
+        </div>
+        <div id="oToast" />
+        <div id="oWinPanel">
+          {win && (
+            <div className={'owin-card ' + win.cls}>
+              <div className="owin-emoji">{win.emoji}</div>
+              <div className="owin-title">{win.title}</div>
+              <div className="owin-sub">{win.scoreLine}</div>
+            </div>
+          )}
+        </div>
+      </div>
+      <Panel s={s} seat={botSeat} isMe={myColor === botSeat} danger={danger} />
+      <div className="btnrow" id="oCtrl">{ctrl}</div>
+      {infoEl && createPortal(sidebar, infoEl)}
+    </>
+  );
+}

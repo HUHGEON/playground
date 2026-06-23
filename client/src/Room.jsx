@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import Gostop from './games/Gostop.jsx';
+import Othello from './games/Othello.jsx';
+import Seotda from './games/Seotda.jsx';
+import Poker from './games/Poker.jsx';
 
-// 게임별 React 컴포넌트(점진 이전). 미이전 게임은 안내 표시.
 const GAME_COMPONENTS = {
   gostop: Gostop,
+  othello: Othello,
+  seotda: Seotda,
+  poker: Poker,
 };
 
 export default function Room({ ws }) {
