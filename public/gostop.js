@@ -361,7 +361,14 @@
       const r = node.getBoundingClientRect();
       const to = { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top };
       const dx = from.x - to.x, dy = from.y - to.y, rot = (lp && lp.rot) || 0;
-      node.animate([
+      if (window.gsap) {
+        // GSAP: 손→바닥 던지기. 오버슛은 back.out 이징 한 줄(수동 키프레임 X). clearProps로 끝나면 CSS에 인계.
+        gsap.fromTo(node,
+          { xPercent: -50, yPercent: -50, x: dx, y: dy, rotation: rot * 0.4, scale: 1.16 },
+          { x: 0, y: 0, rotation: rot, scale: 1, duration: 0.42, ease: 'back.out(1.7)', clearProps: 'transform' });
+        return;
+      }
+      node.animate([                                 // 폴백(GSAP 미로드): 기존 WAAPI
         { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot * 0.3}deg) scale(1.13)`, offset: 0 },
         { transform: `translate(-50%,-50%) translate(${dx * 0.05}px,${dy * 0.05 - 7}px) rotate(${rot}deg) scale(1.06)`, offset: 0.72 },
         { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1)`, offset: 1 },
