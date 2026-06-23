@@ -266,3 +266,7 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 /* 보너스 보충 ghost(더미→손) */
 .gs-drawghost { position: absolute; width: 46px; height: 70px; border-radius: 6px; pointer-events: none;
   background: linear-gradient(160deg, #a51f27, #771319); box-shadow: 0 6px 14px rgba(0,0,0,.5), inset 0 0 0 1.5px rgba(227,200,120,.45); }
+
+/* 더미서 뒤집힌 패 크게 보여주기 */
+.gs-flipreveal { position: absolute; width: 58px; height: 88px; border-radius: 8px; pointer-events: none; z-index: 12; background: #fff; object-fit: cover;
+  box-shadow: 0 12px 30px rgba(0,0,0,.6), 0 0 0 2px #e3c878, 0 0 26px rgba(227,200,120,.65); }

@@ -286,7 +286,7 @@ function playCard(room, seat, cardId) {
   const ci = hand.findIndex((c) => c.id === cardId);
   if (ci < 0) return false;
   const card = hand.splice(ci, 1)[0];
-  r.events = [];
+  r.events = []; r.lastFlip = null;              // 새 턴 — 직전 뒤집힌 패 초기화
   if (card.flags.includes('BONUS')) {            // 손패 보너스: 내 피로 + 상대 피 뺏고 + 더미 한 장 손으로 보충(공짜) → 한 장 더 냄
     capture(r, seat, [card]); r.events.push({ ev: 'bonus', card: card.id, src: 'hand' });
     if (cfg.bonusStealPi) stealPi(room, seat, 1, 'bonus');
@@ -318,6 +318,7 @@ function flipStep(room, seat) {
 // 손패(바닥에 올라가 있음) + 뒤집기 d 합산 판정
 function resolveTurn(room, seat, d) {
   const r = room.gs.round;
+  if (d) r.lastFlip = d;                          // 더미서 뒤집힌 패(클라가 크게 보여줌)
   const M = r.turn.m, cB = r.turn.cBefore, h = r.turn.hand;
   let captured = false;
 
@@ -760,6 +761,7 @@ module.exports = {
       myTurn: seatIdx === r.turnIdx && !r.pending,
       floor: r.floor,
       drawCount: r.draw.length,
+      flippedCard: r.lastFlip || null,           // 이번 턴 더미서 뒤집힌 패(크게 보여주기)
       myHand: seatIdx >= 0 ? (r.hands[seatIdx] || []) : [],
       handCounts: r.hands.map((h) => h.length),
       captured: r.captured,

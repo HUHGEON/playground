@@ -257,7 +257,7 @@
         const p = lay[c.id] || { x: 50, y: 50, rot: 0 };
         const isNew = !prevFloorIds.has(c.id);
         // 내가 낸 패는 손패→바닥 던지기(WAAPI)로 따로 처리 → mount 애니 없음. 더미서=flip / 그 외 새 패=slam
-        const anim = !isNew ? '' : (c.id === playedId ? '' : placedDeck.has(c.id) ? ' flipin' : ' slam');
+        const anim = !isNew ? '' : (c.id === playedId || placedDeck.has(c.id) ? '' : ' slam');   // 더미서 깔린 패는 reveal로 보여주므로 mount 애니 없음
         fids.push(c.id);
         return { id: c.id, m: c.m, src: cardSrc(c), cls: `gscard floorc${ch ? ' choosable' : ''}${anim}`, style: `left:${p.x}%;top:${p.y}%;--rot:${p.rot}deg` };
       });
@@ -268,6 +268,7 @@
     if (playedId && newFloorIds.has(playedId) && prevHandRects[playedId]) throwToFloor(playedId, prevHandRects[playedId], lay[playedId], felt);
     captureFly(s, prevRects, prevHandRects, playedId, newFloorIds, lay, felt);   // 획득 모션(던진 패 매칭 포함)
     drawFly(s, felt);                                                             // 보너스 보충: 더미 → 손/패널
+    flipReveal(s, felt);                                                          // 더미서 뒤집힌 패 크게 보여주기
     const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
 
     // 더미(가운데) — 큰판/점수 표시 없음(점수는 각 사람 패널에만)
@@ -395,6 +396,30 @@
           } catch (e2) {}
         }, 120 + i * 130);
       });
+    } catch (e) {}
+  }
+
+  // 더미서 뒤집힌 패를 더미 위에 크게 보여주기(뭐 뒤집었는지 확인)
+  let lastFlipKey = '';
+  function flipReveal(s, felt) {
+    try {
+      const fc = s.flippedCard;
+      const key = fc ? s.handNo + ':' + fc.id : '';
+      if (!fc || key === lastFlipKey) return; lastFlipKey = key;
+      const deckPt = feltPt($('gsCenter'), felt); const motion = $('gsMotion'); if (!deckPt || !motion) return;
+      setTimeout(() => {
+        try {
+          const el = document.createElement('img'); el.className = 'gs-flipreveal'; el.src = cardSrc(fc);
+          el.style.left = deckPt.x + 'px'; el.style.top = (deckPt.y - 8) + 'px'; motion.appendChild(el);
+          el.animate([
+            { transform: 'translate(-50%,-50%) rotateY(90deg) scale(.8)', opacity: 0, offset: 0 },
+            { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.5)', opacity: 1, offset: 0.18 },
+            { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.5)', opacity: 1, offset: 0.72 },
+            { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.15)', opacity: 0, offset: 1 },
+          ], { duration: 1000, easing: 'cubic-bezier(.3,.7,.4,1)' });
+          setTimeout(() => el.remove(), 1050);
+        } catch (e2) {}
+      }, 330);   // 던지기(0~360) 뒤 = 뒤집기 타이밍
     } catch (e) {}
   }
 
