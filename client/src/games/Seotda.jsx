@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useFitStage } from './useFitStage.js';
 import Secs from './Secs.jsx';
@@ -47,6 +47,50 @@ function evalLocal(cards) {
 function actCls(a) {
   return { '체크': 'check', '삥': 'ping', '콜': 'call', '따당': 'ddang', '쿼터': 'quarter', '하프': 'half', '풀': 'full', '올인': 'allin', '맥스': 'allin', '다이': 'die' }[a] || 'call';
 }
+const MONEY_ACTS = ['콜', '삥', '따당', '쿼터', '하프', '올인'];
+// 좌석 위 액션 토스트(체크/콜/하프…)
+function showActToast(seatEl, act) {
+  if (!seatEl) return;
+  const r = seatEl.getBoundingClientRect();
+  const t = document.createElement('div');
+  t.className = 'act-toast ab-' + actCls(act);
+  t.textContent = act;
+  t.style.left = (r.left + r.width / 2 + window.scrollX) + 'px';
+  t.style.top = (r.top + r.height / 2 + window.scrollY) + 'px';
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('out'), 650);
+  setTimeout(() => { if (t.parentNode) t.remove(); }, 950);
+}
+// 베팅 시 지폐 3장이 좌석→팟으로 날아감
+function showMoneyThrow(seatEl) {
+  const pot = document.getElementById('potCenter');
+  if (!seatEl || !pot) return;
+  const r1 = seatEl.getBoundingClientRect(), r2 = pot.getBoundingClientRect();
+  for (let i = 0; i < 3; i++) {
+    const bill = document.createElement('div');
+    bill.className = 'money-fly wbill ' + (i === 1 ? 'oman' : 'man');
+    bill.innerHTML = '<span class="strap"><i>' + (i === 1 ? '50000' : '10000') + '</i></span>';
+    const sx = r1.left + r1.width / 2, sy = r1.top + r1.height / 2;
+    bill.style.left = (sx + window.scrollX) + 'px'; bill.style.top = (sy + window.scrollY) + 'px';
+    bill.style.setProperty('--dx', (r2.left + r2.width / 2 - sx) + 'px');
+    bill.style.setProperty('--dy', (r2.top + r2.height / 2 - sy) + 'px');
+    bill.style.animationDelay = (i * 70) + 'ms';
+    document.body.appendChild(bill);
+    setTimeout(() => { if (bill.parentNode) bill.remove(); }, 700 + i * 70);
+  }
+}
+// 내 차례 토스트
+function showTurnToast() {
+  const felt = document.getElementById('seotdaFelt');
+  const t = document.createElement('div');
+  t.className = 'turn-toast';
+  t.textContent = '🟢 당신 차례!';
+  if (felt) { const r = felt.getBoundingClientRect(); t.style.left = (r.left + r.width / 2 + window.scrollX) + 'px'; t.style.top = (r.top + r.height / 2 + window.scrollY) + 'px'; }
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('out'), 950);
+  setTimeout(() => { if (t.parentNode) t.remove(); }, 1300);
+}
+function seatElFor(name) { try { return document.querySelector(`.seat[data-player="${(window.CSS && CSS.escape) ? CSS.escape(name) : name}"]`); } catch { return null; } }
 
 // 족보표(사이드바 토글) — 카드 이미지 조합
 const JOKBO = [
@@ -177,6 +221,28 @@ export default function Seotda({ ws }) {
     window.leaveConfirm = (s.phase === 'playing' && me) ? '판 진행 중 나가면 다이(기권) 처리됩니다. 나가시겠어요?' : null;
     return () => { window.leaveConfirm = null; };
   });
+
+  // 액션 토스트 + 돈 던지기 + 턴 토스트(바닐라 render의 prevActs 비교 로직)
+  const prevActs = useRef(null);
+  const wasMyTurn = useRef(false);
+  useEffect(() => {
+    const ps = s.players || [];
+    if (prevActs.current === null) {                       // 첫 렌더/방 진입: 토스트 없이 초기화
+      const np = {}; ps.forEach((p) => { np[p.name] = p.act || null; });
+      prevActs.current = np; wasMyTurn.current = !!s.myTurn; return;
+    }
+    ps.forEach((p) => {
+      if (p.act && prevActs.current[p.name] !== p.act) {
+        const el = seatElFor(p.name);
+        showActToast(el, p.act);
+        if (MONEY_ACTS.includes(p.act)) showMoneyThrow(el);
+      }
+    });
+    const np = {}; ps.forEach((p) => { np[p.name] = p.act || null; });
+    prevActs.current = np;
+    if (s.myTurn && !wasMyTurn.current) showTurnToast();
+    wasMyTurn.current = !!s.myTurn;
+  }, [s]);
   let meEntry = null;
   if (me) meEntry = me;
   else if (myName) meEntry = { name: myName, color: s.yourColor || '#fff', chips: s.myChips ?? 0, isMe: true, waiting: true, bankrupt: (s.myChips ?? 0) < s.ante };
