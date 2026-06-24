@@ -30,10 +30,11 @@ function animThrow(id, from, rot) {
   const dx = from.x - to.x, dy = from.y - to.y;
   try {
     node.animate([
-      { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot * 0.3}deg) scale(1.15)`, offset: 0 },
-      { transform: `translate(-50%,-50%) translate(${dx * 0.05}px,${dy * 0.05 - 7}px) rotate(${rot}deg) scale(1.06)`, offset: 0.72 },
+      { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot * 0.3}deg) scale(1.2)`, offset: 0 },
+      { transform: `translate(-50%,-50%) translate(${dx * 0.06}px,${dy * 0.06 - 9}px) rotate(${rot}deg) scale(1.14)`, offset: 0.62 },   // 자리 위서 잠깐 떴다
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(.97)`, offset: 0.84 },                                                  // 탁 착지(살짝 눌림)
       { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1)`, offset: 1 },
-    ], { duration: 420, easing: 'cubic-bezier(.3,.85,.4,1)' });
+    ], { duration: 540, easing: 'cubic-bezier(.3,.7,.3,1)' });
   } catch (e) { /* noop */ }
 }
 // 엘리먼트 중심(felt 기준)
@@ -289,15 +290,21 @@ export default function Gostop({ ws }) {
     if (!deckPt || !motion) return undefined;
     const t = setTimeout(() => {
       try {
+        // 뒤집힌 패가 안착할 바닥 자리 측정(없으면 더미 근처) → 크게 리빌 후 그 자리로 날아감
+        let toPt = { x: deckPt.x, y: deckPt.y };
+        let node; try { node = document.querySelector(`#gsFloor .gscard[data-id="${(window.CSS && CSS.escape) ? CSS.escape(fc.id) : fc.id}"]`); } catch { node = null; }
+        if (node) { const r = node.getBoundingClientRect(); const f = feltEl.getBoundingClientRect(); toPt = { x: r.left + r.width / 2 - f.left, y: r.top + r.height / 2 - f.top }; }
+        const dx = toPt.x - deckPt.x, dy = toPt.y - deckPt.y;
         const el = document.createElement('img'); el.className = 'gs-flipreveal'; el.src = cardSrc(fc);
         el.style.left = deckPt.x + 'px'; el.style.top = (deckPt.y - 8) + 'px'; motion.appendChild(el);
         el.animate([
           { transform: 'translate(-50%,-50%) rotateY(90deg) scale(.8)', opacity: 0, offset: 0 },
-          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.5)', opacity: 1, offset: 0.18 },
-          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.5)', opacity: 1, offset: 0.72 },
-          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.15)', opacity: 0, offset: 1 },
-        ], { duration: 1000, easing: 'cubic-bezier(.3,.7,.4,1)' });
-        setTimeout(() => el.remove(), 1050);
+          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.6)', opacity: 1, offset: 0.16 },    // 크게 리빌
+          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.6)', opacity: 1, offset: 0.5 },      // 멈춰서 보여줌
+          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1)`, opacity: 1, offset: 0.92 },  // 안착 자리로 날아감
+          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1)`, opacity: 0, offset: 1 },      // 실제 카드와 교체
+        ], { duration: 1150, easing: 'cubic-bezier(.3,.6,.3,1)' });
+        setTimeout(() => el.remove(), 1200);
       } catch (e) { /* noop */ }
     }, 330);
     return () => clearTimeout(t);
@@ -323,10 +330,10 @@ export default function Gostop({ ws }) {
         try {
           const g = document.createElement('div'); g.className = 'gs-drawghost';
           g.style.left = deckPt.x + 'px'; g.style.top = deckPt.y + 'px'; motion.appendChild(g);
-          g.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${to.x - deckPt.x}px,${to.y - deckPt.y}px) scale(.7)`, opacity: .25 }], { duration: 330, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
-          setTimeout(() => g.remove(), 390);
+          g.animate([{ transform: 'translate(-50%,-50%) scale(1.05)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${to.x - deckPt.x}px,${to.y - deckPt.y}px) scale(.7)`, opacity: .25 }], { duration: 440, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
+          setTimeout(() => g.remove(), 500);
         } catch (e2) { /* noop */ }
-      }, 120 + i * 130));
+      }, 980 + i * 220));   // 보너스피 가져간(hold ~760ms) 뒤에 보충 카드가 옴 — 순차적으로 또렷이
     });
     return () => timers.forEach(clearTimeout);
   }, [s]);
