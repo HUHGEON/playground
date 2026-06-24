@@ -56,6 +56,22 @@ function flyGhost(motion, card, from, to, delay, dur) {
     } catch (e) { /* noop */ }
   }, delay || 0);
 }
+// hold 종료 시: 바닥에 잡아둔(낸/뒤집힌/매칭된) 패들을 캡처 좌석 더미로 촥촥 날림
+function flyCaptured(cards, capSeat, me) {
+  const feltEl = document.getElementById('gsFelt'); if (!feltEl) return;
+  const felt = feltEl.getBoundingClientRect();
+  const motion = document.getElementById('gsMotion'); if (!motion) return;
+  const pileEl = capSeat === me ? document.getElementById('gsMyCap') : document.querySelector('#gsTop .gs-opp');
+  const tgt = feltPt(pileEl, felt); if (!tgt) return;
+  let n = 0;
+  for (const c of cards) {
+    let node; try { node = document.querySelector(`#gsFloor .gscard[data-id="${(window.CSS && CSS.escape) ? CSS.escape(c.id) : c.id}"]`); } catch { node = null; }
+    if (!node) continue;
+    const r = node.getBoundingClientRect();
+    const from = { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top };
+    flyGhost(motion, c, from, tgt, n * 135); n++;
+  }
+}
 // 딜 인트로 — 손패가 더미 위치에서 제자리로 날아 들어옴(스태거)
 function animDealIn(id, fromPt, toPt, delay) {
   const node = document.querySelector(`#gsHand .gscard[data-id="${(window.CSS && CSS.escape) ? CSS.escape(id) : id}"]`);
@@ -103,14 +119,14 @@ function useSize() {
   return [ref, size];
 }
 
-function OppTop({ s, seat }) {
+function OppTop({ s, seat, cap: capProp }) {
   const p = s.seats[seat]; if (!p) return null;
   const turn = s.turnIdx === seat && s.phase === 'playing';
   const sc = s.scores ? s.scores[seat] : 0;
   const tags = [];
   if (s.goCounts && s.goCounts[seat]) tags.push(`${s.goCounts[seat]}고`);
   if (s.shake && s.shake[seat]) tags.push(`흔들×${s.shake[seat]}`);
-  const cap = (s.captured && s.captured[seat]) || [];
+  const cap = capProp || (s.captured && s.captured[seat]) || [];
   return (
     <div className={'gs-opp' + (turn ? ' turn' : '')} data-player={p.name}>
       <div className="gs-opp-head">
@@ -132,14 +148,52 @@ export default function Gostop({ ws }) {
   const send = ws.send;
   const [rulesOpen, setRulesOpen] = useState(false);
   const [infoEl, setInfoEl] = useState(null);
+  const [hold, setHold] = useState(null);   // 캡처 hold: { floor:[cards], capSeat, pile:[cards], slamIds:Set }
   useEffect(() => { setInfoEl(document.getElementById('roomInfo')); }, []);
 
   const me = s.yourSeat;
   const opps = (s.seats || []).map((_, i) => i).filter((i) => i !== me);
   const oppSeat = opps[0];
-  const myTurn = s.myTurn && s.phase === 'playing';
-  const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
-  const lay = floorLayout(s.floor);
+  const myTurn = s.myTurn && s.phase === 'playing' && !hold;
+  // hold 중엔 잡아둔 바닥/더미를 표시(낸 패가 바닥에 슬램 → 멈춤 → 더미로)
+  const displayFloor = hold ? hold.floor : (s.floor || []);
+  const capFor = (seat) => ((hold && hold.capSeat === seat) ? hold.pile : ((s.captured && s.captured[seat]) || []));
+  const floorMonths = new Set(displayFloor.map((c) => c.m).filter(Boolean));
+  const lay = floorLayout(displayFloor);
+
+  // 캡처 hold — 매칭 먹기 시 보드 갱신을 잠깐 붙잡아 슬램→멈춤→가져오기 리듬
+  const prevFloorC = useRef([]);
+  const prevCapC = useRef([]);
+  const holdTok = useRef(0);
+  useEffect(() => {
+    if (s.phase !== 'playing') {
+      prevFloorC.current = s.floor || [];
+      prevCapC.current = (s.captured || []).map((a) => a.slice());
+      setHold(null);
+      return undefined;
+    }
+    const pf = prevFloorC.current, pc = prevCapC.current, nf = s.floor || [], nc = s.captured || [];
+    let capSeat = -1;
+    for (let i = 0; i < nc.length; i++) { if ((nc[i] ? nc[i].length : 0) > ((pc[i] && pc[i].length) || 0)) { capSeat = i; break; } }
+    let didHold = false;
+    if (capSeat >= 0) {
+      const nfIds = new Set(nf.map((c) => c.id));
+      const capturedFloor = pf.filter((c) => !nfIds.has(c.id));                          // 바닥서 먹힌 패
+      const pcIds = new Set((pc[capSeat] || []).map((c) => c.id));
+      const fromHand = (nc[capSeat] || []).filter((c) => !pcIds.has(c.id) && !capturedFloor.find((x) => x.id === c.id));  // 손/더미서 온 패(낸·뒤집힌·보너스)
+      if (capturedFloor.length || fromHand.length) {
+        const tok = ++holdTok.current;
+        const flyList = [...capturedFloor, ...fromHand], seatForFly = capSeat;
+        setHold({ floor: [...pf, ...fromHand], capSeat, pile: (pc[capSeat] || []).slice(), slamIds: new Set(fromHand.map((c) => c.id)) });
+        window.setTimeout(() => { if (holdTok.current !== tok) return; flyCaptured(flyList, seatForFly, me); setHold(null); }, 760);
+        didHold = true;
+      }
+    }
+    if (!didHold) setHold(null);
+    prevFloorC.current = nf;
+    prevCapC.current = nc.map((a) => a.slice());
+    return undefined;
+  }, [s]);
 
   // 카드 모션 — 매 렌더 위치를 ref에 저장해, 다음 렌더 때 '이전 위치'에서 날아오게(바닐라 throwToFloor 방식)
   const prevHandRects = useRef({});
@@ -182,40 +236,7 @@ export default function Gostop({ ws }) {
       animThrow(leftHandId, prevHandRects.current[leftHandId], rot);
     }
 
-    // 먹기: events의 획득 패를 더미로 날림(던졌으면 던지기+뒤집기 뒤에)
-    const capIds = [];
-    for (const ev of (s.events || [])) { if (Array.isArray(ev.cards)) capIds.push(...ev.cards); if (ev.ev === 'bonus' && ev.card) capIds.push(ev.card); }
-    if (capIds.length && s.captured) {
-      let capturer = s.turnIdx;
-      if (lastCapCounts.current) for (let i = 0; i < s.captured.length; i++) {
-        if ((s.captured[i] ? s.captured[i].length : 0) > (lastCapCounts.current[i] || 0)) { capturer = i; break; }
-      }
-      const pileEl = capturer === me ? document.getElementById('gsMyCap') : document.querySelector('#gsTop .gs-opp');
-      const tgt = feltPt(pileEl, felt);
-      const motion = document.getElementById('gsMotion');
-      if (tgt && motion) {
-        const cardOf = (id) => s.captured[capturer] && s.captured[capturer].find((c) => c.id === id);
-        // 내가 던져서 바로 먹은 경우: 1단계 손→매칭자리로 보이고, 2단계 다 같이 더미로
-        const threwAndAte = leftHandId && capIds.includes(leftHandId) && prevHandRects.current[leftHandId] && !newFloorIds.has(leftHandId);
-        const floorMate = capIds.find((id) => id !== leftHandId && prevFloorRects.current[id]);
-        const matchPos = (floorMate && prevFloorRects.current[floorMate]) || feltPt(document.getElementById('gsFloor'), felt);
-        const threw = leftHandId && prevHandRects.current[leftHandId];
-        const base = threw ? 950 : 420;            // 던졌으면 던지기·뒤집기·매칭 보여준 뒤 가져오기
-        // 1단계: 낸 카드가 매칭자리로 날아가 '여기 던졌다'를 보여줌
-        if (threwAndAte) { const c = cardOf(leftHandId); if (c && matchPos) flyGhost(motion, c, prevHandRects.current[leftHandId], matchPos, 0, 460); }
-        // 2단계: 먹은 패 전부 더미로(또렷·스태거 크게)
-        let n = 0;
-        capIds.forEach((id) => {
-          const card = cardOf(id); if (!card) return;
-          let from;
-          if (id === leftHandId && threwAndAte) from = matchPos;                       // 낸 패 = 매칭자리에서
-          else if (prevFloorRects.current[id]) from = prevFloorRects.current[id];       // 바닥패 = 바닥에서
-          else if (id === leftHandId && prevHandRects.current[id]) from = prevHandRects.current[id];  // 매칭없이 먹은 낸 패 = 손에서
-          else return;
-          flyGhost(motion, card, from, tgt, base + n * 135); n++;   // 135ms 간격 = 하나씩 촥촥
-        });
-      }
-    }
+    // 먹기(매칭 캡처)는 아래 hold useEffect가 처리(보드 붙잡고 슬램→멈춤→가져오기)
 
     prevHandRects.current = newHandRects;
     prevFloorRects.current = newFloorRects;
@@ -433,7 +454,7 @@ export default function Gostop({ ws }) {
   }
 
   // ── 플레이 보드 ──
-  const myCap = (s.captured && s.captured[me]) || [];
+  const myCap = capFor(me);
   const decision = s.decision;
   const result = s.phase === 'finished' && s.result ? s.result : null;
   // 결과 화면 태그(고/흔들/멍박/총통×4/박) — 바닐라 resultHTML
@@ -455,17 +476,18 @@ export default function Gostop({ ws }) {
 
   return withSidebar(
     <div id="gsStage"><div id="gsFelt">
-      <div id="gsTop">{oppSeat != null && <OppTop s={s} seat={oppSeat} />}</div>
+      <div id="gsTop">{oppSeat != null && <OppTop s={s} seat={oppSeat} cap={capFor(oppSeat)} />}</div>
       <div id="gsBody">
         <div id="gsLeft" className="gs-side" />
         <div id="gsMid">
           <div id="gsFloor">
-            {(s.floor || []).map((c) => {
-              const ch = s.pendingChoice && s.pendingChoice.options.some((o) => o.id === c.id);
+            {displayFloor.map((c) => {
+              const ch = !hold && s.pendingChoice && s.pendingChoice.options.some((o) => o.id === c.id);
+              const slam = hold && hold.slamIds.has(c.id);     // 낸/뒤집힌 패 = 바닥에 슬램
               const p = lay[c.id] || { x: 50, y: 50, rot: 0 };
               return (
-                <img key={c.id} className={'gscard floorc' + (ch ? ' choosable' : '')} src={cardSrc(c)} data-id={c.id} data-m={c.m} draggable={false} alt=""
-                  style={{ left: p.x + '%', top: p.y + '%', '--rot': p.rot + 'deg' }}
+                <img key={c.id} className={'gscard floorc' + (ch ? ' choosable' : '') + (slam ? ' slam' : '')} src={cardSrc(c)} data-id={c.id} data-m={c.m} draggable={false} alt=""
+                  style={{ left: p.x + '%', top: p.y + '%', '--rot': p.rot + 'deg', zIndex: slam ? 8 : undefined }}
                   onClick={() => ch && send({ type: 'choose', cardId: c.id })} />
               );
             })}
