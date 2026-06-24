@@ -22,33 +22,28 @@ export function pileGroups(captured) {
   return { g, piVal };
 }
 
-// 바닥 레이아웃 — 같은 월만 한 셀에 겹침, 다른 월은 분리 셀. w,h = #gsFloor px. 반환 id→{x,y(%),rot}
-export function floorLayout(floor, w, h) {
+// 바닥 레이아웃 — 월 번호로 고정 위치(중앙 더미 둘레 링). 다른 월 카드가 추가/제거돼도 안 흔들림.
+// 같은 월만 한 자리에 겹침. 순수 % 라 #gsFloor 크기와 무관. 반환 id→{x,y(%),rot}
+const MONTH_RING = (() => {
+  const map = {};
+  const order = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0];   // 0=보너스
+  order.forEach((m, i) => {
+    const a = (i / order.length) * 2 * Math.PI - Math.PI / 2;   // 위에서 시계방향
+    map[m] = { x: 50 + 40 * Math.cos(a), y: 50 + 34 * Math.sin(a) };
+  });
+  return map;
+})();
+export function floorLayout(floor) {
   const pos = {};
-  if (!floor || !floor.length || !w || !h) return pos;
+  if (!floor || !floor.length) return pos;
   const byMonth = {};
   for (const c of floor) (byMonth[c.m] = byMonth[c.m] || []).push(c);
-  const months = Object.keys(byMonth).sort((a, b) => byMonth[b].length - byMonth[a].length || a - b);
-  const CW = 52, CH = 78, GO = 12;
-  const cellW = CW + GO * 2 + 24, cellH = CH + 24;
-  const cols = Math.max(2, Math.floor((w - 2) / cellW));
-  const rows = Math.max(2, Math.floor((h - 2) / cellH));
-  const gw = cols * cellW, gh = rows * cellH, ox = (w - gw) / 2, oy = (h - gh) / 2;
-  const fx = w / 2, fy = h / 2;
-  const cells = [];
-  for (let r = 0; r < rows; r++) for (let cc = 0; cc < cols; cc++) {
-    const x = ox + cc * cellW + cellW / 2, y = oy + r * cellH + cellH / 2;
-    if (Math.hypot(x - fx, y - fy) < 64) continue;
-    cells.push({ x, y, d: Math.hypot(x - fx, y - fy) });
-  }
-  cells.sort((a, b) => a.d - b.d);
-  months.forEach((m, i) => {
-    const cell = cells[i % cells.length] || { x: fx, y: fy };
+  const OFF = 2.6;   // 같은 월 겹침 간격(%)
+  for (const m of Object.keys(byMonth)) {
+    const c0 = MONTH_RING[m] || { x: 50, y: 50 };
     const g = byMonth[m];
-    const x0 = cell.x - (g.length - 1) * GO / 2;
-    g.forEach((c, k) => {
-      pos[c.id] = { x: (x0 + k * GO) / w * 100, y: cell.y / h * 100, rot: (hashId(c.id) % 10) - 5 };
-    });
-  });
+    const x0 = c0.x - (g.length - 1) * OFF / 2;
+    g.forEach((c, k) => { pos[c.id] = { x: x0 + k * OFF, y: c0.y, rot: (hashId(c.id) % 8) - 4 }; });
+  }
   return pos;
 }

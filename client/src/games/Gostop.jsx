@@ -48,10 +48,10 @@ function flyGhost(motion, card, from, to, delay, dur) {
       const g = document.createElement('img'); g.className = 'gs-ghost'; g.src = cardSrc(card);
       g.style.left = from.x + 'px'; g.style.top = from.y + 'px'; motion.appendChild(g);
       g.animate([
-        { transform: 'translate(-50%,-50%) scale(1.08)', opacity: 1, offset: 0 },
-        { transform: `translate(-50%,-50%) translate(${dx * 0.82}px,${dy * 0.82}px) scale(.95)`, opacity: 1, offset: 0.72 },
-        { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) scale(.4)`, opacity: .15, offset: 1 },
-      ], { duration: dur, easing: 'cubic-bezier(.35,.1,.35,1)', fill: 'forwards' });
+        { transform: 'translate(-50%,-50%) scale(1.1)', opacity: 1, offset: 0 },
+        { transform: `translate(-50%,-50%) translate(${dx * 0.9}px,${dy * 0.9}px) scale(1)`, opacity: 1, offset: 0.78 },   // 또렷하게 거의 도착
+        { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) scale(.35)`, opacity: 0, offset: 1 },                 // 더미서 톡 빨려듦
+      ], { duration: dur, easing: 'cubic-bezier(.5,0,.12,1)', fill: 'forwards' });
       setTimeout(() => g.remove(), dur + 60);
     } catch (e) { /* noop */ }
   }, delay || 0);
@@ -132,7 +132,6 @@ export default function Gostop({ ws }) {
   const send = ws.send;
   const [rulesOpen, setRulesOpen] = useState(false);
   const [infoEl, setInfoEl] = useState(null);
-  const [floorRef, floorSize] = useSize();
   useEffect(() => { setInfoEl(document.getElementById('roomInfo')); }, []);
 
   const me = s.yourSeat;
@@ -140,7 +139,7 @@ export default function Gostop({ ws }) {
   const oppSeat = opps[0];
   const myTurn = s.myTurn && s.phase === 'playing';
   const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
-  const lay = floorLayout(s.floor, floorSize.w, floorSize.h);
+  const lay = floorLayout(s.floor);
 
   // 카드 모션 — 매 렌더 위치를 ref에 저장해, 다음 렌더 때 '이전 위치'에서 날아오게(바닐라 throwToFloor 방식)
   const prevHandRects = useRef({});
@@ -213,7 +212,7 @@ export default function Gostop({ ws }) {
           else if (prevFloorRects.current[id]) from = prevFloorRects.current[id];       // 바닥패 = 바닥에서
           else if (id === leftHandId && prevHandRects.current[id]) from = prevHandRects.current[id];  // 매칭없이 먹은 낸 패 = 손에서
           else return;
-          flyGhost(motion, card, from, tgt, base + n * 90); n++;
+          flyGhost(motion, card, from, tgt, base + n * 135); n++;   // 135ms 간격 = 하나씩 촥촥
         });
       }
     }
@@ -460,7 +459,7 @@ export default function Gostop({ ws }) {
       <div id="gsBody">
         <div id="gsLeft" className="gs-side" />
         <div id="gsMid">
-          <div id="gsFloor" ref={floorRef}>
+          <div id="gsFloor">
             {(s.floor || []).map((c) => {
               const ch = s.pendingChoice && s.pendingChoice.options.some((o) => o.id === c.id);
               const p = lay[c.id] || { x: 50, y: 50, rot: 0 };
