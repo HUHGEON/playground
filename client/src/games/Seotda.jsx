@@ -91,6 +91,17 @@ function showTurnToast() {
   setTimeout(() => { if (t.parentNode) t.remove(); }, 1300);
 }
 function seatElFor(name) { try { return document.querySelector(`.seat[data-player="${(window.CSS && CSS.escape) ? CSS.escape(name) : name}"]`); } catch { return null; } }
+// 캐리(묻고 더블로 가!) 토스트
+function showCarryToast() {
+  const felt = document.getElementById('seotdaFelt');
+  const t = document.createElement('div');
+  t.className = 'carry-toast';
+  t.innerHTML = '<img src="/carry.jpeg" alt="묻고 더블로 가!" draggable="false">';
+  if (felt) { const r = felt.getBoundingClientRect(); t.style.left = (r.left + r.width / 2 + window.scrollX) + 'px'; t.style.top = (r.top + r.height / 2 + window.scrollY) + 'px'; }
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('out'), 1700);
+  setTimeout(() => { if (t.parentNode) t.remove(); }, 2100);
+}
 
 // 족보표(사이드바 토글) — 카드 이미지 조합
 const JOKBO = [
@@ -243,6 +254,21 @@ export default function Seotda({ ws }) {
     if (s.myTurn && !wasMyTurn.current) showTurnToast();
     wasMyTurn.current = !!s.myTurn;
   }, [s]);
+
+  // 내 차례 펠트 글로우(바닐라 felt.classList.toggle myturn)
+  useEffect(() => {
+    const felt = document.getElementById('seotdaFelt');
+    if (felt) felt.classList.toggle('myturn', s.phase === 'playing' && !!s.myTurn);
+    return () => { const f = document.getElementById('seotdaFelt'); if (f) f.classList.remove('myturn'); };
+  });
+
+  // 캐리(묻고 더블로 가!) 토스트 — carrySeq 증가 시
+  const lastCarrySeq = useRef(null);
+  useEffect(() => {
+    if (lastCarrySeq.current !== null && (s.carrySeq || 0) > lastCarrySeq.current) showCarryToast();
+    lastCarrySeq.current = s.carrySeq || 0;
+  }, [s]);
+
   let meEntry = null;
   if (me) meEntry = me;
   else if (myName) meEntry = { name: myName, color: s.yourColor || '#fff', chips: s.myChips ?? 0, isMe: true, waiting: true, bankrupt: (s.myChips ?? 0) < s.ante };
