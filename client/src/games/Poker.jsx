@@ -1,11 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useFitStage } from './useFitStage.js';
 import Secs from './Secs.jsx';
 import '../poker.css';
 
 // 세븐포커 — 바닐라 public/poker.js의 R.render(s)를 React로 이전.
-// 애니메이션(딜 모션·토스트·돈 던지기·채팅 말풍선)은 생략, 상태 기반 정적 렌더만.
+
+// 액션 토스트 / 돈 던지기 / 턴 토스트(바닐라 포커 애니 포팅)
+function actCls(a) { return { '체크': 'check', '콜': 'call', '레이즈': 'raise', '올인': 'allin', '폴드': 'die' }[a] || 'call'; }
+const MONEY_ACTS = ['콜', '레이즈', '올인'];
+function seatElFor(name) { try { return document.querySelector(`.pseat[data-player="${(window.CSS && CSS.escape) ? CSS.escape(name) : name}"]`); } catch { return null; } }
+function showActToast(seatEl, act) {
+  if (!seatEl) return;
+  const r = seatEl.getBoundingClientRect();
+  const t = document.createElement('div');
+  t.className = 'act-toast ab-' + actCls(act);
+  t.textContent = act;
+  t.style.left = (r.left + r.width / 2 + window.scrollX) + 'px';
+  t.style.top = (r.top + r.height / 2 + window.scrollY) + 'px';
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('out'), 650);
+  setTimeout(() => { if (t.parentNode) t.remove(); }, 950);
+}
+function showMoneyThrow(seatEl) {
+  const pot = document.getElementById('pokerPot');
+  if (!seatEl || !pot) return;
+  const r1 = seatEl.getBoundingClientRect(), r2 = pot.getBoundingClientRect();
+  for (let i = 0; i < 3; i++) {
+    const bill = document.createElement('div');
+    bill.className = 'money-fly wbill ' + (i === 1 ? 'oman' : 'man');
+    bill.innerHTML = '<span class="strap"><i>' + (i === 1 ? '50000' : '10000') + '</i></span>';
+    const sx = r1.left + r1.width / 2, sy = r1.top + r1.height / 2;
+    bill.style.left = (sx + window.scrollX) + 'px'; bill.style.top = (sy + window.scrollY) + 'px';
+    bill.style.setProperty('--dx', (r2.left + r2.width / 2 - sx) + 'px');
+    bill.style.setProperty('--dy', (r2.top + r2.height / 2 - sy) + 'px');
+    bill.style.animationDelay = (i * 70) + 'ms';
+    document.body.appendChild(bill);
+    setTimeout(() => { if (bill.parentNode) bill.remove(); }, 700 + i * 70);
+  }
+}
+function showTurnToast() {
+  const felt = document.getElementById('pokerFelt');
+  const t = document.createElement('div');
+  t.className = 'turn-toast'; t.textContent = '🟢 당신 차례!';
+  if (felt) { const r = felt.getBoundingClientRect(); t.style.left = (r.left + r.width / 2 + window.scrollX) + 'px'; t.style.top = (r.top + r.height / 2 + window.scrollY) + 'px'; }
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('out'), 950);
+  setTimeout(() => { if (t.parentNode) t.remove(); }, 1300);
+}
 
 const EOK = 100000000;
 function won(n) {
@@ -145,6 +187,28 @@ export default function Poker({ ws }) {
   useFitStage('pokerStage', 'pokerFelt', { max: 2.2, reserveBottom: 100 });
   useEffect(() => { setInfoEl(document.getElementById('roomInfo')); }, []);
   useEffect(() => { setActed(false); }, [s]);          // 새 서버 상태 오면 버튼 복원
+
+  // 액션 토스트 + 돈 던지기 + 턴 토스트(바닐라 prevActs 비교)
+  const prevActs = useRef(null);
+  const wasMyTurn = useRef(false);
+  useEffect(() => {
+    const ps = s.players || [];
+    if (prevActs.current === null) {
+      const np = {}; ps.forEach((p) => { np[p.name] = p.act || null; });
+      prevActs.current = np; wasMyTurn.current = !!s.myTurn; return;
+    }
+    ps.forEach((p) => {
+      if (p.act && prevActs.current[p.name] !== p.act) {
+        const el = seatElFor(p.name);
+        showActToast(el, p.act);
+        if (MONEY_ACTS.includes(p.act)) showMoneyThrow(el);
+      }
+    });
+    const np = {}; ps.forEach((p) => { np[p.name] = p.act || null; });
+    prevActs.current = np;
+    if (s.myTurn && !wasMyTurn.current) showTurnToast();
+    wasMyTurn.current = !!s.myTurn;
+  }, [s]);
 
   // ── 사이드바(대기열 + 족보) — #roomInfo로 포털 ──
   const overflow = (() => {
