@@ -38,15 +38,20 @@ function animThrow(id, from, rot) {
 }
 // 엘리먼트 중심(felt 기준)
 function feltPt(el, felt) { if (!el) return null; const r = el.getBoundingClientRect(); if (!r.width) return null; return { x: r.left + r.width / 2 - felt.left, y: r.top + r.height / 2 - felt.top }; }
-// 획득 모션 — 임시 ghost 카드가 from→to로 날아가 더미로 빨려듦
+// 획득 모션 — ghost 카드가 또렷하게 from→to로 날아가다 더미서만 빨려듦(또렷·느리게)
 function flyGhost(motion, card, from, to, delay, dur) {
-  dur = dur || 270;
+  dur = dur || 420;
   if (!from || !to) return;
+  const dx = to.x - from.x, dy = to.y - from.y;
   setTimeout(() => {
     try {
       const g = document.createElement('img'); g.className = 'gs-ghost'; g.src = cardSrc(card);
       g.style.left = from.x + 'px'; g.style.top = from.y + 'px'; motion.appendChild(g);
-      g.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${to.x - from.x}px,${to.y - from.y}px) scale(.5)`, opacity: .4 }], { duration: dur, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
+      g.animate([
+        { transform: 'translate(-50%,-50%) scale(1.08)', opacity: 1, offset: 0 },
+        { transform: `translate(-50%,-50%) translate(${dx * 0.82}px,${dy * 0.82}px) scale(.95)`, opacity: 1, offset: 0.72 },
+        { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) scale(.4)`, opacity: .15, offset: 1 },
+      ], { duration: dur, easing: 'cubic-bezier(.35,.1,.35,1)', fill: 'forwards' });
       setTimeout(() => g.remove(), dur + 60);
     } catch (e) { /* noop */ }
   }, delay || 0);
@@ -191,14 +196,24 @@ export default function Gostop({ ws }) {
       const motion = document.getElementById('gsMotion');
       if (tgt && motion) {
         const cardOf = (id) => s.captured[capturer] && s.captured[capturer].find((c) => c.id === id);
+        // 내가 던져서 바로 먹은 경우: 1단계 손→매칭자리로 보이고, 2단계 다 같이 더미로
+        const threwAndAte = leftHandId && capIds.includes(leftHandId) && prevHandRects.current[leftHandId] && !newFloorIds.has(leftHandId);
+        const floorMate = capIds.find((id) => id !== leftHandId && prevFloorRects.current[id]);
+        const matchPos = (floorMate && prevFloorRects.current[floorMate]) || feltPt(document.getElementById('gsFloor'), felt);
         const threw = leftHandId && prevHandRects.current[leftHandId];
-        const base = threw ? 700 : 360;            // 던졌으면 던지기·뒤집기 끝난 뒤 가져오기
+        const base = threw ? 950 : 420;            // 던졌으면 던지기·뒤집기·매칭 보여준 뒤 가져오기
+        // 1단계: 낸 카드가 매칭자리로 날아가 '여기 던졌다'를 보여줌
+        if (threwAndAte) { const c = cardOf(leftHandId); if (c && matchPos) flyGhost(motion, c, prevHandRects.current[leftHandId], matchPos, 0, 460); }
+        // 2단계: 먹은 패 전부 더미로(또렷·스태거 크게)
         let n = 0;
         capIds.forEach((id) => {
           const card = cardOf(id); if (!card) return;
-          const from = prevFloorRects.current[id] || (id === leftHandId ? prevHandRects.current[id] : null);
-          if (!from) return;
-          flyGhost(motion, card, from, tgt, base + n * 60); n++;
+          let from;
+          if (id === leftHandId && threwAndAte) from = matchPos;                       // 낸 패 = 매칭자리에서
+          else if (prevFloorRects.current[id]) from = prevFloorRects.current[id];       // 바닥패 = 바닥에서
+          else if (id === leftHandId && prevHandRects.current[id]) from = prevHandRects.current[id];  // 매칭없이 먹은 낸 패 = 손에서
+          else return;
+          flyGhost(motion, card, from, tgt, base + n * 90); n++;
         });
       }
     }
