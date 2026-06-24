@@ -51,6 +51,18 @@ function flyGhost(motion, card, from, to, delay, dur) {
     } catch (e) { /* noop */ }
   }, delay || 0);
 }
+// 딜 인트로 — 손패가 더미 위치에서 제자리로 날아 들어옴(스태거)
+function animDealIn(id, fromPt, toPt, delay) {
+  const node = document.querySelector(`#gsHand .gscard[data-id="${(window.CSS && CSS.escape) ? CSS.escape(id) : id}"]`);
+  if (!node || !fromPt || !toPt) return;
+  const dx = fromPt.x - toPt.x, dy = fromPt.y - toPt.y;
+  try {
+    node.animate([
+      { transform: `translate(${dx}px,${dy}px) scale(.5) rotate(-8deg)`, opacity: 0, offset: 0 },
+      { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1, offset: 1 },
+    ], { duration: 360, delay: delay || 0, easing: 'cubic-bezier(.3,.8,.4,1)', fill: 'backwards' });
+  } catch (e) { /* noop */ }
+}
 const pname = (p) => (p ? p.name.replace(/🤖/g, '') : '');
 
 function Card({ c, cls }) {
@@ -150,6 +162,15 @@ export default function Gostop({ ws }) {
     const newFloorIds = new Set(Object.keys(newFloorRects));
     const newHandIds = new Set(Object.keys(newHandRects));
     const leftHandId = [...prevHandIds.current].find((id) => !newHandIds.has(id));   // 손서 빠진 패
+
+    // 딜 인트로: 직전 손패 없음 + 이번에 한 손 가득 = 새 판 분배 → 손패가 더미서 차례로 날아옴
+    if (prevHandIds.current.size === 0 && newHandIds.size >= 7) {
+      const deckPt = feltPt(document.getElementById('gsCenter'), felt);
+      if (deckPt) {
+        let i = 0;
+        for (const [id, pos] of Object.entries(newHandRects)) { animDealIn(id, deckPt, pos, i * 55); i++; }
+      }
+    }
 
     // 던지기: 손서 빠졌고 바닥에 새로 생김(매칭 X) → 손 위치에서 날아오게
     if (leftHandId && newFloorIds.has(leftHandId) && !prevFloorIds.current.has(leftHandId) && prevHandRects.current[leftHandId]) {
