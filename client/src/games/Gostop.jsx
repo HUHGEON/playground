@@ -247,6 +247,50 @@ export default function Gostop({ ws }) {
     return () => clearTimeout(t);
   }, [s]);
 
+  // 보너스 보충 — 더미→손(내)/상대 패널로 카드뒷면 ghost(바닐라 drawFly)
+  const lastDrawKey = useRef('');
+  useEffect(() => {
+    const evs = (s.events || []).filter((e) => e.ev === 'draw');
+    const key = JSON.stringify(evs.map((e) => e.card + ':' + e.seat));
+    if (key === lastDrawKey.current) return undefined; lastDrawKey.current = key;
+    if (!evs.length) return undefined;
+    const feltEl = document.getElementById('gsFelt'); if (!feltEl) return undefined;
+    const felt = feltEl.getBoundingClientRect();
+    const deckPt = feltPt(document.getElementById('gsCenter'), felt);
+    const motion = document.getElementById('gsMotion');
+    if (!deckPt || !motion) return undefined;
+    const timers = [];
+    evs.forEach((e, i) => {
+      const toEl = e.seat === me ? document.getElementById('gsHand') : document.querySelector('#gsTop .gs-opp');
+      const to = feltPt(toEl, felt); if (!to) return;
+      timers.push(setTimeout(() => {
+        try {
+          const g = document.createElement('div'); g.className = 'gs-drawghost';
+          g.style.left = deckPt.x + 'px'; g.style.top = deckPt.y + 'px'; motion.appendChild(g);
+          g.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${to.x - deckPt.x}px,${to.y - deckPt.y}px) scale(.7)`, opacity: .25 }], { duration: 330, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
+          setTimeout(() => g.remove(), 390);
+        } catch (e2) { /* noop */ }
+      }, 120 + i * 130));
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [s]);
+
+  // 선 토스트 — 선 정해질 때 "👑 X 선!" 팝(바닐라 showSeonToast)
+  const lastSeonToast = useRef(null);
+  useEffect(() => {
+    if (s.pickSeon == null) { lastSeonToast.current = null; return undefined; }
+    if (s.pickSeon === lastSeonToast.current) return undefined;
+    lastSeonToast.current = s.pickSeon;
+    const feltEl = document.getElementById('gsFelt'); if (!feltEl || !s.seats || !s.seats[s.pickSeon]) return undefined;
+    const t = document.createElement('div'); t.className = 'gs-seontoast';
+    const b = document.createElement('b'); b.textContent = pname(s.seats[s.pickSeon]);
+    t.append('👑 ', b, ' 선!');
+    feltEl.appendChild(t);
+    const t1 = setTimeout(() => t.classList.add('out'), 1500);
+    const t2 = setTimeout(() => { if (t.parentNode) t.remove(); }, 2000);
+    return () => { clearTimeout(t1); clearTimeout(t2); if (t.parentNode) t.remove(); };
+  }, [s]);
+
   // 바닥 같은 월 2장+ 개수 뱃지
   const fbyM = {};
   (s.floor || []).forEach((c) => { if (c.m) (fbyM[c.m] = fbyM[c.m] || []).push(c); });
