@@ -218,7 +218,8 @@ export default function Gostop({ ws }) {
   const oppSeat = opps[0];
   const myTurn = s.myTurn && s.phase === 'playing' && !hold;
   // hold 중엔 잡아둔 바닥/더미를 표시(낸 패가 바닥에 슬램 → 멈춤 → 더미로)
-  const displayFloor = hold ? hold.floor : (s.floor || []);
+  // 보너스피(m===0)는 절대 바닥에 깔리지 않는다 — 혹시 섞여있어도 화면엔 안 보이게(바닥 경유 X)
+  const displayFloor = (hold ? hold.floor : (s.floor || [])).filter((c) => c.m !== 0);
   const capFor = (seat) => ((hold && hold.capSeat === seat) ? hold.pile : ((s.captured && s.captured[seat]) || []));
   const floorMonths = new Set(displayFloor.map((c) => c.m).filter(Boolean));
   const lay = floorLayout(displayFloor);
@@ -230,7 +231,7 @@ export default function Gostop({ ws }) {
   const prevFloorC = useRef([]);
   const prevCapC = useRef([]);
   const holdTok = useRef(0);
-  useEffect(() => {
+  useLayoutEffect(() => {   // paint 전에 hold/숨김을 잡아 첫 프레임 번쩍(미리 생성)·깜빡임 제거
     if (s.phase !== 'playing') {
       prevFloorC.current = s.floor || [];
       prevCapC.current = (s.captured || []).map((a) => a.slice());
@@ -393,9 +394,9 @@ export default function Gostop({ ws }) {
     return () => clearTimeout(id);
   }, [s]);
 
-  // 뒤집기 리빌 — 더미서 뒤집힌 패를 크게 보여줌(바닐라 flipReveal, 던지기 뒤 330ms)
+  // 뒤집기 리빌 — 더미서 뒤집힌 패를 크게 보여줌. paint 전에 숨김 잡아 '미리 생성' 번쩍 제거
   const lastFlipKey = useRef('');
-  useEffect(() => {
+  useLayoutEffect(() => {
     const fc = s.flippedCard;
     const key = fc ? s.handNo + ':' + fc.id : '';
     if (!fc || key === lastFlipKey.current) return undefined; lastFlipKey.current = key;
