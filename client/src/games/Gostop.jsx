@@ -28,7 +28,23 @@ function measureRects(containerId, felt) {
   }
   return rects;
 }
-// 손→바닥 던지기(WAAPI) — 바닥 카드를 이전 손 위치에서 날아오게
+// 착지 먼지(freegostop play_dust 차용) — 카드가 바닥에 꽂힐 때 톡 퍼지는 먼지. felt 기준 pt.
+function dustPuff(pt, big) {
+  const motion = document.getElementById('gsMotion'); if (!motion || !pt) return;
+  const d = document.createElement('div');
+  const sz = big ? 64 : 46;
+  d.style.cssText = `position:absolute;left:${pt.x}px;top:${pt.y}px;width:${sz}px;height:${sz}px;border-radius:50%;pointer-events:none;z-index:30;`
+    + 'background:radial-gradient(circle,rgba(255,247,222,.55) 0%,rgba(206,178,120,.28) 42%,transparent 70%);';
+  motion.appendChild(d);
+  try {
+    d.animate([
+      { transform: 'translate(-50%,-50%) scale(.35)', opacity: .6, offset: 0 },
+      { transform: 'translate(-50%,-50%) scale(1.55)', opacity: 0, offset: 1 },
+    ], { duration: 360, easing: 'cubic-bezier(.2,.7,.4,1)', fill: 'forwards' });
+  } catch (e) { /* noop */ }
+  setTimeout(() => d.remove(), 400);
+}
+// 손→바닥 던지기(WAAPI) — 낸 패를 "쥐었다 크게 → 탁 착지(먼지)". freegostop: scale3.5 hold→내려놓기 + card_hit
 function animThrow(id, from, rot) {
   let node;
   try { node = document.querySelector(`#gsFloor .gscard[data-id="${(window.CSS && CSS.escape) ? CSS.escape(id) : id}"]`); } catch { node = null; }
@@ -39,11 +55,14 @@ function animThrow(id, from, rot) {
   const dx = from.x - to.x, dy = from.y - to.y;
   try {
     node.animate([
-      { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot * 0.3}deg) scale(1.2)`, offset: 0 },
-      { transform: `translate(-50%,-50%) translate(${dx * 0.06}px,${dy * 0.06 - 9}px) rotate(${rot}deg) scale(1.14)`, offset: 0.62 },   // 자리 위서 잠깐 떴다
-      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(.97)`, offset: 0.84 },                                                  // 탁 착지(살짝 눌림)
+      { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot * 0.3}deg) scale(1.34)`, offset: 0 },                   // 손 위치서 크게 쥠
+      { transform: `translate(-50%,-50%) translate(${dx * 0.5}px,${dy * 0.5 - 6}px) rotate(${rot * 0.6}deg) scale(1.3)`, offset: 0.3 },   // 들어 보이며 가져옴(천천)
+      { transform: `translate(-50%,-50%) translate(${dx * 0.08}px,${dy * 0.08 - 7}px) rotate(${rot}deg) scale(1.12)`, offset: 0.66 },     // 자리 위서 잠깐 떴다
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(.95)`, offset: 0.84 },                                                  // 탁 착지(살짝 눌림)
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1.03)`, offset: 0.93 },                                                 // 반동
       { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1)`, offset: 1 },
-    ], { duration: T_THROW, easing: 'cubic-bezier(.3,.7,.3,1)' });
+    ], { duration: T_THROW, easing: 'cubic-bezier(.55,.06,.9,.32)' });   // easeInExpo 근사: 천천히 떠서 끝에 탁
+    setTimeout(() => dustPuff(to), T_THROW * 0.82);   // 착지 순간 먼지
   } catch (e) { /* noop */ }
 }
 // 엘리먼트 중심(felt 기준)
@@ -198,6 +217,28 @@ export default function Gostop({ ws }) {
         // 뒤집기가 있던 턴이면 그 패가 바닥에 또렷이 안착(T_FLIP)한 뒤에 캡처로 슬라이드 — 안 보이고 빨려가던 문제 해소
         const holdMs = s.flippedCard ? T_CAP_FLIP : T_CAP_PLAIN;
         window.setTimeout(() => { if (holdTok.current !== tok) return; flyCaptured(flyList, seatForFly, me); setHold(null); }, holdMs);
+        // 낸 패(뒤집기 제외)가 바닥에 '탁' 내려쳐지는 임팩트 — freegostop card_hit + dust 차용
+        const slamPlayed = fromHand.filter((c) => !s.flippedCard || c.id !== s.flippedCard.id);
+        window.setTimeout(() => {
+          if (holdTok.current !== tok) return;
+          const feltEl = document.getElementById('gsFelt'); if (!feltEl) return;
+          const felt = feltEl.getBoundingClientRect();
+          for (const c of slamPlayed) {
+            let nd; try { nd = document.querySelector(`#gsFloor .gscard[data-id="${(window.CSS && CSS.escape) ? CSS.escape(c.id) : c.id}"]`); } catch { nd = null; }
+            if (!nd) continue;
+            const rr = nd.getBoundingClientRect();
+            const ro = (layRef.current[c.id] && layRef.current[c.id].rot) || 0;
+            try {
+              nd.animate([
+                { transform: `translate(-50%,-50%) rotate(${ro}deg) scale(1.3)`, offset: 0 },
+                { transform: `translate(-50%,-50%) rotate(${ro}deg) scale(.94)`, offset: 0.55 },   // 탁
+                { transform: `translate(-50%,-50%) rotate(${ro}deg) scale(1.03)`, offset: 0.8 },
+                { transform: `translate(-50%,-50%) rotate(${ro}deg) scale(1)`, offset: 1 },
+              ], { duration: 300, easing: 'cubic-bezier(.4,.1,.3,1)' });
+            } catch (e) { /* noop */ }
+            dustPuff({ x: rr.left + rr.width / 2 - felt.left, y: rr.top + rr.height / 2 - felt.top });
+          }
+        }, 40);
         didHold = true;
       }
     }
@@ -315,6 +356,7 @@ export default function Gostop({ ws }) {
           { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1)`, opacity: 1, offset: 0.9 },   // 제 자리로 슬라이드해 안착
           { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1)`, opacity: 0, offset: 1 },      // 실제 카드와 교체
         ], { duration: T_FLIP_REVEAL, easing: 'cubic-bezier(.3,.6,.3,1)' });
+        if (node) setTimeout(() => dustPuff(toPt), T_FLIP_REVEAL * 0.9);   // 안착 순간 먼지(바닥에 떨어진 경우)
         setTimeout(() => el.remove(), T_FLIP_REVEAL + 60);
       } catch (e) { /* noop */ }
     }, T_FLIP_DELAY);
