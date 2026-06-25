@@ -10,10 +10,10 @@ const CATNAME = { KWANG: '광', YEOL: '멍', TTI: '단', PI: '피' };
 //  낸 패 슬램(T_THROW) → [뒤집기 팝·읽기·안착 (T_FLIP_DELAY 뒤 T_FLIP_REVEAL)] → 캡처 슬라이드
 const T_THROW = 380;          // 손→바닥 슬램 길이
 const T_FLIP_DELAY = 430;     // 슬램 거의 끝난 뒤 뒤집기 리빌 시작
-const T_FLIP_REVEAL = 760;    // 뒤집기 리빌 전체(팝→읽기→안착) 길이 → 안착 ≈ 430+0.9*760 ≈ 1110ms
-const T_CAP_FLIP = 1180;      // 뒤집기가 있는 턴: 그 패가 안착한 뒤 캡처로 슬라이드
+const T_FLIP_REVEAL = 820;    // 뒤집기 리빌 전체(팝→짧게읽기→판으로 날아가 탁 내려침) 길이
+const T_CAP_FLIP = 1320;      // 뒤집기가 있는 턴: 그 패가 판에 탁 내려친 뒤 캡처로 슬라이드
 const T_CAP_PLAIN = 680;      // 뒤집기 없는(바로 먹기) 턴: 짧게 보류 후 캡처
-const T_DRAW_AFTER = 1380;    // 보너스 보충 카드 — 캡처(피 뺏기) 끝난 뒤 또렷이
+const T_DRAW_AFTER = 1500;    // 보너스 보충 카드 — 캡처(피 뺏기) 끝난 뒤 또렷이
 
 // 컨테이너 안 .gscard들의 중심좌표(felt 기준) 측정
 function measureRects(containerId, felt) {
@@ -351,12 +351,14 @@ export default function Gostop({ ws }) {
         el.style.left = deckPt.x + 'px'; el.style.top = (deckPt.y - 8) + 'px'; motion.appendChild(el);
         el.animate([
           { transform: 'translate(-50%,-50%) rotateY(90deg) scale(.8)', opacity: 0, offset: 0 },
-          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.65)', opacity: 1, offset: 0.18 },   // 덱 위로 톡 펼쳐 크게 리빌
-          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.65)', opacity: 1, offset: 0.5 },     // 멈춰서 읽을 시간
-          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1)`, opacity: 1, offset: 0.9 },   // 제 자리로 슬라이드해 안착
-          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1)`, opacity: 0, offset: 1 },      // 실제 카드와 교체
-        ], { duration: T_FLIP_REVEAL, easing: 'cubic-bezier(.3,.6,.3,1)' });
-        if (node) setTimeout(() => dustPuff(toPt), T_FLIP_REVEAL * 0.9);   // 안착 순간 먼지(바닥에 떨어진 경우)
+          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.5)', opacity: 1, offset: 0.14 },     // 덱 위로 톡 펼쳐 리빌
+          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.46)', opacity: 1, offset: 0.34 },    // 가운데선 잠깐만 보여줌
+          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1.16)`, opacity: 1, offset: 0.74 },   // 판 위 제자리로 날아옴(아직 떠있음)
+          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(.93)`, opacity: 1, offset: 0.86 },     // 판에 탁 내려침(눌림)
+          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1.04)`, opacity: 1, offset: 0.94 },    // 반동
+          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1)`, opacity: 0, offset: 1 },          // 실제 카드와 교체
+        ], { duration: T_FLIP_REVEAL, easing: 'cubic-bezier(.45,.05,.5,1)' });
+        if (node) setTimeout(() => dustPuff(toPt, true), T_FLIP_REVEAL * 0.86);   // 판에 내려친 순간 먼지(크게)
         setTimeout(() => el.remove(), T_FLIP_REVEAL + 60);
       } catch (e) { /* noop */ }
     }, T_FLIP_DELAY);
