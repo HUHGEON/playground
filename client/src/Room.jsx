@@ -11,8 +11,10 @@ const GAME_COMPONENTS = {
   seotda: Seotda,
   poker: Poker,
 };
+// 채팅 위치 — 바닐라 R.meta.chat 그대로. 포커만 우측 사이드바, 나머지는 판 하단 바.
+const CHAT_SIDEBAR = { poker: true };
 
-// 금액 억/만 축약(섯다 roomSub용)
+// 금액 억/만 축약(roomSub용)
 const EOK = 100000000;
 function won(n) {
   n = Math.round(Number(n) || 0);
@@ -25,22 +27,35 @@ function won(n) {
 }
 
 export default function Room({ ws }) {
-  const { room, send, chat } = ws;
+  const { room, send, chat, notices } = ws;
   const GameComp = GAME_COMPONENTS[room.gameType];
   const [chatText, setChatText] = useState('');
   const chatEnd = useRef(null);
   useEffect(() => { chatEnd.current?.scrollIntoView({ block: 'end' }); }, [chat]);
 
-  // 게임별 배경 클래스(body) — gostop.css 등의 body.game-XXX 배경 적용
+  const sidebarChat = !!CHAT_SIDEBAR[room.gameType];
+
+  // 게임별 배경 클래스(body) + 채팅 사이드바 클래스 — 바닐라 app.js와 동일
   useEffect(() => {
     document.body.classList.add('game-' + room.gameType);
-    return () => document.body.classList.remove('game-' + room.gameType);
-  }, [room.gameType]);
+    document.body.classList.toggle('chat-sidebar', sidebarChat);
+    return () => { document.body.classList.remove('game-' + room.gameType); document.body.classList.remove('chat-sidebar'); };
+  }, [room.gameType, sidebarChat]);
 
   const sendChat = () => { const t = chatText.trim(); if (!t) return; send({ type: 'chat', text: t }); setChatText(''); };
-  const sub = room.phase === 'playing' ? '게임 중'
-    : room.phase === 'pickFirst' ? '선 정하는 중'
-    : room.phase === 'finished' ? '판 종료' : '대기 중';
+
+  // roomSub — 바닐라는 게임 렌더러가 채움(섯다=점당/시작, 포커=ante/시작금액), 그 외 비움
+  let roomSub = '';
+  if (room.gameType === 'seotda' && room.ante != null) roomSub = `점당 ${won(room.ante)} · 시작 ${won(room.startChips)}`;
+  else if (room.gameType === 'poker' && room.ante != null) roomSub = `ante ${won(room.ante)} · 시작 금액 ${won(room.startChips)}`;
+
+  const ChatBar = (
+    <div className="chatbar" id="roomChatBar">
+      <input id="roomChatInput" maxLength={200} placeholder="메시지 입력…" autoComplete="off" value={chatText}
+        onChange={(e) => setChatText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendChat()} />
+      <button id="roomChatSend" onClick={sendChat}>전송</button>
+    </div>
+  );
 
   return (
     <div id="roomView">
@@ -53,32 +68,37 @@ export default function Room({ ws }) {
           send({ type: 'leaveRoom' });
         }}>← 나가기</button>
         <div id="roomTitle">{room.title} · {room.roomName}</div>
-        <div id="roomSub">{room.gameType === 'seotda' && room.ante != null
-          ? `점당 ${won(room.ante)} · 시작 ${won(room.startChips)}`
-          : `${sub}${room.hostName ? ` · 방장 ${room.hostName}` : ''}`}</div>
+        <div id="roomSub">{roomSub}</div>
       </div>
       <div className="layout">
         <div className="col" id="roomMain">
           {GameComp
             ? <GameComp ws={ws} />
             : <div className="panel muted" style={{ padding: 40 }}>이 게임은 아직 React로 이전 안 됨: <b>{room.gameType}</b></div>}
+          {/* 판 하단 채팅 입력바 — 사이드바 채팅이 아닌 게임(오셀로/고스톱/섯다) */}
+          {!sidebarChat && (
+            <div className="feltchat">
+              <input id="feltChatInput" maxLength={200} placeholder="여기에 채팅 입력… (Enter)" autoComplete="off" value={chatText}
+                onChange={(e) => setChatText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendChat()} />
+              <button id="feltChatSend" onClick={sendChat}>전송</button>
+            </div>
+          )}
         </div>
         <div className="col">
           <div className="panel" id="roomInfo" style={{ width: 280 }} />
           <div className="panel" style={{ width: 280 }}>
+            <h3>알림</h3>
+            <div className="log" id="roomLog">{(notices || []).map((t, i) => <div key={i}>· {t}</div>)}</div>
+          </div>
+          <div className="panel" style={{ width: 280 }}>
             <h3>채팅 기록</h3>
             <div className="chatbox" id="roomChat">
-              {chat.length === 0 && <div className="muted" style={{ fontSize: 12 }}>아직 대화가 없어요.</div>}
               {chat.map((c, i) => (
-                <div key={i} className="chatmsg"><b style={{ color: c.color || 'var(--gold)' }}>{c.name}</b> {c.text}</div>
+                <div key={i}><span className="nick" style={{ color: c.color || '#9fb3c8' }}>{c.name}</span> : {c.text}</div>
               ))}
               <div ref={chatEnd} />
             </div>
-            <div className="chatbar">
-              <input maxLength={200} placeholder="메시지 입력…" autoComplete="off" value={chatText}
-                onChange={(e) => setChatText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendChat()} />
-              <button onClick={sendChat}>전송</button>
-            </div>
+            {sidebarChat && ChatBar}
           </div>
         </div>
       </div>

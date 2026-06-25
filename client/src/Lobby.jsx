@@ -101,9 +101,8 @@ export default function Lobby({ ws }) {
           <div className="panel" style={{ width: 300 }}>
             <h3>로비 채팅</h3>
             <div className="chatbox" id="lobbyChat">
-              {chat.length === 0 && <div className="muted" style={{ fontSize: 12 }}>아직 대화가 없어요.</div>}
               {chat.map((c, i) => (
-                <div key={i} className="chatmsg"><b style={{ color: c.color || 'var(--gold)' }}>{c.name}</b> {c.text}</div>
+                <div key={i}><span className="nick" style={{ color: c.color || '#9fb3c8' }}>{c.name}</span> : {c.text}</div>
               ))}
               <div ref={chatEnd} />
             </div>

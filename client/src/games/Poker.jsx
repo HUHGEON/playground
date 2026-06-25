@@ -342,7 +342,7 @@ export default function Poker({ ws }) {
       </button>
     ));
   } else if (s.myTurn && acted) {
-    actions = <span className="barhint">처리 중…</span>;
+    actions = null;   // 바닐라: 클릭 시 액션바 비움(별도 "처리 중…" 문구 없음)
   } else {
     let hint;
     if (s.stage === 'discard') hint = s.myDiscarded ? '다른 플레이어가 카드를 버리는 중…' : '🃏 버릴 카드 1장을 고르세요';
@@ -364,7 +364,7 @@ export default function Poker({ ws }) {
           </div>
         </div>
       );
-    } else if (s.myDiscarded || (s.canDiscard && acted)) {
+    } else if (s.myDiscarded) {
       notice = <div className="notice-card spectate">✅ 버림 완료 — 다른 플레이어 대기 중…</div>;
     }
   } else if (!me) {

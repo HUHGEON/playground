@@ -11,6 +11,8 @@ export function useWS() {
   const [myName, setMyName] = useState(() => localStorage.getItem('hub.name') || null);
   const [connected, setConnected] = useState(false);
   const [chat, setChat] = useState([]); // {name,text,room?} 최근 채팅
+  const [notices, setNotices] = useState([]); // 방 알림 로그(최신 먼저) — 바닐라 roomLog
+  const [joinError, setJoinError] = useState(null); // 닉네임 거부 사유 — 바닐라 joinError
   const wsRef = useRef(null);
   const roomIdRef = useRef(null);
   const sidRef = useRef(localStorage.getItem('hub.sid'));
@@ -35,14 +37,18 @@ export function useWS() {
       let m; try { m = JSON.parse(e.data); } catch { return; }
       if (m.type === 'lobby') {
         setLobby(m); setRoom(null);
-        if (roomIdRef.current !== null) { roomIdRef.current = null; setChat([]); }   // 방→로비 전환: 채팅 초기화
-        if (m.yourName) { setMyName(m.yourName); localStorage.setItem('hub.name', m.yourName); }
+        if (roomIdRef.current !== null) { roomIdRef.current = null; setChat([]); setNotices([]); }   // 방→로비 전환: 채팅/알림 초기화
+        if (m.yourName) { setMyName(m.yourName); localStorage.setItem('hub.name', m.yourName); setJoinError(null); }
       } else if (m.type === 'roomState') {
         setRoom(m);
-        if (m.roomId !== roomIdRef.current) { roomIdRef.current = m.roomId; setChat([]); }   // 새 방 진입: 채팅 초기화
-        if (m.yourName) { setMyName(m.yourName); localStorage.setItem('hub.name', m.yourName); }
+        if (m.roomId !== roomIdRef.current) { roomIdRef.current = m.roomId; setChat([]); setNotices([]); }   // 새 방 진입: 채팅/알림 초기화
+        if (m.yourName) { setMyName(m.yourName); localStorage.setItem('hub.name', m.yourName); setJoinError(null); }
       } else if (m.type === 'chat') {
         setChat((prev) => [...prev.slice(-49), m]);
+      } else if (m.type === 'notice') {
+        setNotices((prev) => [m.text, ...prev].slice(0, 40));   // 최신 먼저, 최대 40(바닐라 addNotice)
+      } else if (m.type === 'joinError') {
+        localStorage.removeItem('hub.name'); setMyName(null); setJoinError(m.reason || '입장할 수 없어요.');   // 오버레이로 복귀 + 사유 표시
       } else if (m.type === 'kicked' || m.type === 'reset' || m.type === 'nameTaken') {
         if (m.type !== 'kicked') { localStorage.removeItem('hub.name'); setMyName(null); }
         setRoom(null);
@@ -64,5 +70,5 @@ export function useWS() {
     location.reload();
   }, [send]);
 
-  return { lobby, room, myName, connected, chat, send, join, logout, sessionId: sidRef.current };
+  return { lobby, room, myName, connected, chat, notices, joinError, send, join, logout, sessionId: sidRef.current };
 }
