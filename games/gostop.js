@@ -93,7 +93,14 @@ function floorMonthCounts(floor) {
 
 // ── 선 판정 + 보너스 회수 (Phase 1) ──
 const CAT_RANK = { KWANG: 4, YEOL: 3, TTI: 2, PI: 1 };
-const seonRank = (c) => (c.m || 0) * 10 + (CAT_RANK[c.cat] || 0);   // 월 우선, 같은 월이면 광>멍>띠>피
+// 선 뒤집기 순위: 월 우선(같은 월이면 광>멍>띠>피). 보너스피는 12월보다 높게 — 쓰리피>투피>플러스피.
+const seonRank = (c) => {
+  if (c.m === 0 || (c.flags && c.flags.includes('BONUS'))) {
+    const bm = c.id === 'b-three' ? 15 : c.id === 'b-two' ? 14 : 13;   // 쓰리피>투피>플러스피, 모두 12월 위
+    return bm * 10 + 1;
+  }
+  return c.m * 10 + (CAT_RANK[c.cat] || 0);
+};
 
 // 바닥 보너스피 회수: 쓰리피(pi≥3) → 투피(pi2) 우선, 빈자리는 더미에서 보충, 보너스 0까지 반복.
 // floor/draw를 직접 변형, 회수분을 took에 push.

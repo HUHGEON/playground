@@ -9,18 +9,19 @@ const pname = (p) => (p ? p.name.replace(/🤖/g, '') : '');
 const BACK_BG = 'linear-gradient(160deg,#a51f27,#771319)';
 
 // ── 바닥 고정 슬롯(% 좌표) — 절대 안 움직인다. 카드가 슬롯을 차지/비울 뿐. (프로토타입 핵심) ──
+// 중앙 더미(50%,50%)를 피해 위/아래 두 줄로 펼침. 위·아래를 번갈아 채워 8장이 4×2 그리드로 고르게 깔리게.
 const SLOTS = (() => {
-  const arr = []; const N = 14;
-  for (let i = 0; i < N; i++) {
-    const a = (i / N) * 2 * Math.PI - Math.PI / 2;
-    arr.push({ x: 50 + 40 * Math.cos(a), y: 50 + 35 * Math.sin(a), rot: ((i * 37) % 9) - 4 });
-  }
-  return arr;
+  const cols = [16, 32, 48, 64, 82];
+  const rowsTop = 26, rowsBot = 74, rowsTop2 = 11, rowsBot2 = 89;
+  const order = [];
+  for (let i = 0; i < cols.length; i++) { order.push({ x: cols[i], y: rowsTop }); order.push({ x: cols[i], y: rowsBot }); }   // 0~9: 위/아래 번갈아
+  for (let i = 0; i < cols.length; i++) { order.push({ x: cols[i], y: rowsTop2 }); order.push({ x: cols[i], y: rowsBot2 }); } // 10~19: 오버플로 줄
+  return order.map((p, i) => ({ ...p, rot: ((i * 37) % 9) - 4 }));
 })();
 function slotPct(idx) {
   const base = SLOTS[idx % SLOTS.length];
   const wrap = Math.floor(idx / SLOTS.length);
-  return { x: base.x + wrap * 2.4, y: base.y + wrap * 2.4, rot: base.rot };
+  return { x: base.x + wrap * 2.2, y: base.y + wrap * 2.2, rot: base.rot };
 }
 
 // ── 한 턴 페이싱(ms) — 분석 문서의 권장 타임라인(~2.6s) 기반 ──
@@ -109,11 +110,18 @@ export default function Gostop({ ws }) {
   const used = useRef(new Set());
   const prev = useRef({ floor: [], hand: [], cap: [], scores: [], handNo: -1, phase: '' });
 
-  // 슬롯 배정 동기화 — 새 바닥패는 빈 슬롯에, 사라진 패의 슬롯은 회수
+  // 슬롯 배정 동기화 — 매번 깨끗이 재구성(기존 배정 보존, 충돌·드리프트 방지)
   function syncSlots(floorCards) {
-    const present = new Set(floorCards.map((c) => c.id));
-    for (const id of Object.keys(slots.current)) if (!present.has(id)) { used.current.delete(slots.current[id]); delete slots.current[id]; }
-    for (const c of floorCards) if (slots.current[c.id] == null) { let i = 0; while (used.current.has(i)) i++; slots.current[c.id] = i; used.current.add(i); }
+    const ids = floorCards.map((c) => c.id);
+    const newMap = {}; const usedSet = new Set();
+    for (const id of ids) {                                  // 1) 기존 슬롯 유지(중복 아닐 때만)
+      const cur = slots.current[id];
+      if (cur != null && !usedSet.has(cur)) { newMap[id] = cur; usedSet.add(cur); }
+    }
+    for (const id of ids) {                                  // 2) 미배정 패에 빈 슬롯
+      if (newMap[id] == null) { let i = 0; while (usedSet.has(i)) i++; newMap[id] = i; usedSet.add(i); }
+    }
+    slots.current = newMap; used.current = usedSet;
   }
   const slotPctFor = (id) => slotPct(slots.current[id] != null ? slots.current[id] : 0);
 
@@ -165,6 +173,7 @@ export default function Gostop({ ws }) {
       resetSeq(); m.current.flyers = []; m.current.hidden = new Set(); m.current.callout = null; m.current.jokbo = null; m.current.dim = false;
       slots.current = {}; used.current = new Set(); syncSlots(s.floor || []);
       prev.current = { floor: s.floor || [], hand: s.myHand || [], cap: (s.captured || []).map((a) => a.slice()), scores: (s.scores || []).slice(), handNo: s.handNo, phase: s.phase };
+      sync();   // 슬롯 배정을 paint 전에 반영(안 하면 ref만 바뀌고 재렌더 안 됨 → 전부 슬롯0 겹침)
       return;
     }
     const P = prev.current;
@@ -176,6 +185,7 @@ export default function Gostop({ ws }) {
       resetSeq(); m.current.flyers = []; m.current.hidden = new Set(); m.current.callout = null; m.current.jokbo = null; m.current.dim = false;
       slots.current = {}; used.current = new Set(); syncSlots(nf);
       prev.current = { floor: nf, hand: nh, cap: nc.map((a) => a.slice()), scores: (s.scores || []).slice(), handNo: s.handNo, phase: s.phase };
+      sync();   // 딜 직후 슬롯 배정 반영(겹침 버그 방지)
       return;
     }
 
@@ -192,7 +202,7 @@ export default function Gostop({ ws }) {
 
     // 아무 변화 없음(점수/턴만 갱신 등) → 슬롯만 맞추고 스냅
     if (!capturedFloor.length && !addedFloor.length && !leftHand.length && capSeat < 0) {
-      syncSlots(nf);
+      syncSlots(nf); sync();
       prev.current = { floor: nf, hand: nh, cap: nc.map((a) => a.slice()), scores: (s.scores || []).slice(), handNo: s.handNo, phase: s.phase };
       return;
     }
