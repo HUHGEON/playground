@@ -16,7 +16,7 @@ export default function App() {
         </div>
       )}
       {!ws.myName
-        ? <NameOverlay onJoin={ws.join} connected={ws.connected} />
+        ? <NameOverlay onJoin={ws.join} connected={ws.connected} error={ws.joinError} />
         : ws.room
           ? <Room ws={ws} />
           : ws.lobby
