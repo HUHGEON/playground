@@ -6,6 +6,15 @@ import { avatar, nyang, cardSrc, MNAME, pileGroups, floorLayout } from './gostop
 const CAT = [['KWANG', '광', 'c-kw'], ['YEOL', '멍', 'c-yeol'], ['TTI', '단', 'c-tti'], ['PI', '피', 'c-pi']];
 const CATNAME = { KWANG: '광', YEOL: '멍', TTI: '단', PI: '피' };
 
+// ── 한 턴 모션 타이밍(ms) — 한 줄의 시퀀스로 읽히게 한 곳에 모음 ──
+//  낸 패 슬램(T_THROW) → [뒤집기 팝·읽기·안착 (T_FLIP_DELAY 뒤 T_FLIP_REVEAL)] → 캡처 슬라이드
+const T_THROW = 380;          // 손→바닥 슬램 길이
+const T_FLIP_DELAY = 430;     // 슬램 거의 끝난 뒤 뒤집기 리빌 시작
+const T_FLIP_REVEAL = 760;    // 뒤집기 리빌 전체(팝→읽기→안착) 길이 → 안착 ≈ 430+0.9*760 ≈ 1110ms
+const T_CAP_FLIP = 1180;      // 뒤집기가 있는 턴: 그 패가 안착한 뒤 캡처로 슬라이드
+const T_CAP_PLAIN = 680;      // 뒤집기 없는(바로 먹기) 턴: 짧게 보류 후 캡처
+const T_DRAW_AFTER = 1380;    // 보너스 보충 카드 — 캡처(피 뺏기) 끝난 뒤 또렷이
+
 // 컨테이너 안 .gscard들의 중심좌표(felt 기준) 측정
 function measureRects(containerId, felt) {
   const rects = {};
@@ -34,7 +43,7 @@ function animThrow(id, from, rot) {
       { transform: `translate(-50%,-50%) translate(${dx * 0.06}px,${dy * 0.06 - 9}px) rotate(${rot}deg) scale(1.14)`, offset: 0.62 },   // 자리 위서 잠깐 떴다
       { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(.97)`, offset: 0.84 },                                                  // 탁 착지(살짝 눌림)
       { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1)`, offset: 1 },
-    ], { duration: 540, easing: 'cubic-bezier(.3,.7,.3,1)' });
+    ], { duration: T_THROW, easing: 'cubic-bezier(.3,.7,.3,1)' });
   } catch (e) { /* noop */ }
 }
 // 엘리먼트 중심(felt 기준)
@@ -186,7 +195,9 @@ export default function Gostop({ ws }) {
         const tok = ++holdTok.current;
         const flyList = [...capturedFloor, ...fromHand], seatForFly = capSeat;
         setHold({ floor: [...pf, ...fromHand], capSeat, pile: (pc[capSeat] || []).slice(), slamIds: new Set(fromHand.map((c) => c.id)) });
-        window.setTimeout(() => { if (holdTok.current !== tok) return; flyCaptured(flyList, seatForFly, me); setHold(null); }, 760);
+        // 뒤집기가 있던 턴이면 그 패가 바닥에 또렷이 안착(T_FLIP)한 뒤에 캡처로 슬라이드 — 안 보이고 빨려가던 문제 해소
+        const holdMs = s.flippedCard ? T_CAP_FLIP : T_CAP_PLAIN;
+        window.setTimeout(() => { if (holdTok.current !== tok) return; flyCaptured(flyList, seatForFly, me); setHold(null); }, holdMs);
         didHold = true;
       }
     }
@@ -299,14 +310,14 @@ export default function Gostop({ ws }) {
         el.style.left = deckPt.x + 'px'; el.style.top = (deckPt.y - 8) + 'px'; motion.appendChild(el);
         el.animate([
           { transform: 'translate(-50%,-50%) rotateY(90deg) scale(.8)', opacity: 0, offset: 0 },
-          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.6)', opacity: 1, offset: 0.16 },    // 크게 리빌
-          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.6)', opacity: 1, offset: 0.5 },      // 멈춰서 보여줌
-          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1)`, opacity: 1, offset: 0.92 },  // 안착 자리로 날아감
+          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.65)', opacity: 1, offset: 0.18 },   // 덱 위로 톡 펼쳐 크게 리빌
+          { transform: 'translate(-50%,-50%) rotateY(0deg) scale(1.65)', opacity: 1, offset: 0.5 },     // 멈춰서 읽을 시간
+          { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1)`, opacity: 1, offset: 0.9 },   // 제 자리로 슬라이드해 안착
           { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotateY(0deg) scale(1)`, opacity: 0, offset: 1 },      // 실제 카드와 교체
-        ], { duration: 1150, easing: 'cubic-bezier(.3,.6,.3,1)' });
-        setTimeout(() => el.remove(), 1200);
+        ], { duration: T_FLIP_REVEAL, easing: 'cubic-bezier(.3,.6,.3,1)' });
+        setTimeout(() => el.remove(), T_FLIP_REVEAL + 60);
       } catch (e) { /* noop */ }
-    }, 330);
+    }, T_FLIP_DELAY);
     return () => clearTimeout(t);
   }, [s]);
 
@@ -333,7 +344,7 @@ export default function Gostop({ ws }) {
           g.animate([{ transform: 'translate(-50%,-50%) scale(1.05)', opacity: 1 }, { transform: `translate(-50%,-50%) translate(${to.x - deckPt.x}px,${to.y - deckPt.y}px) scale(.7)`, opacity: .25 }], { duration: 440, easing: 'cubic-bezier(.4,.2,.5,1)', fill: 'forwards' });
           setTimeout(() => g.remove(), 500);
         } catch (e2) { /* noop */ }
-      }, 980 + i * 220));   // 보너스피 가져간(hold ~760ms) 뒤에 보충 카드가 옴 — 순차적으로 또렷이
+      }, T_DRAW_AFTER + i * 220));   // 보너스피 가져간(캡처) 뒤에 보충 카드가 옴 — 순차적으로 또렷이
     });
     return () => timers.forEach(clearTimeout);
   }, [s]);

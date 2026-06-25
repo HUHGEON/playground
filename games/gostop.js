@@ -177,6 +177,11 @@ function setupRound(room, params, seonIdx, dealt, pickReveals) {
   };
   for (const w of room.queue) if (room.gs.chips[w.sessionId] == null) room.gs.chips[w.sessionId] = room.gs.startChips;
   if (dealt.seonTook.length) room.gs.round.captured[seonIdx].push(...dealt.seonTook);
+  // 총통(딜 직후 손패 같은 월 4장) → 즉시 정산. 둘 다 총통이면 '선'이 이긴다(§2).
+  if (dealt.chongtong && dealt.chongtong.length) {
+    const winner = dealt.chongtong.includes(seonIdx) ? seonIdx : dealt.chongtong[0];
+    settle(room, winner, { forcedScore: params.minScore, reason: '총통' });
+  }
 }
 
 function beginRound(room, params, deck, seonIdx) {
@@ -432,7 +437,7 @@ function endTurn(room) {
   const r = room.gs.round;
   r.pending = null;
   if (r.threeBbeok != null) return settle(room, r.threeBbeok, { forcedScore: r.params.minScore, reason: '쓰리뻑' });  // 쓰리뻑 자동승
-  if (r.hands.every((h) => h.length === 0)) return nagari(room);     // 손·더미 소진까지 아무도 못 남 → 나가리
+  // ① 방금 턴을 끝낸 사람의 승리 판정을 '먼저' 한다 — 마지막 패로 점수를 내면 나가리가 아니라 승리여야 함
   const seat = r.turnIdx;
   const sc = scoreOf(r.captured[seat]).total;
   const baseline = r.goCount[seat] > 0 ? r.goScoreAt[seat] + 1 : r.params.minScore;   // 첫 나기 or 직전 고+1
@@ -440,6 +445,8 @@ function endTurn(room) {
     if (r.hands[seat].length === 0) return settle(room, seat);        // 손패 없으면 고(계속) 불가 → 자동 스톱(승)
     r.decision = { seat, score: sc }; return;                          // 손패 있으면 고/스톱 선택 대기(턴 멈춤)
   }
+  // ② 이번 턴 승리가 아니고, 양쪽 다 손패 소진 → 나가리(무승부)
+  if (r.hands.every((h) => h.length === 0)) return nagari(room);
   r.turnIdx = nextSeat(r);
 }
 
@@ -835,4 +842,5 @@ module.exports = {
   _modeParams: modeParams,
   _deal: deal,
   _scoreOf: scoreOf,
+  _setupRoundForTest: setupRound,
 };
