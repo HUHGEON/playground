@@ -109,6 +109,7 @@ export default function Gostop({ ws }) {
   const slots = useRef({});      // cardId -> slotIndex (고정 배정)
   const used = useRef(new Set());
   const prev = useRef({ floor: [], hand: [], cap: [], scores: [], handNo: -1, phase: '' });
+  const dealtRound = useRef(-1);   // 딜 인트로 1회/라운드
 
   // 슬롯 배정 동기화 — 매번 깨끗이 재구성(기존 배정 보존, 충돌·드리프트 방지)
   function syncSlots(floorCards) {
@@ -142,6 +143,35 @@ export default function Gostop({ ws }) {
     const el = document.querySelector('#gsFloor .gscard') || document.getElementById('gsDraw');
     if (el) { const r = el.getBoundingClientRect(); if (r.width) return { w: Math.round(r.width), h: Math.round(r.height) }; }
     return { w: 52, h: 80 };
+  }
+
+  // ── 딜 인트로(촤라랄라) — 손패+바닥패가 더미에서 제자리로 스태거로 날아 들어옴 ──
+  function dealIn() {
+    requestAnimationFrame(() => {
+      const felt = feltRect(); if (!felt) return;
+      const deck = elPx('#gsCenter'); if (!deck) return;
+      const hand = [...document.querySelectorAll('#gsHand .gscard')];
+      const floor = [...document.querySelectorAll('#gsFloor .gscard')];
+      const all = [];
+      const maxLen = Math.max(hand.length, floor.length);
+      for (let i = 0; i < maxLen; i++) { if (hand[i]) all.push(hand[i]); if (floor[i]) all.push(floor[i]); }   // 손/바닥 번갈아 나눠주는 느낌
+      all.forEach((el, i) => {
+        const isFloor = el.classList.contains('floorc');
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width / 2 - felt.left, cy = r.top + r.height / 2 - felt.top;
+        const dx = deck.x - cx, dy = deck.y - cy;
+        const rot = isFloor ? (slotPctFor(el.dataset.id).rot || 0) : 0;
+        const base = isFloor ? 'translate(-50%,-50%) ' : '';
+        const tail = isFloor ? ` rotate(${rot}deg)` : '';
+        try {
+          el.animate([
+            { transform: `${base}translate(${dx}px,${dy}px) scale(.35) rotate(-14deg)${isFloor ? '' : ''}`, opacity: 0, offset: 0 },
+            { transform: `${base}translate(${dx * 0.08}px,${dy * 0.08}px) scale(1.06)${tail}`, opacity: 1, offset: 0.82 },   // 거의 도착 + 살짝 큼
+            { transform: `${base}translate(0,0) scale(1)${tail}`, opacity: 1, offset: 1 },                                   // 탁 안착
+          ], { duration: 340, delay: i * 46, easing: 'cubic-bezier(.3,.8,.4,1)', fill: 'backwards' });
+        } catch (e) { /* noop */ }
+      });
+    });
   }
 
   // ── flyer 조작 ──
@@ -186,6 +216,7 @@ export default function Gostop({ ws }) {
       slots.current = {}; used.current = new Set(); syncSlots(nf);
       prev.current = { floor: nf, hand: nh, cap: nc.map((a) => a.slice()), scores: (s.scores || []).slice(), handNo: s.handNo, phase: s.phase };
       sync();   // 딜 직후 슬롯 배정 반영(겹침 버그 방지)
+      if (dealtRound.current !== s.handNo) { dealtRound.current = s.handNo; dealIn(); }   // 촤라랄라 딜 인트로(라운드당 1회)
       return;
     }
 
