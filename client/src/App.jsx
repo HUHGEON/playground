@@ -7,8 +7,9 @@ export default function App() {
   const ws = useWS();
   return (
     <>
-      <h1>play<span className="gr">ground</span></h1>
-      {ws.myName && (
+      {/* 방(게임) 안에선 헤더/유저바 숨김 — 게임이 화면 전체를 쓰게(바닥 위에 'playground' 안 뜨게) */}
+      {!ws.room && <h1>play<span className="gr">ground</span></h1>}
+      {ws.myName && !ws.room && (
         <div id="userbar">
           <span id="meLabel">{ws.myName}</span>
           <button className="sub" style={{ padding: '5px 10px', fontSize: 12 }} onClick={ws.logout}>로그아웃</button>

@@ -31,8 +31,8 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 /* 나무 프레임(그라데이션) + 초록 펠트(안) — 높이를 뷰포트에 맞춰 채팅이 항상 닿게(세로 스크롤 방지) */
 #gsFelt {
   /* 폭: 사이드바(채팅) 자리(약 330px)를 남겨, 게임+채팅이 항상 나란히 → 채팅 줄바꿈/스크롤 방지 */
-  position: relative; width: max(300px, min(800px, calc(100vw - 330px)));
-  min-height: min(560px, calc(100dvh - 150px)); max-height: calc(100dvh - 120px);
+  position: relative; width: max(300px, min(840px, calc(100vw - 330px)));
+  min-height: min(620px, calc(100dvh - 84px)); max-height: calc(100dvh - 64px);
   background:
     radial-gradient(125% 95% at 50% 32%, #2c834f 0%, #1d5d36 48%, #103f25 100%) padding-box,
     linear-gradient(150deg, #7c5c30 0%, #4a3318 45%, #2f2010 100%) border-box;
