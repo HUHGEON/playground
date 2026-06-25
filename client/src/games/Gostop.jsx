@@ -9,13 +9,13 @@ const pname = (p) => (p ? p.name.replace(/🤖/g, '') : '');
 const BACK_BG = 'linear-gradient(160deg,#a51f27,#771319)';
 
 // ── 바닥 고정 슬롯(% 좌표) — 절대 안 움직인다. 카드가 슬롯을 차지/비울 뿐. (프로토타입 핵심) ──
-// 중앙 더미(50%,50%)를 피해 위/아래 두 줄로 펼침. 위·아래를 번갈아 채워 8장이 4×2 그리드로 고르게 깔리게.
+// 중앙 더미(50%,50%, 58×90px)를 피하려 '가운데 열을 비운' 4열 × 2행. 8장이 더미 둘레로 고르게 깔림.
 const SLOTS = (() => {
-  const cols = [16, 32, 48, 64, 82];
-  const rowsTop = 26, rowsBot = 74, rowsTop2 = 11, rowsBot2 = 89;
+  const cols = [13, 31, 69, 87];   // 중앙(46~54%) 비움 → 더미와 안 겹침
+  const rTop = 27, rBot = 73, rTop2 = 9, rBot2 = 91;
   const order = [];
-  for (let i = 0; i < cols.length; i++) { order.push({ x: cols[i], y: rowsTop }); order.push({ x: cols[i], y: rowsBot }); }   // 0~9: 위/아래 번갈아
-  for (let i = 0; i < cols.length; i++) { order.push({ x: cols[i], y: rowsTop2 }); order.push({ x: cols[i], y: rowsBot2 }); } // 10~19: 오버플로 줄
+  for (let i = 0; i < cols.length; i++) { order.push({ x: cols[i], y: rTop }); order.push({ x: cols[i], y: rBot }); }     // 0~7: 4열×2행
+  for (let i = 0; i < cols.length; i++) { order.push({ x: cols[i], y: rTop2 }); order.push({ x: cols[i], y: rBot2 }); }   // 8~15: 오버플로
   return order.map((p, i) => ({ ...p, rot: ((i * 37) % 9) - 4 }));
 })();
 function slotPct(idx) {
@@ -277,13 +277,16 @@ export default function Gostop({ ws }) {
     const played = leftHand.find((c) => c.m !== 0) || leftHand[0];
     const playedToFloor = played && addedFloor.find((c) => c.id === played.id);
     const playedCaptured = played && realCap.find((c) => c.id === played.id);
+    // 매칭되는 바닥 월 위치(낸/뒤집힌 매칭패는 빈 칸이 아니라 그 월 위로 던져짐)
+    const matchPosOf = (card) => { const mf = capturedFloor.find((c) => c.m === card.m); return mf ? (liftFrom[mf.id] || null) : null; };
     if (played) {
-      const dst = playedToFloor ? slotPx(played.id) : capPile;
+      const mpos = playedCaptured ? matchPosOf(played) : null;
+      const dst = playedToFloor ? slotPx(played.id) : (mpos || capPile);
       const slotrot = playedToFloor ? slotPctFor(played.id).rot : 0;
       step(0, () => FLY({ key: 'p1', id: played.id, src: srcOf(played), x: handPt.x, y: handPt.y, rot: 0, z: 30 }));
-      step(T.play, () => setFly('p1', { x: dst.x, y: dst.y, rot: slotrot, scale: playedToFloor ? 1 : 1, ring: playedCaptured ? 1 : 0 }));
+      step(T.play, () => setFly('p1', { x: dst.x, y: dst.y, rot: slotrot, ring: playedCaptured ? 1 : 0 }));
       if (playedToFloor) step(T.playLand, () => { unhide(played.id); dropFly('p1'); });
-      else step(T.playLand, () => {}); // 매칭이면 캡처 단계까지 flyer 유지
+      else step(T.playLand, () => {}); // 매칭이면 캡처 단계까지 flyer 유지(그 월 위에서)
     }
 
     // ── ② 더미 뒤집기(rotateY 리빌) ──
@@ -293,7 +296,9 @@ export default function Gostop({ ws }) {
       step(flipped ? T.flipSpawn : 0, () => FLY({ key: 'd1', src: BACK_BG, face: 'back', x: deck.x, y: deck.y, rot: 0, z: 32 }));
       step(T.flipRy, () => setFly('d1', { ry: 90 }));
       step(T.flipFront, () => setFly('d1', { ry: 0, face: 'front', src: srcOf(flipped) }));
-      const dst = flippedToFloor ? slotPx(flipped.id) : capPile;
+      // 뒤집힌 매칭패도 그 월 위로(없으면 낸 패가 간 자리, 그것도 없으면 더미)
+      const fmpos = flippedCaptured ? (matchPosOf(flipped) || (played && played.m === flipped.m && playedCaptured ? matchPosOf(played) : null)) : null;
+      const dst = flippedToFloor ? slotPx(flipped.id) : (fmpos || capPile);
       const slotrot = flippedToFloor ? slotPctFor(flipped.id).rot : 0;
       step(T.flipLand, () => setFly('d1', { x: dst.x, y: dst.y, rot: slotrot, ring: flippedCaptured ? 1 : 0 }));
       if (flippedToFloor) step(T.flipDrop, () => { unhide(flipped.id); dropFly('d1'); });
@@ -405,6 +410,22 @@ export default function Gostop({ ws }) {
   const sideNote = s.phase === 'finished' ? '판 종료' : (s.phase === 'playing' && turnName ? `${turnName} 님의 차례` : '게임 대기 중…');
   const myTurn = s.myTurn && s.phase === 'playing' && !m.current.flyers.length;
   const floorMonths = new Set((s.floor || []).map((c) => c.m).filter(Boolean));
+
+  // 손패 ▼ 힌트 — 낼 수 있는(.matchable) 손패 위에 화살표(매 렌더 위치 갱신)
+  useEffect(() => {
+    const el = document.getElementById('gsHandHints'); if (!el) return;
+    const row = document.getElementById('gsMyRow'), hand = document.getElementById('gsHand');
+    const show = s.myTurn && s.phase === 'playing' && !m.current.flyers.length;
+    if (!show || !row || !hand) { el.innerHTML = ''; return; }
+    const rr = row.getBoundingClientRect();
+    let html = '';
+    hand.querySelectorAll('.gscard.matchable').forEach((card) => {
+      const r = card.getBoundingClientRect();
+      const x = r.left + r.width / 2 - rr.left, y = r.top - rr.top - 4;
+      html += `<div class="gs-hand-hint" style="left:${x}px;top:${y}px">▼</div>`;
+    });
+    el.innerHTML = html;
+  });
   const capFor = (seat) => ((s.captured && s.captured[seat]) || []).filter((c) => !m.current.hidden.has('cap:' + c.id));
 
   // ── flyer 스타일 ──
