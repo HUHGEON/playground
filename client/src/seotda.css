@@ -1,0 +1,235 @@
+/* ============================================================
+   섯다 — 자개 프레임·한지 펠트·현금다발
+   (playground — 게임별 CSS. index.html 에서 <link>로 로드)
+   ============================================================ */
+  /* ===== 섯다 ===== */
+  /* 고정 크기로 디자인 → JS가 화면에 맞춰 통째로 scale → 어떤 기기서든 동일 비율, 겹침 0 */
+  #seotdaStage { width: 720px; max-width: 100%; display: flex; justify-content: center; align-items: flex-start; overflow: hidden; }
+  /* 자개(나전) 광택 프레임 — shimmer 애니메이션 */
+  #seotdaFelt { position: relative; flex: 0 0 720px; width: 720px; transform-origin: top center; will-change: transform; padding: 13px; border-radius: 32px; background: linear-gradient(115deg,#0f2d3c,#3a1a4a,#0e3a2c,#4a3a12,#3a1240,#0f2d3c); background-size: 300% 100%; animation: shimmer 9s linear infinite; box-shadow: 0 30px 70px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.14); }
+  @keyframes shimmer { to { background-position: 300% 50%; } }
+  /* 옥색 펠트 */
+  #seotdaInner { position: relative; border-radius: 24px; padding: 22px 20px 20px; background: radial-gradient(135% 120% at 50% -8%, #2a9a5c 0%, #16693d 45%, #0c3a22 78%); box-shadow: inset 0 0 90px rgba(0,0,0,.5); }
+  /* 먹 코너 문양 */
+  .inkmotif { position: absolute; font-size: 30px; font-family: 'Nanum Myeongjo', serif; color: rgba(255,255,255,.13); pointer-events: none; z-index: 0; }
+  .inkmotif.tl { top: 16px; left: 20px; }
+  .inkmotif.br { bottom: 16px; right: 22px; }
+  /* 원형 테이블 + 중앙 판돈 (고정 높이) */
+  #seotdaTable { position: relative; width: 100%; height: 540px; margin: 12px auto 14px; }
+  #potCenter { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 5; pointer-events: none; }
+  #potCtrl { pointer-events: auto; margin-top: 8px; }
+  #potCtrl button { padding: 10px 18px; font-size: 14px; }
+  .potpile { position: relative; height: 56px; width: 100px; margin: 0 auto 2px; }
+  /* 원화 다발 (만원=초록, 오만원=황금) — 결·초상하이라이트·띠지(세로액면)·3D두께. 더미+날아가는돈 공용 */
+  .wbill { position: absolute; width: 50px; height: 32px; border-radius: 3px; overflow: hidden; border: 1px solid rgba(0,0,0,.4); }
+  .wbill.man { background: linear-gradient(160deg,#d2e7d6,#9bc6a9 55%,#79a98c); box-shadow: 0 1px 0 rgba(0,0,0,.22), 0 2px 0 #7fae93, 0 3px 0 rgba(0,0,0,.2), 0 4px 0 #7fae93, 0 5px 7px rgba(0,0,0,.5); }
+  .wbill.oman { background: linear-gradient(160deg,#f7ead0,#ecd596 55%,#d9bc62); box-shadow: 0 1px 0 rgba(0,0,0,.22), 0 2px 0 #e2c878, 0 3px 0 rgba(0,0,0,.2), 0 4px 0 #e2c878, 0 5px 7px rgba(0,0,0,.5); }
+  .wbill::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, rgba(0,0,0,.13) 0 1px, rgba(255,255,255,.1) 1px 2px, transparent 2px 4px); }
+  .wbill::after { content: ''; position: absolute; left: 3px; top: 50%; transform: translateY(-50%); width: 11px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgba(255,255,255,.5), rgba(255,255,255,0)); }
+  .wbill .strap { position: absolute; top: -1px; bottom: -1px; left: 50%; width: 14px; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 .5px rgba(0,0,0,.18); }
+  .wbill.man .strap { background: linear-gradient(90deg,#c0cfc6,#eef4f0 28%,#eef4f0 72%,#c0cfc6); }
+  .wbill.oman .strap { background: linear-gradient(90deg,#e4d4a0,#fff7e2 28%,#fff7e2 72%,#e4d4a0); }
+  .wbill .strap i { writing-mode: vertical-rl; font-style: normal; font-size: 6px; font-weight: 900; letter-spacing: .5px; font-family: 'Space Grotesk', sans-serif; }
+  .wbill.man .strap i { color: #1f7a4e; } .wbill.oman .strap i { color: #9a6a16; }
+  .potamt { font-size: 28px; font-weight: 800; color: #f0d77a; text-shadow: 0 2px 10px #000; margin-top: 6px; letter-spacing: -.5px; font-family: 'Space Grotesk', sans-serif; }
+  .potlabel { font-size: 11px; color: #bfe3cf; margin-top: 2px; letter-spacing: 1px; }
+  .potsub { font-size: 11px; color: #cdeede; margin-top: 2px; }
+  .pottimer { font-size: 14px; font-weight: 800; color: #fff; margin-top: 4px; }
+
+  #seotdaTable .seat { position: absolute; transform: translate(-50%,-50%); width: 150px; padding: 8px 9px 9px; text-align: center; background: linear-gradient(180deg, rgba(28,38,33,.9), rgba(10,18,13,.93)); border: 1px solid rgba(255,255,255,.12); border-radius: 15px; box-shadow: 0 8px 22px rgba(0,0,0,.55); transition: box-shadow .18s, border-color .18s; }
+  #seotdaTable .seat.me { z-index: 3; border-color: rgba(110,224,166,.55); background: linear-gradient(180deg, rgba(34,72,52,.92), rgba(12,32,22,.95)); }
+  .seat.turn { border-color: #e7c75a; animation: seatpulse 1s ease-in-out infinite; z-index: 4; }
+  @keyframes seatpulse { 0%,100% { box-shadow: 0 0 0 2px #e7c75a, 0 0 16px rgba(231,199,90,.45), 0 8px 22px rgba(0,0,0,.55); } 50% { box-shadow: 0 0 0 3px #f4dd80, 0 0 30px rgba(244,221,128,.8), 0 8px 22px rgba(0,0,0,.55); } }
+  .seat.folded { opacity: .42; filter: grayscale(.6); }
+  .seat.win { border-color: #f0d77a; box-shadow: 0 0 0 3px #f0d77a, 0 0 26px rgba(240,215,122,.65); z-index: 4; }
+  #seotdaTable .seat.waiting { opacity: .6; border-style: dashed; background: linear-gradient(180deg, rgba(30,40,36,.55), rgba(10,18,14,.6)); }
+  .seat.waiting .cards { display: flex; align-items: center; justify-content: center; }
+  .emptycard { font-size: 30px; opacity: .5; }
+  .stag.wait { background: #3a4450; color: #cdd6e0; }
+  #seotdaTable .seat.bust { border-color: rgba(192,73,47,.5); background: linear-gradient(180deg, rgba(45,28,26,.6), rgba(20,12,11,.65)); }
+  .stag.bust { background: #7a1f1f; color: #ffd0d0; }
+  .seat .cards { display: flex; gap: 7px; justify-content: center; align-items: flex-end; min-height: 90px; }
+  .seat .betrow { min-height: 17px; margin: 4px 0 2px; }
+  .seat .betc { font-size: 11px; color: #bfe3cf; font-weight: 700; margin-left: 4px; }
+  .seat .namebar { display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .seat .nm { font-weight: 800; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 92px; font-family: 'Nanum Myeongjo', serif; }
+  .seat .ch { font-size: 12px; color: #e6c869; font-weight: 800; font-family: 'Space Grotesk', sans-serif; margin-top: 1px; }
+  .seat .hd { font-size: 12px; font-weight: 800; color: #f0d77a; min-height: 15px; margin-top: 2px; font-family: 'Nanum Myeongjo', serif; }
+  .stag { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 999px; }
+  .stag.allin { background: #7a1f1f; color: #ffd0d0; } .stag.die { background: #333; color: #aaa; }
+  .stag.host { background: linear-gradient(180deg, #6a5420, #4a3a17); color: #ffd97a; }
+
+  /* 화투패 */
+  .hwatu { width: 60px; height: 90px; border-radius: 9px; position: relative; overflow: hidden; background: #f6efde; border: 2px solid #20242b; box-shadow: 0 4px 9px rgba(0,0,0,.45); display: flex; flex-direction: column; flex: none; }
+  .hwatu .band { height: 48%; background: var(--hb, #2a6); position: relative; display: flex; align-items: center; justify-content: center; }
+  .hwatu .band .art { font-size: 27px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
+  .hwatu .lower { flex: 1; display: flex; align-items: center; justify-content: center; gap: 3px; background: linear-gradient(180deg,#fbf6ea,#efe6cf); }
+  .hwatu .lower .sub { font-size: 19px; }
+  .hwatu .mon { position: absolute; top: 2px; left: 4px; font-size: 11px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.7); z-index: 2; }
+  .hwatu .nm { position: absolute; bottom: 3px; width: 100%; text-align: center; font-size: 11px; font-weight: 800; color: #3a2a18; letter-spacing: 1px; }
+  .hwatu .gwang { position: absolute; top: 3px; right: 3px; width: 19px; height: 19px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff3b0, #e6a800); color: #7a4a00; font-weight: 900; font-size: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 7px rgba(255,200,0,.85); border: 1px solid #b07c00; z-index: 2; }
+  .hwatu .ribbon { display: flex; align-items: center; justify-content: center; min-width: 16px; min-height: 30px; padding: 2px 3px; border-radius: 3px; background: var(--rc, #c0392b); color: #fff; font-size: 9px; font-weight: 900; writing-mode: vertical-rl; letter-spacing: 2px; transform: rotate(-8deg); box-shadow: 0 1px 3px rgba(0,0,0,.45); }
+  .hwatu.sm .ribbon { min-height: 22px; font-size: 8px; }
+  .hwatu.back { background: repeating-linear-gradient(45deg, #93132a, #93132a 7px, #7c1020 7px, #7c1020 14px); border-color: #4a0a14; }
+  .hwatu.back::after { content: '花'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; color: rgba(255,235,210,.16); }
+  .hwatu.img { background: #fff; border: none; padding: 0; box-shadow: 0 4px 9px rgba(0,0,0,.45); }
+  .hwatu.img img { width: 100%; height: 100%; object-fit: fill; display: block; border-radius: 7px; }
+  .hwatu.win { box-shadow: 0 0 0 3px var(--gold), 0 6px 16px rgba(255,200,0,.55); }
+  .hwatu.deal { animation: deal .3s ease both; }
+  @keyframes deal { from { transform: translateY(-16px) rotate(-6deg); opacity: 0; } }
+  .hwatu.med { width: 50px; height: 75px; border-radius: 8px; }
+  .hwatu.sm { width: 44px; height: 66px; border-radius: 7px; }
+  .hwatu.sm .band .art { font-size: 20px; } .hwatu.sm .lower .sub { font-size: 14px; }
+  .hwatu.sm .mon, .hwatu.sm .nm { font-size: 9px; } .hwatu.sm .gwang { width: 15px; height: 15px; font-size: 10px; }
+
+  #myStatus { text-align: center; margin-top: 8px; }
+  #myStatus .ms-line { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  #seotdaActions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 26px; min-height: 48px; }
+  #seotdaActions button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 10px 20px; border-radius: 12px; font-family: 'Nanum Myeongjo', serif; font-weight: 800; box-shadow: 0 5px 14px rgba(0,0,0,.4); }
+  #seotdaActions button .blabel { font-size: 15px; line-height: 1.1; }
+  #seotdaActions button .bamt { font-size: 11px; font-weight: 700; opacity: .9; font-family: 'Space Grotesk', sans-serif; }
+  /* 베팅 종류별 색 (버튼) */
+  #seotdaActions .b-check { background: linear-gradient(180deg,#5a6675,#454f5c); }
+  #seotdaActions .b-ping  { background: linear-gradient(180deg,#3a7bd5,#2a5ea8); }
+  #seotdaActions .b-call  { background: linear-gradient(180deg,#2ea05a,#1f8048); }
+  #seotdaActions .b-ddang { background: linear-gradient(180deg,#8b5cf6,#6d3fce); }
+  #seotdaActions .b-quarter { background: linear-gradient(180deg,#d65a9a,#b03b78); }
+  #seotdaActions .b-half  { background: linear-gradient(180deg,#e8853a,#c4671c); }
+  #seotdaActions .b-full  { background: linear-gradient(180deg,#11a39a,#0c7d76); }
+  #seotdaActions .b-allin { background: linear-gradient(180deg,#e8b13a,#c98e1c); color:#2a1c00; }
+  #seotdaActions .b-die   { background: linear-gradient(180deg,#c0492f,#9a3b2f); }
+  #seotdaResult { text-align: center; font-size: 15px; font-weight: 800; color: var(--gold); min-height: 0; }
+  #seotdaResult:not(:empty) { padding: 7px 16px; margin: 0 auto; max-width: 90%; background: rgba(0,0,0,.42); border: 1px solid rgba(255,213,74,.3); border-radius: 999px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+  #myhand button { margin-top: 8px; }
+
+  /* 재참가 박스 */
+  #buyinBox { margin-top: 10px; }
+  #buyinBox:not(:empty) { background: rgba(0,0,0,.28); border: 1px solid rgba(255,213,74,.35); border-radius: 12px; padding: 10px 12px; }
+  .buyin-title { font-size: 12px; color: #cfe; margin-bottom: 8px; }
+  .buyin-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; font-weight: 700; }
+  .buyin-row button { padding: 6px 12px; font-size: 13px; }
+
+  /* 내 차례 — 판 중앙 토스트 */
+  .turn-toast { position: absolute; z-index: 40;
+    background: linear-gradient(180deg,#2fbf6b,#1f8048); color: #fff; font-weight: 900; font-size: 26px; letter-spacing: 1px;
+    padding: 18px 44px; border-radius: 18px; box-shadow: 0 16px 50px rgba(0,0,0,.5), 0 0 0 4px rgba(110,224,166,.5), 0 0 40px rgba(56,196,106,.6);
+    animation: toastin .25s cubic-bezier(.34,1.56,.64,1) both; pointer-events: none; text-shadow: 0 2px 6px rgba(0,0,0,.4); }
+  .turn-toast.out { animation: toastout .34s ease forwards; }
+  @keyframes toastin { from { opacity: 0; transform: translate(-50%,-50%) scale(.7); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
+  @keyframes toastout { to { opacity: 0; transform: translate(-50%,-50%) scale(1.15); } }
+  /* 묻고 더블로 가! 이월 토스트 */
+  .carry-toast { position: absolute; z-index: 45; pointer-events: none; animation: carrypop .4s cubic-bezier(.34,1.6,.64,1) both; }
+  .carry-toast img { width: 280px; max-width: 72vw; border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.6), 0 0 0 4px rgba(240,215,122,.65); display: block; }
+  .carry-toast.out { animation: carryout .4s ease forwards; }
+  @keyframes carrypop { from { opacity: 0; transform: translate(-50%,-50%) scale(.5) rotate(-6deg); } to { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0); } }
+  @keyframes carryout { to { opacity: 0; transform: translate(-50%,-50%) scale(1.12); } }
+  /* 푸쉬알람 (재참가 승인·재경기 합류) — 사이드바 위쪽 */
+  #pushZone { display: flex; flex-direction: column; gap: 10px; }
+  #pushZone:not(:empty) { margin-bottom: 12px; }
+  .pushcard { background: linear-gradient(180deg, rgba(46,52,66,.97), rgba(28,33,44,.97)); border: 1px solid rgba(255,213,74,.28); border-radius: 14px; padding: 13px 15px; box-shadow: 0 10px 26px rgba(0,0,0,.45); animation: pushin .35s cubic-bezier(.34,1.5,.64,1) both; }
+  @keyframes pushin { from { opacity: 0; transform: translateX(115%); } to { opacity: 1; transform: translateX(0); } }
+  .pushtitle { font-size: 13px; font-weight: 800; color: #f0d77a; margin-bottom: 5px; }
+  .pushbody { font-size: 13px; color: #e9edf4; line-height: 1.5; }
+  .pushbody b { color: #fff; }
+  .pushmeta { color: #8fc1b1; font-weight: 700; }
+  .pushbtns { display: flex; gap: 8px; margin-top: 11px; }
+  .pushbtns button { flex: 1; padding: 9px; font-size: 13px; font-weight: 700; }
+  .pushbtns .pok { background: linear-gradient(180deg,#37b366,#2a8f50); }
+  .pushbtns .pno { background: linear-gradient(180deg,#c0492f,#9a3b2f); }
+  .pushvoted { margin-top: 10px; font-size: 12px; color: #8fc1b1; font-weight: 700; }
+  /* 재경기 합류 — 화면 가운데 모달 */
+  .rejoin-modal { position: absolute; transform: translate(-50%,-50%); z-index: 150; width: 300px; max-width: 80vw; text-align: center; padding: 20px 20px 16px; border-radius: 18px; background: linear-gradient(180deg, rgba(46,52,66,.98), rgba(26,30,40,.98)); border: 1px solid rgba(255,213,74,.4); box-shadow: 0 24px 60px rgba(0,0,0,.6), 0 0 0 4px rgba(0,0,0,.3); animation: rjpop .3s cubic-bezier(.34,1.5,.64,1) both; }
+  @keyframes rjpop { from { opacity: 0; transform: translate(-50%,-50%) scale(.8); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
+  .rjtitle { font-size: 17px; font-weight: 800; color: #f0d77a; font-family: 'Nanum Myeongjo', serif; margin-bottom: 8px; }
+  .rjbody { font-size: 14px; color: #e9edf4; line-height: 1.6; } .rjbody b { color: #ffd97a; font-family: 'Space Grotesk', sans-serif; }
+  .rjtimer { font-size: 12px; color: #ff9a7a; font-weight: 700; margin-top: 9px; }
+  .rjbtns { display: flex; gap: 10px; margin-top: 14px; }
+  .rjbtns button { flex: 1; padding: 12px; font-size: 14px; font-weight: 800; }
+  .rjbtns .pok { background: linear-gradient(180deg,#37b366,#2a8f50); }
+  .rjbtns .pno { background: linear-gradient(180deg,#c0492f,#9a3b2f); }
+
+  /* 내 차례 — 펠트 글로우 (프레임 shimmer는 유지) */
+  #seotdaFelt.myturn #seotdaInner { animation: feltglow 1.1s ease-in-out infinite; }
+  @keyframes feltglow {
+    0%,100% { box-shadow: inset 0 0 90px rgba(0,0,0,.55), 0 0 0 3px rgba(110,224,166,.4); }
+    50% { box-shadow: inset 0 0 90px rgba(0,0,0,.55), 0 0 0 6px rgba(110,224,166,.85); }
+  }
+
+  /* 베팅 액션 배지 */
+  /* 베팅 배지(좌석 상시) + 좌석 토스트(팝) — 종류별 같은 색 */
+  .actbadge { font-size: 10px; font-weight: 900; padding: 1px 7px; border-radius: 999px; color: #fff; }
+  .ab-check { background: #5a6675; }
+  .ab-ping  { background: #3a7bd5; }
+  .ab-call  { background: #2ea05a; }
+  .ab-ddang { background: #8b5cf6; }
+  .ab-quarter { background: #d65a9a; }
+  .ab-half  { background: #e8853a; }
+  .ab-full  { background: #11a39a; }
+  .ab-allin { background: #e8b13a; color: #2a1c00; }
+  .ab-die   { background: #c0492f; }
+  .ab-raise { background: #d6ad4f; color: #241405; }
+  .act-toast { position: absolute; z-index: 38; transform: translate(-50%,-50%); font-weight: 900; font-size: 20px;
+    padding: 8px 20px; border-radius: 12px; color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 0 3px rgba(255,255,255,.18);
+    animation: acttoastin .2s cubic-bezier(.34,1.56,.64,1) both; pointer-events: none; text-shadow: 0 1px 3px rgba(0,0,0,.45); }
+  .act-toast.out { animation: acttoastout .3s ease forwards; }
+  @keyframes acttoastin { from { opacity: 0; transform: translate(-50%,-50%) scale(.6); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
+  @keyframes acttoastout { to { opacity: 0; transform: translate(-50%,-80%) scale(1.05); } }
+
+  /* 판 밑 채팅 입력 */
+  .feltchat { display: flex; gap: 7px; width: min(96vw, 820px); margin: 12px auto 0; }
+  .feltchat input { flex: 1; min-width: 0; padding: 11px 14px; border-radius: 12px; border: 1px solid #3a4350; background: rgba(0,0,0,.35); color: #fff; font-size: 14px; }
+  .feltchat input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(78,161,255,.2); }
+  .feltchat button { padding: 11px 18px; }
+
+  /* 좌석 말풍선 */
+  .chat-bubble { position: absolute; transform: translate(-50%,-100%); z-index: 36; max-width: 200px;
+    background: linear-gradient(180deg, #f8f1dd, #ece0c2); color: #3a2718; font-size: 13px; font-weight: 700;
+    padding: 8px 13px; border-radius: 16px; border: 2px solid #8a1020;
+    box-shadow: 0 7px 20px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.5); animation: bubblein .2s cubic-bezier(.34,1.56,.64,1) both; word-break: break-word; pointer-events: none; }
+  .chat-bubble::before { content: ''; position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); border: 9px solid transparent; border-top-color: #8a1020; border-bottom: 0; }
+  .chat-bubble::after { content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); border: 7px solid transparent; border-top-color: #ece0c2; border-bottom: 0; }
+  .chat-bubble.out { animation: bubbleout .35s ease forwards; }
+
+  /* 베팅 시 가운데로 지폐 던지기 */
+  .money-fly { position: absolute !important; z-index: 37; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 3px 7px rgba(0,0,0,.55); animation: moneyfly .58s cubic-bezier(.45,0,.65,1) both; will-change: transform, opacity; }
+  @keyframes moneyfly {
+    0% { opacity: 0; transform: translate(-50%,-50%) scale(.5) rotate(-12deg); }
+    18% { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.85) rotate(18deg); }
+  }
+  @keyframes bubblein { from { opacity: 0; transform: translate(-50%,-78%) scale(.7); } to { opacity: 1; transform: translate(-50%,-100%) scale(1); } }
+  @keyframes bubbleout { to { opacity: 0; transform: translate(-50%,-118%); } }
+
+  /* 섞기/딜링 연출 */
+  #shuffleFx { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 5; pointer-events: none; }
+  #shuffleFx .deck { position: relative; width: 60px; height: 90px; }
+  #shuffleFx .sc { position: absolute; left: 0; top: 0; width: 56px; height: 84px; border-radius: 8px; border: 2px solid #4a0a14; background: repeating-linear-gradient(45deg, #93132a, #93132a 7px, #7c1020 7px, #7c1020 14px); box-shadow: 0 5px 12px rgba(0,0,0,.5); }
+  #shuffleFx .sc::after { content: '花'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 26px; color: rgba(255,235,210,.18); }
+  #shuffleFx .lbl { position: absolute; bottom: 18%; width: 100%; text-align: center; color: #ffe9a8; font-weight: 800; letter-spacing: 2px; font-size: 14px; text-shadow: 0 2px 6px rgba(0,0,0,.6); }
+  @keyframes riffle0 { 0%,100% { transform: translate(0,0) rotate(0); } 25% { transform: translate(-26px,-6px) rotate(-12deg); } 60% { transform: translate(20px,4px) rotate(9deg); } }
+  @keyframes riffle1 { 0%,100% { transform: translate(0,0) rotate(0); } 30% { transform: translate(24px,-8px) rotate(11deg); } 65% { transform: translate(-18px,6px) rotate(-8deg); } }
+  @keyframes riffle2 { 0%,100% { transform: translate(0,0) rotate(0); } 35% { transform: translate(-18px,8px) rotate(7deg); } 70% { transform: translate(22px,-4px) rotate(-10deg); } }
+  #shuffleFx.go .sc:nth-child(1) { animation: riffle0 .42s ease-in-out 2; }
+  #shuffleFx.go .sc:nth-child(2) { animation: riffle1 .42s ease-in-out 2; }
+  #shuffleFx.go .sc:nth-child(3) { animation: riffle2 .42s ease-in-out 2; }
+  #shuffleFx.go .sc:nth-child(4) { animation: riffle0 .42s ease-in-out 2 .06s; }
+  #shuffleFx.go .sc:nth-child(5) { animation: riffle1 .42s ease-in-out 2 .03s; }
+  #shuffleFx.fade { animation: fadeout .25s ease forwards; }
+  @keyframes fadeout { to { opacity: 0; } }
+
+  /* 족보표 (사이드바 상시 표시) */
+  /* 족보 — 단일 세로 리스트(위=강함, 상성 명시) */
+  #jokboPanel { max-height: 64vh; overflow-y: auto; }
+  .jlegend { font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 6px; padding: 5px 8px; background: rgba(255,213,74,.1); border-radius: 8px; }
+  .jlist { display: flex; flex-direction: column; gap: 3px; }
+  .jcat { background: #000; color: #fff; font-weight: 800; font-size: 11px; letter-spacing: 1.5px; padding: 5px 8px; border-radius: 5px; margin: 7px 0 2px; }
+  .jrow { display: flex; align-items: center; gap: 9px; padding: 4px 6px; border-radius: 7px; background: rgba(255,255,255,.035); }
+  .jrow.hi { background: rgba(255,213,74,.14); }
+  .jrow.hi .jn { color: var(--gold); }
+  .jrow .jcc { flex: none; display: flex; gap: 2px; }
+  .jrow .jcc img { width: 22px; height: 33px; border-radius: 3px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.4); display: block; }
+  .jrow .jt { min-width: 0; }
+  .jrow .jn { font-size: 12px; font-weight: 700; color: #eaf0f8; }
+  .jrow .jd { font-size: 10px; color: var(--muted); line-height: 1.3; margin-top: 1px; }
+  .jrow .jd b { color: var(--gold); }
+

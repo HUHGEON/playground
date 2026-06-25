@@ -1,0 +1,87 @@
+import { useState, useEffect, useRef } from 'react';
+import ChatBubbleLayer from './ChatBubbleLayer.jsx';
+import Gostop from './games/Gostop.jsx';
+import Othello from './games/Othello.jsx';
+import Seotda from './games/Seotda.jsx';
+import Poker from './games/Poker.jsx';
+
+const GAME_COMPONENTS = {
+  gostop: Gostop,
+  othello: Othello,
+  seotda: Seotda,
+  poker: Poker,
+};
+
+// 금액 억/만 축약(섯다 roomSub용)
+const EOK = 100000000;
+function won(n) {
+  n = Math.round(Number(n) || 0);
+  if (Math.abs(n) < 10000) return n.toLocaleString();
+  const eok = Math.floor(n / EOK), man = Math.floor((n % EOK) / 10000);
+  let s = '';
+  if (eok) s += eok.toLocaleString() + '억';
+  if (man) s += (s ? ' ' : '') + man.toLocaleString() + '만';
+  return s || n.toLocaleString();
+}
+
+export default function Room({ ws }) {
+  const { room, send, chat } = ws;
+  const GameComp = GAME_COMPONENTS[room.gameType];
+  const [chatText, setChatText] = useState('');
+  const chatEnd = useRef(null);
+  useEffect(() => { chatEnd.current?.scrollIntoView({ block: 'end' }); }, [chat]);
+
+  // 게임별 배경 클래스(body) — gostop.css 등의 body.game-XXX 배경 적용
+  useEffect(() => {
+    document.body.classList.add('game-' + room.gameType);
+    return () => document.body.classList.remove('game-' + room.gameType);
+  }, [room.gameType]);
+
+  const sendChat = () => { const t = chatText.trim(); if (!t) return; send({ type: 'chat', text: t }); setChatText(''); };
+  const sub = room.phase === 'playing' ? '게임 중'
+    : room.phase === 'pickFirst' ? '선 정하는 중'
+    : room.phase === 'finished' ? '판 종료' : '대기 중';
+
+  return (
+    <div id="roomView">
+      <ChatBubbleLayer chat={chat} bubbleClass={room.gameType === 'othello' ? 'obubble' : 'chat-bubble'} />
+      <div id="roomTopbar">
+        <button id="leaveBtn" className="sub" onClick={() => {
+          const msg = window.leaveConfirm;          // 게임이 진행 중이면 기권 확인(게임별로 설정)
+          if (msg && !window.confirm(msg)) return;
+          window.leaveConfirm = null;
+          send({ type: 'leaveRoom' });
+        }}>← 나가기</button>
+        <div id="roomTitle">{room.title} · {room.roomName}</div>
+        <div id="roomSub">{room.gameType === 'seotda' && room.ante != null
+          ? `점당 ${won(room.ante)} · 시작 ${won(room.startChips)}`
+          : `${sub}${room.hostName ? ` · 방장 ${room.hostName}` : ''}`}</div>
+      </div>
+      <div className="layout">
+        <div className="col" id="roomMain">
+          {GameComp
+            ? <GameComp ws={ws} />
+            : <div className="panel muted" style={{ padding: 40 }}>이 게임은 아직 React로 이전 안 됨: <b>{room.gameType}</b></div>}
+        </div>
+        <div className="col">
+          <div className="panel" id="roomInfo" style={{ width: 280 }} />
+          <div className="panel" style={{ width: 280 }}>
+            <h3>채팅 기록</h3>
+            <div className="chatbox" id="roomChat">
+              {chat.length === 0 && <div className="muted" style={{ fontSize: 12 }}>아직 대화가 없어요.</div>}
+              {chat.map((c, i) => (
+                <div key={i} className="chatmsg"><b style={{ color: c.color || 'var(--gold)' }}>{c.name}</b> {c.text}</div>
+              ))}
+              <div ref={chatEnd} />
+            </div>
+            <div className="chatbar">
+              <input maxLength={200} placeholder="메시지 입력…" autoComplete="off" value={chatText}
+                onChange={(e) => setChatText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendChat()} />
+              <button onClick={sendChat}>전송</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
