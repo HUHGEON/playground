@@ -28,7 +28,7 @@ function slotPct(idx) {
 const T = {
   play: 60, playLand: 480, eatLift: 120, eatMove: 40, eatDrop: 460,
   flipSpawn: 520, flipRy: 80, flipFront: 220, flipLand: 520, flipDrop: 440,
-  bonusReveal: 360, bonusHold: 900, bonusToPile: 300, bonusDrop: 440,
+  bonusReveal: 320, bonusHold: 340, bonusToPile: 280, bonusDrop: 420,
   callHold: 760, ppeokHold: 1100, steal: 220, stealMove: 120, stealDrop: 540,
   jokboHold: 1500,
 };
@@ -300,14 +300,13 @@ export default function Gostop({ ws }) {
       else step(T.flipDrop, () => {});
     }
 
-    // ── ②.5 보너스피(정지+B 콜아웃) ──
+    // ── ②.5 보너스피 — 가볍게(스포트라이트/대형 콜아웃 없이): 카드가 살짝 떠서 잠깐 보여준 뒤 더미로 ──
     bonusCards.forEach((bc, i) => {
       step(i === 0 && !flipped ? T.flipSpawn : T.bonusReveal, () => {
-        FLY({ key: 'bn' + i, src: srcOf(bc), x: deck.x, y: 120, scale: 1.5, z: 40, big: 1 });
-        showCallout('보너스!', '피 +' + (bc.pi || 2) + '장', [srcOf(bc)]);
+        FLY({ key: 'bn' + i, src: srcOf(bc), x: deck.x, y: deck.y - 38, scale: 1.22, z: 40, big: 1 });   // 살짝 떠서 글로우만
       });
       step(T.bonusHold, () => {});
-      step(T.bonusToPile, () => { hideCallout(); setFly('bn' + i, { x: pilePx(capSeat).x, y: pilePx(capSeat).y, scale: .7, big: 0 }); });
+      step(T.bonusToPile, () => { setFly('bn' + i, { x: pilePx(capSeat).x, y: pilePx(capSeat).y, scale: .7, big: 0 }); });
       step(T.bonusDrop, () => dropFly('bn' + i));
     });
 
