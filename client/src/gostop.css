@@ -1,10 +1,37 @@
 /* ── 화투(고스톱) — 한지·먹·금 테마 ── */
 body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, #181109 55%, #0e0905 100%); color: #f3ead6; }
 
+/* ── 연출 프로토타입(고정 슬롯+flyer+B 콜아웃) 키프레임 ── */
+@keyframes ggPop { 0%{opacity:0;transform:translate(-50%,-50%) scale(.6)} 55%{opacity:1;transform:translate(-50%,-50%) scale(1.08)} 100%{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+@keyframes ggToast { 0%{opacity:0;transform:translate(-50%,-50%) scale(.7)} 45%{opacity:1;transform:translate(-50%,-50%) scale(1.12)} 70%{transform:translate(-50%,-50%) scale(.98)} 100%{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+@keyframes ggWarn { 0%,100%{box-shadow:0 0 0 0 rgba(227,200,120,0),inset 0 0 0 1px rgba(227,200,120,.7)} 50%{box-shadow:0 0 16px 2px rgba(227,200,120,.55),inset 0 0 0 1px rgba(227,200,120,.9)} }
+@keyframes ggDim { from{opacity:0} to{opacity:1} }
+/* flyer 레이어 — felt 위 전체를 덮는 px 좌표계(rotateY용 perspective) */
+#gsFly { position:absolute; inset:0; pointer-events:none; z-index:24; perspective:1100px; }
+.gsfly { position:absolute; left:0; top:0; border-radius:6px; overflow:hidden; transform-origin:center center;
+  transition:transform .5s cubic-bezier(.2,.8,.3,1), box-shadow .3s; background-size:cover; background-position:center; }
+/* B 스포트라이트 콜아웃/토스트 */
+#gsDim { position:absolute; inset:0; background:rgba(4,8,5,.52); z-index:23; pointer-events:none; animation:ggDim .3s ease both; }
+.gs-callout { position:absolute; left:50%; top:44%; transform:translate(-50%,-50%); z-index:26; text-align:center; pointer-events:none; animation:ggPop .45s cubic-bezier(.2,.9,.3,1) both; }
+.gs-callout .cc-cards { display:flex; gap:8px; justify-content:center; margin-bottom:14px; }
+.gs-callout .cc-card { width:52px; height:80px; border-radius:7px; overflow:hidden; background-size:cover; background-position:center; box-shadow:0 10px 22px rgba(0,0,0,.6),0 0 0 2px rgba(227,200,120,.85); }
+.gs-callout .cc-big { font-family:'Nanum Myeongjo','Noto Serif KR',serif; font-weight:800; font-size:68px; line-height:1; color:#ffe9a8; text-shadow:0 4px 24px rgba(0,0,0,.7),0 0 40px rgba(227,200,120,.6); }
+.gs-callout .cc-sub { margin-top:14px; font-size:16px; font-weight:700; letter-spacing:.04em; color:#f3ead6; background:rgba(0,0,0,.45); display:inline-block; padding:7px 18px; border-radius:10px; box-shadow:inset 0 0 0 1px rgba(227,200,120,.5); }
+.gs-jokbo { position:absolute; left:50%; top:46%; transform:translate(-50%,-50%); z-index:27; text-align:center; pointer-events:none; animation:ggToast .5s cubic-bezier(.2,.9,.3,1) both; }
+.gs-jokbo .jk-box { display:inline-flex; flex-direction:column; align-items:center; gap:6px; padding:18px 34px; border-radius:18px; background:linear-gradient(180deg,rgba(40,30,16,.96),rgba(24,16,8,.96)); box-shadow:0 24px 60px rgba(0,0,0,.6),inset 0 0 0 1.5px rgba(227,200,120,.8),0 0 50px rgba(227,200,120,.25); }
+.gs-jokbo .jk-tag { font-size:11px; font-weight:800; letter-spacing:.22em; color:#9fd6b0; }
+.gs-jokbo .jk-cards { display:flex; gap:8px; margin:6px 0 2px; }
+.gs-jokbo .jk-card { width:42px; height:64px; border-radius:6px; overflow:hidden; background-size:cover; background-position:center; box-shadow:0 8px 16px rgba(0,0,0,.5),0 0 0 1.5px rgba(227,200,120,.8); }
+.gs-jokbo .jk-name { font-family:'Nanum Myeongjo','Noto Serif KR',serif; font-weight:700; font-size:34px; line-height:1; color:#ffe9a8; text-shadow:0 2px 12px rgba(227,200,120,.5); }
+.gs-jokbo .jk-pt { font-family:'Nanum Myeongjo','Noto Serif KR',serif; font-weight:700; font-size:24px; color:#e3c878; }
+/* 족보 임박 경고 배지 */
+.gs-warnbadge { font-size:9.5px; font-weight:800; color:#231708; background:linear-gradient(180deg,#f0cf78,#d9aa48); border-radius:5px; padding:1px 6px; animation:ggWarn 1.3s ease-in-out infinite; }
+
 #gsStage { display: flex; justify-content: center; padding: 8px; }
 /* 나무 프레임(그라데이션) + 초록 펠트(안) — 높이를 뷰포트에 맞춰 채팅이 항상 닿게(세로 스크롤 방지) */
 #gsFelt {
-  position: relative; width: min(800px, 94vw);
+  /* 폭: 사이드바(채팅) 자리(약 330px)를 남겨, 게임+채팅이 항상 나란히 → 채팅 줄바꿈/스크롤 방지 */
+  position: relative; width: max(300px, min(800px, calc(100vw - 330px)));
   min-height: min(560px, calc(100dvh - 150px)); max-height: calc(100dvh - 120px);
   background:
     radial-gradient(125% 95% at 50% 32%, #2c834f 0%, #1d5d36 48%, #103f25 100%) padding-box,
