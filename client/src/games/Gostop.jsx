@@ -112,6 +112,7 @@ export default function Gostop({ ws }) {
   const used = useRef(new Set());
   const prev = useRef({ floor: [], hand: [], cap: [], scores: [], handNo: -1, phase: '' });
   const dealtRound = useRef(-1);   // 딜 인트로 1회/라운드
+  const jokboTimer = useRef(null);   // 족보 토스트 전용 타이머(seq와 분리 → 다음 턴 resetSeq에 안 취소됨)
 
   // 슬롯 배정 — 월별로 묶어 한 슬롯 배정(같은 월은 같은 슬롯에 stack으로 약간 겹침). 매번 깨끗이 재구성.
   function syncSlots(floorCards, reserve) {
@@ -207,8 +208,14 @@ export default function Gostop({ ws }) {
 
   function showCallout(big, sub, srcs) { m.current.callout = { big, sub, cards: srcs || [] }; m.current.dim = true; }
   function hideCallout() { m.current.callout = null; m.current.dim = false; }
-  function showJokbo(name, pt, srcs) { m.current.jokbo = { name, pt, cards: srcs || [] }; m.current.dim = true; }
-  function hideJokbo() { m.current.jokbo = null; m.current.dim = false; }
+  // 족보 토스트 — seq 시퀀서와 분리된 독립 타이머로 띄움(캡처 애니 끝에 예약하면 다음 턴에 취소돼 안 보였음).
+  // dim 미사용(다음 턴 연출 간섭 방지) → 토스트만 또렷이.
+  function flashJokbo(name, pt, srcs) {
+    m.current.jokbo = { name, pt, cards: srcs || [] };
+    if (jokboTimer.current) clearTimeout(jokboTimer.current);
+    jokboTimer.current = setTimeout(() => { m.current.jokbo = null; jokboTimer.current = null; sync(); }, T.jokboHold);
+    sync();
+  }
 
   const EVNAME = { jjok: '쪽!', ttadak: '따닥!', bbeok: '뻑!', 'bbeok-eat': '뻑 회수!', sweep: '싹쓸이!', sweepM: '뻑 회수!' };
 
@@ -288,7 +295,7 @@ export default function Gostop({ ws }) {
 
     resetSeq();
     // 이전(중단된) 시퀀스 잔여 정리 — 봇 턴이 빠르게 와도 flyer/숨김 누적 안 되게
-    m.current.flyers = []; m.current.hidden = new Set(); m.current.callout = null; m.current.jokbo = null; m.current.dim = false;
+    m.current.flyers = []; m.current.hidden = new Set(); m.current.callout = null; m.current.dim = false;   // jokbo는 독립 타이머가 관리(여기서 안 지움 → 다음 턴에 안 사라짐)
     // 애니 동안 관련 카드 숨김(미리 생성/번쩍 방지)
     for (const c of addedFloor) hide(c.id);
     for (const c of newCap) m.current.hidden.add('cap:' + c.id);   // 더미 표시는 capFor에서 거름
@@ -430,8 +437,8 @@ export default function Gostop({ ws }) {
     // ── ⑤ 족보 완성 토스트 + 점수 카운트업 ──
     const jk = capSeat >= 0 ? newJokbo((P.scoreDetails || [])[capSeat], (s.scoreDetails || [])[capSeat], nc[capSeat]) : null;
     if (jk) {
-      step(200, () => { showJokbo(jk.name, jk.pt, jk.cards); countScore(capSeat, P.scores[capSeat] || 0, (s.scores || [])[capSeat] || 0); });
-      step(T.jokboHold, () => hideJokbo());
+      flashJokbo(jk.name, jk.pt, jk.cards);   // 즉시 띄움(독립 타이머) → 봇이 곧장 다음 수를 둬도 안 취소됨
+      countScore(capSeat, P.scores[capSeat] || 0, (s.scores || [])[capSeat] || 0);
     }
 
     // ── 안전망: 전체 끝나면 정상 상태로 ──
@@ -739,9 +746,13 @@ export default function Gostop({ ws }) {
             ? <div className="gs-box"><h2>나가리</h2><p>아무도 못 났어요.<br />다음 판 점수 2배!</p>{s.canStart ? <button onClick={() => send({ type: 'start' })}>다음 판</button> : <p className="gs-wait">다음 판 대기…</p>}</div>
             : <div className="gs-box gs-result">
                 <h2>🏆 {s.seats[result.winner] ? s.seats[result.winner].name : ''} 승</h2>
-                <p className="gs-rscore">{result.baseScore}점{result.reason && result.reason !== 'stop' ? ' · ' + result.reason : ''}</p>
-                {resultTags.length > 0 && <div className="gs-tags">{resultTags.map((t, i) => <span key={i}>{t}</span>)}</div>}
-                <div className="gs-pays">{Object.entries(result.payScore || {}).map(([L, v]) => `${s.seats[L] ? s.seats[L].name : ''} ${v}점`).join(' · ')}</div>
+                {(() => { const finalTotal = Object.values(result.payScore || {}).reduce((a, b) => a + b, 0); return (
+                  <>
+                    <p className="gs-rscore">{finalTotal}점{result.reason && result.reason !== 'stop' ? ' · ' + result.reason : ''}</p>
+                    <p className="gs-rbreak">기본 {result.baseScore}점{result.goCount ? ` +${result.goCount}고` : ''}{resultTags.filter((t) => !/^\d+고$/.test(t)).length ? ' · ' + resultTags.filter((t) => !/^\d+고$/.test(t)).join(' · ') : ''}</p>
+                  </>
+                ); })()}
+                <div className="gs-pays">{Object.entries(result.payScore || {}).map(([L, v]) => `${s.seats[L] ? s.seats[L].name : ''} −${v}점`).join(' · ')}</div>
                 {s.canStart ? <button onClick={() => send({ type: 'start' })}>다음 판</button> : <p className="gs-wait">다음 판 대기…</p>}
               </div>}
         </div>
