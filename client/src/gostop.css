@@ -170,6 +170,10 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 #gsHand .gscard:hover:not(.dim) { transform: translateY(-15px); box-shadow: 0 20px 32px rgba(0,0,0,.55); }
 #gsHand .gscard.dim { opacity: .5; cursor: default; }
 #gsHand .gscard.matchable { box-shadow: 0 8px 16px rgba(0,0,0,.42), 0 0 0 2px #e3c878, 0 0 18px rgba(227,200,120,.4); }
+/* 폭탄/흔들기 가능 손패 — 버튼 없이 이 패를 내면 자동 발동(글로우로 안내) */
+#gsHand .gscard.canbomb { box-shadow: 0 8px 16px rgba(0,0,0,.42), 0 0 0 2.5px #ff5a2e, 0 0 20px 3px rgba(255,90,46,.65); animation: gsCardPulse 1s ease-in-out infinite; }
+#gsHand .gscard.canshake { box-shadow: 0 8px 16px rgba(0,0,0,.42), 0 0 0 2.5px #ffd34d, 0 0 18px 2px rgba(255,211,77,.6); animation: gsCardPulse 1.2s ease-in-out infinite; }
+@keyframes gsCardPulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.14); } }
 #gsActions { display: flex; flex-direction: column; gap: 5px; min-width: 92px; }
 .gs-act { padding: 8px 10px; border: none; border-radius: 9px; font-weight: 800; font-size: 13px; cursor: pointer; color: #fff; white-space: nowrap; }
 .gs-act.shake { background: #1aa86b; } .gs-act.bomb { background: #c0392b; } .gs-act.flip { background: #2F6FB0; } .gs-act.ct { background: #8a2be2; }

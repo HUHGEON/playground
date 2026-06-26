@@ -306,9 +306,12 @@ const floorCount = (r, m) => (m === 0 ? 0 : r.floor.filter((c) => c.m === m).len
 const floorOf = (r, m) => r.floor.filter((c) => c.m === m);
 const myTurnNow = (r, seat) => seat >= 0 && seat === r.turnIdx && !r.pending && !r.decision && !r.over && r.freeFlips[seat] === 0;
 function handMonths(r, seat, n) {   // 손패에 같은 월 n장 이상인 월 목록
-  const cnt = {}; for (const c of r.hands[seat] || []) if (c.m !== 0) cnt[c.m] = (cnt[c.m] || 0) + 1;
+  const cnt = {}; for (const c of r.hands[seat] || []) if (c.m > 0) cnt[c.m] = (cnt[c.m] || 0) + 1;   // m>0: 보너스(0)·폭탄피(-1) 제외
   return Object.keys(cnt).filter((m) => cnt[m] >= n).map(Number);
 }
+// 폭탄피 — 폭탄 시 손에 들어오는 특수 카드. 내면 '뒤집기 한 번'으로 소모(바닥/획득 안 됨)
+let bombCardSeq = 0;
+function makeBombCard() { return { id: 'bomb-' + (++bombCardSeq), m: -1, idx: 0, cat: 'BOMB', flags: ['BOMB'], pi: 0, img: 'gostop/bomb.svg', name: '폭탄피' }; }
 function markBbeok(r, seat, m) {
   r.bbeokCount[seat] = (r.bbeokCount[seat] || 0) + 1;
   r.bbeokBy[m] = seat;                                // 이 월 뻑을 만든 사람(자뻑 회수 판정용)
@@ -322,7 +325,7 @@ function bbeokSteal(room, r, cfg, seat, m) {
 }
 // 폭탄 가능 월 — (손3+바닥1) 또는 (손2+바닥2)
 function bombMonths(r, seat) {
-  const cnt = {}; for (const c of r.hands[seat] || []) if (c.m !== 0) cnt[c.m] = (cnt[c.m] || 0) + 1;
+  const cnt = {}; for (const c of r.hands[seat] || []) if (c.m > 0) cnt[c.m] = (cnt[c.m] || 0) + 1;
   return Object.keys(cnt).map(Number).filter((m) => { const fc = floorCount(r, m), h = cnt[m]; return (h >= 3 && fc >= 1) || (h >= 2 && fc >= 2); });
 }
 
@@ -330,10 +333,16 @@ function bombMonths(r, seat) {
 function playCard(room, seat, cardId) {
   const r = room.gs.round, cfg = room.gs.cfg;
   if (!r || r.over || r.pending || r.decision || seat !== r.turnIdx) return false;
-  if (r.freeFlips[seat] > 0) return false;        // 폭탄 빚: 뒤집기만(flip 액션) 해야 함
   const hand = r.hands[seat];
   const ci = hand.findIndex((c) => c.id === cardId);
   if (ci < 0) return false;
+  // 폭탄피: 손에서 빼고 '뒤집기 한 번'만(바닥에 안 깔림) — 폭탄으로 진 빚을 손패로 갚는 셈
+  if (hand[ci].flags && hand[ci].flags.includes('BOMB')) {
+    hand.splice(ci, 1);
+    r.events = []; r.lastFlip = null;
+    r.turn = { m: 0, cBefore: 0, hand: null };
+    flipStep(room, seat); return true;
+  }
   const card = hand.splice(ci, 1)[0];
   r.events = []; r.lastFlip = null;              // 새 턴 — 직전 뒤집힌 패 초기화
   if (card.flags.includes('BONUS')) {            // 손패 보너스: 내 피로 + 상대 피 뺏고 + 더미 한 장 손으로 보충(공짜) → 한 장 더 냄
@@ -524,7 +533,7 @@ function declareBomb(room, seat, month) {
   r.events = [{ ev: 'bomb', by: seat, month, cards: [...handM, ...floorM].map((c) => c.id) }];
   capture(r, seat, [...handM, ...floorM]);
   r.shake[seat]++;
-  r.freeFlips[seat] += handM.length - 1;   // 슬램한 손패 수만큼 턴 소진 → (장수-1)만큼 뒤집기 빚(두장폭탄=1)
+  for (let i = 0; i < handM.length - 1; i++) r.hands[seat].push(makeBombCard());   // (장수-1)만큼 폭탄피를 손에 → 다음 턴들에 내면 뒤집기로 소모(두장폭탄=1장)
   r.turn = { m: 0, cBefore: 0, hand: null };   // 합산판정 없음 — 일반 뒤집기
   flipStep(room, seat); return true;
 }
