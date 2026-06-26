@@ -9,7 +9,7 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 /* flyer 레이어 — felt 위 전체를 덮는 px 좌표계(rotateY용 perspective) */
 #gsFly { position:absolute; inset:0; pointer-events:none; z-index:24; perspective:1100px; }
 .gsfly { position:absolute; left:0; top:0; border-radius:6px; overflow:hidden; transform-origin:center center;
-  transition:transform .5s cubic-bezier(.2,.8,.3,1), box-shadow .3s; background-size:cover; background-position:center; }
+  transition:transform .42s cubic-bezier(.2,.8,.3,1), box-shadow .25s; background-size:cover; background-position:center; }
 /* B 스포트라이트 콜아웃/토스트 */
 #gsDim { position:absolute; inset:0; background:rgba(4,8,5,.52); z-index:23; pointer-events:none; animation:ggDim .3s ease both; }
 .gs-callout { position:absolute; left:50%; top:44%; transform:translate(-50%,-50%); z-index:26; text-align:center; pointer-events:none; animation:ggPop .45s cubic-bezier(.2,.9,.3,1) both; }
