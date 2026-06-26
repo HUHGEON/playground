@@ -26,12 +26,13 @@ function slotPct(idx) {
 
 // ── 한 턴 페이싱(ms) — 분석 문서의 권장 타임라인(~2.6s) 기반 ──
 const T = {
-  // 내기/뒤집기 모션 1.2배속(=÷1.2)
-  play: 50, playLand: 400, eatLift: 100, eatMove: 33, eatDrop: 383,
-  flipSpawn: 433, flipRy: 67, flipFront: 183, flipLand: 433, flipDrop: 367,
-  bonusReveal: 300, bonusHold: 300, bonusToPile: 240, bonusDrop: 360,
-  capBeat: 170, callHold: 700, ppeokHold: 1050, steal: 200, stealMove: 110, stealDrop: 460,
-  jokboHold: 1450,
+  // 흐름: 손→바닥 던지고(① play) → 더미 뒤집어 바닥에 놓고(② flip) → 매칭 패 한 번에 쓱 가져오기(③ capture)
+  // 이동 자체는 CSS transition(.gsfly .24s)이 그림. 아래 값은 "다음 동작까지의 간격".
+  play: 40, playLand: 250, eatLift: 90, eatMove: 30, eatDrop: 270,
+  flipSpawn: 80, flipRy: 70, flipFront: 120, flipLand: 200, flipDrop: 250,
+  bonusReveal: 180, bonusHold: 200, bonusToPile: 200, bonusDrop: 240,
+  capBeat: 110, callHold: 560, ppeokHold: 900, steal: 150, stealMove: 100, stealDrop: 300,
+  jokboHold: 1250,
 };
 
 function Card({ c, cls }) {
@@ -272,7 +273,7 @@ export default function Gostop({ ws }) {
     const FLY = (o) => fly({ w: sz.w, h: sz.h, scale: 1, ...o });
 
     // 슬롯: capturedFloor의 옛 슬롯은 lift 후 회수해야 하므로, 새 바닥 동기화 전에 좌표 확보
-    const liftFrom = {}; for (const c of capturedFloor) liftFrom[c.id] = slotPx(c.id);
+    const liftFrom = {}; for (const c of capturedFloor) { const px = slotPx(c.id); liftFrom[c.id] = { x: px.x, y: px.y, rot: slotPctFor(c.id).rot || 0 }; }
     // 낸/뒤집힌 노매칭 패의 새 슬롯 확정
     syncSlots(nf);
 
@@ -285,6 +286,11 @@ export default function Gostop({ ws }) {
 
     // 사용할 카드 src
     const srcOf = (c) => cardSrc(c);
+
+    // 먹히는 바닥패는 새 상태(nf)엔 이미 없음 → 애니 동안 제자리에 보이도록 정적 flyer로 깔아둠
+    // (안 그러면 "패가 즉시 사라졌다가 캡처 때 유령처럼 다시 생겨" 왔다갔다처럼 보임)
+    for (const c of capturedFloor) { const from = liftFrom[c.id] || capPile; FLY({ key: 'lf:' + c.id, id: c.id, src: srcOf(c), x: from.x, y: from.y, rot: from.rot || 0, z: 20 }); }
+    sync();   // 숨김/정적 flyer를 paint 전에 반영(먹힌 패가 1프레임 사라지거나 새 패가 번쩍이는 것 방지)
 
     // ── ① 낸 패 ──
     const played = leftHand.find((c) => c.m !== 0) || leftHand[0];
@@ -332,14 +338,18 @@ export default function Gostop({ ws }) {
     const evMain = events.find((e) => EVNAME[e.ev]);
     const hasCapture = capturedFloor.length || realCap.length;
     if (hasCapture) {
-      // 바닥패 lift — 뒤집기+매칭이 또렷이 끝난 뒤(한 박자) 가져오기 시작
-      step(T.capBeat, () => { for (const c of capturedFloor) { const from = liftFrom[c.id] || capPile; FLY({ key: 'lf:' + c.id, id: c.id, src: srcOf(c), x: from.x, y: from.y, rot: 0, z: 28, ring: 1 }); } });
+      // 뒤집기+매칭이 또렷이 끝난 뒤(한 박자) → 가져갈 패에 하이라이트(이미 제자리에 깔린 flyer를 띄움)
+      step(T.capBeat, () => {
+        for (const c of capturedFloor) setFly('lf:' + c.id, { ring: 1, z: 28 });
+        if (played && realCap.find((c) => c.id === played.id)) setFly('p1', { ring: 1 });
+        if (flipped && realCap.find((c) => c.id === flipped.id)) setFly('d1', { ring: 1 });
+      });
       // 이벤트 콜아웃(B)
       if (evMain) {
         const callCards = [...realCap, ...capturedFloor].slice(0, 3).map(srcOf);
         step(60, () => showCallout(EVNAME[evMain.ev], stealCount(events) ? ('상대 피 ' + stealCount(events) + '장 획득') : '', callCards));
       }
-      // 더미로 이동
+      // 한 번에 쓱 → 더미
       step(evMain ? T.callHold : T.eatLift, () => {
         if (evMain) hideCallout();
         for (const c of capturedFloor) setFly('lf:' + c.id, { x: capPile.x, y: capPile.y, rot: 0, scale: .7, ring: 0 });
