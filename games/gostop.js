@@ -665,6 +665,30 @@ function scoreOf(captured) {
   return b.total > a.total ? b : a;
 }
 
+// 표시용 '최종점수 느낌' — 지금 이 좌석이 이긴다면 받게 될 점수(고/흔들/박/나가리누적 다 반영, settle 곱셈순서 동일)
+function projectedScore(room, seat) {
+  const r = room.gs.round, gs = room.gs, cfg = gs.cfg;
+  if (!r || !r.captured) return 0;
+  const sc = scoreOf(r.captured[seat] || []);
+  const goCount = r.goCount[seat] || 0;
+  let goScore = sc.total + goCount;
+  if (goCount >= 3) goScore *= Math.pow(2, goCount - 2);
+  let globalMult = gs.carryMult || 1;
+  const mungBakOn = cfg.mungBak == null ? r.params.mungBakDefault : cfg.mungBak;
+  if (mungBakOn && sc.yeolCount >= 7) globalMult *= 2;
+  globalMult *= Math.pow(2, r.shake[seat] || 0);
+  if (r.chongtongHold && r.chongtongHold[seat]) globalMult *= 4;
+  let m = globalMult;
+  const wonByPi = (sc.detail.pi || 0) > 0, wonByKwang = (sc.detail.kwang || 0) > 0;
+  for (let opp = 0; opp < r.captured.length; opp++) {
+    if (opp === seat) continue;
+    const lsc = scoreOf(r.captured[opp] || []);
+    if (wonByPi && lsc.piTotal > 0 && lsc.piTotal <= r.params.piBak) m *= 2;   // 피박
+    if (wonByKwang && lsc.kwangCount === 0) m *= 2;                            // 광박
+  }
+  return goScore * m;
+}
+
 // ── 봇 (서버측, 히든정보 — 휴리스틱) ──
 function cardWorth(c) {
   if (c.cat === 'KWANG') return 20;
@@ -842,7 +866,8 @@ module.exports = {
       myHand: seatIdx >= 0 ? (r.hands[seatIdx] || []) : [],
       handCounts: r.hands.map((h) => h.length),
       captured: r.captured,
-      scores: r.captured.map((cap) => scoreOf(cap).total),   // 좌석별 현재 점수
+      scores: r.captured.map((cap) => scoreOf(cap).total),   // 좌석별 현재 점수(룰 판정용 — 박/배수 미반영)
+      finalScores: r.captured.map((_, i) => projectedScore(room, i)),   // 표시용 '최종점수 느낌'(박/배수 반영)
       scoreDetails: r.captured.map((cap) => scoreOf(cap).detail),   // 좌석별 점수 상세(획득더미 표시)
       myScore: seatIdx >= 0 ? scoreOf(r.captured[seatIdx]) : null,
       bbeokMonths: r.bbeokMonths,

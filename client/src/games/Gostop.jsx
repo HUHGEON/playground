@@ -39,11 +39,14 @@ function Card({ c, cls }) {
   return <img className={'gscard' + (cls ? ' ' + cls : '')} src={cardSrc(c)} data-id={c.id} data-m={c.m} draggable={false} alt="" />;
 }
 
-function CapStrips({ captured }) {
+function CapStrips({ captured, detail }) {
   const { g } = pileGroups(captured);
+  const d = detail || {};
+  // 카테고리별 '점수' 기여(개수 아님). 멍=열끗+고도리, 단=띠+홍/청/초단, 광=광점, 피=피점.
+  const catPts = { KWANG: d.kwang || 0, YEOL: (d.yeol || 0) + (d.godori || 0), TTI: (d.tti || 0) + (d.hongdan || 0) + (d.cheongdan || 0) + (d.chodan || 0), PI: d.pi || 0 };
   return CAT.map(([k, lb, cls]) => (
     <div key={k} className={'gs-cgrp ' + cls}>
-      <div className="gs-cgrp-hd"><span className="gs-cgrp-lb">{lb}</span><span className="gs-cgrp-n">{g[k].length}</span></div>
+      <div className="gs-cgrp-hd"><span className="gs-cgrp-lb">{lb}</span><span className="gs-cgrp-n">{catPts[k]}점</span></div>
       <div className="gs-cgrp-cards">
         {g[k].map((c) => k === 'PI'
           ? <span key={c.id} className="gs-pic"><Card c={c} cls="mini" />{c.pi >= 2 && <b className="gs-piv">{c.pi}</b>}</span>
@@ -69,7 +72,7 @@ function imminentWarn(captured) {
 function OppTop({ s, seat, cap: capProp }) {
   const p = s.seats[seat]; if (!p) return null;
   const turn = s.turnIdx === seat && s.phase === 'playing';
-  const sc = s.scores ? s.scores[seat] : 0;
+  const sc = s.finalScores ? s.finalScores[seat] : (s.scores ? s.scores[seat] : 0);   // 박/배수 반영한 최종점수 느낌
   const tags = [];
   if (s.goCounts && s.goCounts[seat]) tags.push(`${s.goCounts[seat]}고`);
   if (s.shake && s.shake[seat]) tags.push(`흔들×${s.shake[seat]}`);
@@ -87,7 +90,7 @@ function OppTop({ s, seat, cap: capProp }) {
           {turn && <span className="gs-now">차례</span>}
         </span>
       </div>
-      <div className="gs-opp-cap">{cap.length ? <CapStrips captured={cap} /> : <span className="gs-cap-empty">획득 없음</span>}</div>
+      <div className="gs-opp-cap">{cap.length ? <CapStrips captured={cap} detail={s.scoreDetails ? s.scoreDetails[seat] : null} /> : <span className="gs-cap-empty">획득 없음</span>}</div>
     </div>
   );
 }
@@ -538,7 +541,7 @@ export default function Gostop({ ws }) {
             <div key={p.seat} className={'gs-sline' + (p.seat === me ? ' me' : '')}>
               <span className="gs-sl-ava">{avatar(p.name)}</span>
               <span className="gs-sl-name">{pname(p)}</span>
-              <b className="gs-sl-sc">{s.scores ? s.scores[p.seat] : 0}</b>
+              <b className="gs-sl-sc">{s.finalScores ? s.finalScores[p.seat] : (s.scores ? s.scores[p.seat] : 0)}</b>
               <span className="gs-sl-pt">점</span>
               <span className="gs-sn">{nyang(p.chips)}</span>
             </div>
@@ -648,7 +651,7 @@ export default function Gostop({ ws }) {
   const actions = [];
   if (s.canChongtong) actions.push(<button key="ct" className="gs-act ct" onClick={() => send({ type: 'chongtong' })}>💣 총통</button>);
 
-  const myScoreShow = m.current.scoreShow.my != null ? m.current.scoreShow.my : (s.scores ? s.scores[me] : 0);
+  const myScoreShow = s.finalScores ? s.finalScores[me] : (s.scores ? s.scores[me] : 0);   // 박/배수 반영 최종점수
   const callout = m.current.callout, jokbo = m.current.jokbo, dim = m.current.dim;
 
   return withSidebar(
@@ -703,7 +706,7 @@ export default function Gostop({ ws }) {
       )}
 
       <div id="gsMy">
-        <div id="gsMyCap">{myCap.length ? <CapStrips captured={myCap} /> : <span className="gs-cap-empty">획득한 패가 여기 쌓여요</span>}</div>
+        <div id="gsMyCap">{myCap.length ? <CapStrips captured={myCap} detail={s.scoreDetails ? s.scoreDetails[me] : null} /> : <span className="gs-cap-empty">획득한 패가 여기 쌓여요</span>}</div>
         <div id="gsMyRow">
           <div id="gsMyAva" data-player={s.seats[me] ? s.seats[me].name : undefined}>
             <span className="gs-ava big">{avatar(s.seats[me] ? s.seats[me].name : '나')}</span>

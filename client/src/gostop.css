@@ -82,7 +82,10 @@ body.game-gostop { background: radial-gradient(130% 100% at 50% 0%, #241a12 0%, 
 .gs-cgrp-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
 .gs-cgrp-lb { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; color: rgba(243,234,214,.72); }
 .gs-cgrp-n { font-size: 10px; font-weight: 700; color: #e3c878; }
-.gs-cgrp-cards { position: relative; display: flex; min-height: 38px; }
+.gs-cgrp-cards { position: relative; display: flex; min-height: 38px; overflow: hidden; }
+/* 카드가 많아도 flex가 폭을 짓누르지 않게(짓누르면 object-fit:cover가 좌우를 잘라 세로 띠처럼 깨짐 — 특히 좁은 화면/맥).
+   대신 칸을 넘치면 잘라서(overflow hidden) 옆 칸으로 안 번지게 — 점수는 헤더 숫자로 확인. */
+.gs-cgrp-cards > * { flex: 0 0 auto; }
 #gsMyCap .gs-cgrp-cards { min-height: 40px; }
 .gs-opp-cap .gscard.mini { width: 26px; height: 40px; border-radius: 4px; margin-left: -15px; }
 .gs-opp-cap .gs-cgrp-cards { min-height: 40px; }
