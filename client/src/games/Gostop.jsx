@@ -266,6 +266,10 @@ export default function Gostop({ ws }) {
       realCap = newCap.filter((c) => !bonusCards.includes(c) && !stolenCards.includes(c) && !capFloorIds.has(c.id)); // 손/덱서 와서 먹힌 패(낸·뒤집힌 매칭)
     }
 
+    // ── 폭탄: 슬램한 손패(여러 장)를 따로 연출. event.cards = [손패월…, 바닥월…] → 바닥(P.floor)에 없던 게 손패 ──
+    const bombEv = events.find((e) => e.ev === 'bomb');
+    const bombHandCards = bombEv ? bombEv.cards.filter((id) => !pfIds.has(id)).map((id) => newCap.find((c) => c.id === id)).filter(Boolean) : [];
+
     const sz = cardSize();
     const deck = elPx('#gsCenter') || { x: 0, y: 0 };
     const handPt = elPx('#gsHand') || { x: 0, y: 0 };
@@ -310,7 +314,7 @@ export default function Gostop({ ws }) {
 
     // ── ① 낸 패: 손 → 바닥 착지(매칭이면 그 월 위, 아니면 빈 슬롯) ──
     // 보너스피는 제외(아래 보너스 블록이 따로 연출) → 손패 보너스 낼 때 같은 카드 이중 연출 방지
-    const played = leftHand.find((c) => c.m !== 0 && !(c.flags || []).includes('BONUS')) || null;
+    const played = bombEv ? null : (leftHand.find((c) => c.m !== 0 && !(c.flags || []).includes('BONUS')) || null);
     const playedToFloor = played && addedFloor.find((c) => c.id === played.id);
     const playedCaptured = played && realCap.find((c) => c.id === played.id);
     let playedFloorPos = null;   // 낸 패가 바닥에 놓인 위치(뒤집기 매칭이 여기 얹히도록 공유)
@@ -330,13 +334,23 @@ export default function Gostop({ ws }) {
     // ── ①' 상대가 낸 패(바닥에 깔리는 경우) ──
     // 상대 턴엔 내 손패가 안 바뀌어 played=null → 상대 낸 패가 hide된 채 안 보이다 settle 때 갑툭.
     // 상대 손패(상단)에서 바닥으로 내려오게 보강(뒤집은 패는 flip 블록이 처리하므로 제외).
-    const oppPlayed = (played == null) ? addedFloor.find((c) => !(flipped && c.id === flipped.id)) : null;
+    const oppPlayed = (played == null && !bombEv) ? addedFloor.find((c) => !(flipped && c.id === flipped.id)) : null;
     if (oppPlayed) {
       const oppHandPt = elPx('#gsTop .gs-opp') || elPx('#gsTop') || { x: deck.x, y: deck.y };
       const odst = slotPx(oppPlayed.id); const orot = slotPctFor(oppPlayed.id).rot;
       step(0, () => FLY({ key: 'op1', id: oppPlayed.id, src: srcOf(oppPlayed), x: oppHandPt.x, y: oppHandPt.y, rot: 0, z: 30 }));
       step(T.play, () => setFly('op1', { x: odst.x, y: odst.y, rot: orot }));
       step(T.playLand, () => { unhide(oppPlayed.id); dropFly('op1'); });
+    }
+
+    // ── ①" 폭탄: 슬램 손패 여러 장이 손에서 바닥 그 월 위로 동시에 내려꽂힘 + 💥 콜아웃 ──
+    if (bombEv && bombHandCards.length) {
+      const slamFrom = capSeat === me ? handPt : (elPx('#gsTop .gs-opp') || { x: deck.x, y: deck.y });
+      const mpos = matchPosOf(bombHandCards[0]) || capPile;
+      step(0, () => bombHandCards.forEach((bc, i) => FLY({ key: 'bh' + i, id: bc.id, src: srcOf(bc), x: slamFrom.x, y: slamFrom.y, rot: 0, z: 33 + i })));
+      step(T.play, () => bombHandCards.forEach((bc, i) => setFly('bh' + i, { x: mpos.x + i * 5, y: mpos.y + i * 3, rot: (i - (bombHandCards.length - 1) / 2) * 9, ring: 1 })));
+      step(T.play, () => showCallout('💥 폭탄!', stealCount(events) ? ('상대 피 ' + stealCount(events) + '장') : '', bombHandCards.slice(0, 3).map(srcOf)));
+      step(T.playLand, () => {});   // 캡처 단계까지 유지
     }
 
     // ── ② 더미 뒤집기(rotateY 리빌) → 바닥 착지(매칭이면 그 월 카드/낸 패 위) ──
@@ -386,13 +400,14 @@ export default function Gostop({ ws }) {
         step(60, () => showCallout(EVNAME[evMain.ev], stealCount(events) ? ('상대 피 ' + stealCount(events) + '장 획득') : '', callCards));
       }
       // 한 번에 쓱 → 더미
-      step(evMain ? T.callHold : T.eatLift, () => {
-        if (evMain) hideCallout();
+      step((evMain || bombEv) ? T.callHold : T.eatLift, () => {
+        if (evMain || bombEv) hideCallout();
         for (const c of capturedFloor) setFly('lf:' + c.id, { x: capPile.x, y: capPile.y, rot: 0, scale: .7, ring: 0 });
         if (played && realCap.find((c) => c.id === played.id)) setFly('p1', { x: capPile.x, y: capPile.y, rot: 0, scale: .7, ring: 0 });
         if (flipped && realCap.find((c) => c.id === flipped.id)) setFly('d1', { x: capPile.x, y: capPile.y, rot: 0, scale: .7, ring: 0 });
+        if (bombEv) bombHandCards.forEach((bc, i) => setFly('bh' + i, { x: capPile.x, y: capPile.y, rot: 0, scale: .7, ring: 0 }));
       });
-      step(T.eatDrop, () => { for (const c of capturedFloor) dropFly('lf:' + c.id); dropFly('p1'); dropFly('d1'); });
+      step(T.eatDrop, () => { for (const c of capturedFloor) dropFly('lf:' + c.id); dropFly('p1'); dropFly('d1'); if (bombEv) bombHandCards.forEach((bc, i) => dropFly('bh' + i)); });
     }
 
     // ── ③.5 뻑(못 먹음): 콜아웃 + 정지 ──
