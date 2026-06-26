@@ -26,11 +26,12 @@ function slotPct(idx) {
 
 // ── 한 턴 페이싱(ms) — 분석 문서의 권장 타임라인(~2.6s) 기반 ──
 const T = {
-  play: 60, playLand: 480, eatLift: 120, eatMove: 40, eatDrop: 460,
-  flipSpawn: 520, flipRy: 80, flipFront: 220, flipLand: 520, flipDrop: 440,
-  bonusReveal: 320, bonusHold: 340, bonusToPile: 280, bonusDrop: 420,
-  callHold: 760, ppeokHold: 1100, steal: 220, stealMove: 120, stealDrop: 540,
-  jokboHold: 1500,
+  // 내기/뒤집기 모션 1.2배속(=÷1.2)
+  play: 50, playLand: 400, eatLift: 100, eatMove: 33, eatDrop: 383,
+  flipSpawn: 433, flipRy: 67, flipFront: 183, flipLand: 433, flipDrop: 367,
+  bonusReveal: 300, bonusHold: 300, bonusToPile: 240, bonusDrop: 360,
+  capBeat: 170, callHold: 700, ppeokHold: 1050, steal: 200, stealMove: 110, stealDrop: 460,
+  jokboHold: 1450,
 };
 
 function Card({ c, cls }) {
@@ -111,20 +112,32 @@ export default function Gostop({ ws }) {
   const prev = useRef({ floor: [], hand: [], cap: [], scores: [], handNo: -1, phase: '' });
   const dealtRound = useRef(-1);   // 딜 인트로 1회/라운드
 
-  // 슬롯 배정 동기화 — 매번 깨끗이 재구성(기존 배정 보존, 충돌·드리프트 방지)
+  // 슬롯 배정 — 월별로 묶어 한 슬롯 배정(같은 월은 같은 슬롯에 stack으로 약간 겹침). 매번 깨끗이 재구성.
   function syncSlots(floorCards) {
-    const ids = floorCards.map((c) => c.id);
-    const newMap = {}; const usedSet = new Set();
-    for (const id of ids) {                                  // 1) 기존 슬롯 유지(중복 아닐 때만)
-      const cur = slots.current[id];
-      if (cur != null && !usedSet.has(cur)) { newMap[id] = cur; usedSet.add(cur); }
+    const byMonth = {};
+    for (const c of floorCards) (byMonth[c.m] = byMonth[c.m] || []).push(c);
+    const usedSet = new Set(); const monthSlot = {};
+    // 1) 같은 월이 쓰던 슬롯 유지(현재 배정된 카드에서)
+    for (const c of floorCards) {
+      const prev = slots.current[c.id];
+      if (prev && monthSlot[c.m] == null && !usedSet.has(prev.slot)) { monthSlot[c.m] = prev.slot; usedSet.add(prev.slot); }
     }
-    for (const id of ids) {                                  // 2) 미배정 패에 빈 슬롯
-      if (newMap[id] == null) { let i = 0; while (usedSet.has(i)) i++; newMap[id] = i; usedSet.add(i); }
+    // 2) 슬롯 없는 월에 빈 슬롯
+    for (const mo of Object.keys(byMonth)) {
+      if (monthSlot[mo] == null) { let i = 0; while (usedSet.has(i)) i++; monthSlot[mo] = i; usedSet.add(i); }
     }
+    // 3) 카드별 {slot, stack}
+    const newMap = {};
+    for (const mo of Object.keys(byMonth)) byMonth[mo].forEach((c, k) => { newMap[c.id] = { slot: monthSlot[mo], stack: k }; });
     slots.current = newMap; used.current = usedSet;
   }
-  const slotPctFor = (id) => slotPct(slots.current[id] != null ? slots.current[id] : 0);
+  // 같은 월 stack은 base 슬롯에서 살짝 우하향 겹침 + 회전
+  const slotPctFor = (id) => {
+    const a = slots.current[id];
+    if (a == null) return slotPct(0);
+    const base = slotPct(a.slot); const k = a.stack || 0;
+    return { x: base.x + k * 3.0, y: base.y + k * 2.4, rot: base.rot + k * 2.5, stack: k };
+  };
 
   // ── 좌표 헬퍼(felt 기준 px) ──
   const feltRect = () => { const el = document.getElementById('gsFelt'); return el ? el.getBoundingClientRect() : null; };
@@ -202,7 +215,7 @@ export default function Gostop({ ws }) {
     if (s.phase !== 'playing') {
       resetSeq(); m.current.flyers = []; m.current.hidden = new Set(); m.current.callout = null; m.current.jokbo = null; m.current.dim = false;
       slots.current = {}; used.current = new Set(); syncSlots(s.floor || []);
-      prev.current = { floor: s.floor || [], hand: s.myHand || [], cap: (s.captured || []).map((a) => a.slice()), scores: (s.scores || []).slice(), handNo: s.handNo, phase: s.phase };
+      prev.current = { floor: s.floor || [], hand: s.myHand || [], cap: (s.captured || []).map((a) => a.slice()), scores: (s.scores || []).slice(), scoreDetails: s.scoreDetails || [], handNo: s.handNo, phase: s.phase };
       sync();   // 슬롯 배정을 paint 전에 반영(안 하면 ref만 바뀌고 재렌더 안 됨 → 전부 슬롯0 겹침)
       return;
     }
@@ -214,7 +227,7 @@ export default function Gostop({ ws }) {
     if (newRound) {
       resetSeq(); m.current.flyers = []; m.current.hidden = new Set(); m.current.callout = null; m.current.jokbo = null; m.current.dim = false;
       slots.current = {}; used.current = new Set(); syncSlots(nf);
-      prev.current = { floor: nf, hand: nh, cap: nc.map((a) => a.slice()), scores: (s.scores || []).slice(), handNo: s.handNo, phase: s.phase };
+      prev.current = { floor: nf, hand: nh, cap: nc.map((a) => a.slice()), scores: (s.scores || []).slice(), scoreDetails: s.scoreDetails || [], handNo: s.handNo, phase: s.phase };
       sync();   // 딜 직후 슬롯 배정 반영(겹침 버그 방지)
       if (dealtRound.current !== s.handNo) { dealtRound.current = s.handNo; dealIn(); }   // 촤라랄라 딜 인트로(라운드당 1회)
       return;
@@ -234,7 +247,7 @@ export default function Gostop({ ws }) {
     // 아무 변화 없음(점수/턴만 갱신 등) → 슬롯만 맞추고 스냅
     if (!capturedFloor.length && !addedFloor.length && !leftHand.length && capSeat < 0) {
       syncSlots(nf); sync();
-      prev.current = { floor: nf, hand: nh, cap: nc.map((a) => a.slice()), scores: (s.scores || []).slice(), handNo: s.handNo, phase: s.phase };
+      prev.current = { floor: nf, hand: nh, cap: nc.map((a) => a.slice()), scores: (s.scores || []).slice(), scoreDetails: s.scoreDetails || [], handNo: s.handNo, phase: s.phase };
       return;
     }
 
@@ -319,8 +332,8 @@ export default function Gostop({ ws }) {
     const evMain = events.find((e) => EVNAME[e.ev]);
     const hasCapture = capturedFloor.length || realCap.length;
     if (hasCapture) {
-      // 바닥패 lift
-      step(0, () => { for (const c of capturedFloor) { const from = liftFrom[c.id] || capPile; FLY({ key: 'lf:' + c.id, id: c.id, src: srcOf(c), x: from.x, y: from.y, rot: 0, z: 28, ring: 1 }); } });
+      // 바닥패 lift — 뒤집기+매칭이 또렷이 끝난 뒤(한 박자) 가져오기 시작
+      step(T.capBeat, () => { for (const c of capturedFloor) { const from = liftFrom[c.id] || capPile; FLY({ key: 'lf:' + c.id, id: c.id, src: srcOf(c), x: from.x, y: from.y, rot: 0, z: 28, ring: 1 }); } });
       // 이벤트 콜아웃(B)
       if (evMain) {
         const callCards = [...realCap, ...capturedFloor].slice(0, 3).map(srcOf);
@@ -354,7 +367,7 @@ export default function Gostop({ ws }) {
     }
 
     // ── ⑤ 족보 완성 토스트 + 점수 카운트업 ──
-    const jk = newJokbo(P.scores, s.scores, P.cap[capSeat], nc[capSeat], capSeat);
+    const jk = capSeat >= 0 ? newJokbo((P.scoreDetails || [])[capSeat], (s.scoreDetails || [])[capSeat], nc[capSeat]) : null;
     if (jk) {
       step(200, () => { showJokbo(jk.name, jk.pt, jk.cards); countScore(capSeat, P.scores[capSeat] || 0, (s.scores || [])[capSeat] || 0); });
       step(T.jokboHold, () => hideJokbo());
@@ -363,7 +376,7 @@ export default function Gostop({ ws }) {
     // ── 안전망: 전체 끝나면 정상 상태로 ──
     step(300, () => settle());
 
-    prev.current = { floor: nf, hand: nh, cap: nc.map((a) => a.slice()), scores: (s.scores || []).slice(), handNo: s.handNo, phase: s.phase };
+    prev.current = { floor: nf, hand: nh, cap: nc.map((a) => a.slice()), scores: (s.scores || []).slice(), scoreDetails: s.scoreDetails || [], handNo: s.handNo, phase: s.phase };
     return () => {};
   }, [s]);
 
@@ -377,18 +390,24 @@ export default function Gostop({ ws }) {
     const tick = () => { const p = Math.min(1, (Date.now() - t0) / 700); m.current.scoreShow[key] = Math.round(from + (to - from) * p); sync(); if (p < 1) seq.current.timers.push(setTimeout(tick, 40)); else m.current.scoreShow[key] = null; };
     tick();
   }
-  // 족보 새로 완성됐는지(점수 상세 비교) — 간단 판정
-  function newJokbo(prevScores, scores, prevCap, cap, seat) {
-    if (seat < 0 || !scores || !prevScores) return null;
-    if ((scores[seat] || 0) <= (prevScores[seat] || 0)) return null;
-    const det = (s.scoreDetails || [])[seat] || {};
-    // 대표 족보명 하나
-    const names = []; if (det.kwang) names.push(['광', det.kwang]); if (det.godori) names.push(['고도리', det.godori]);
-    if (det.hongdan) names.push(['홍단', det.hongdan]); if (det.cheongdan) names.push(['청단', det.cheongdan]); if (det.chodan) names.push(['초단', det.chodan]);
-    if (!names.length) return null;
-    const top = names[names.length - 1];
-    const cards = (cap || []).slice(-3).map((c) => cardSrc(c));
-    return { name: top[0], pt: '+' + top[1] + '점', cards };
+  // 족보 새로 완성/증가됐는지 — scoreDetails 항목별 비교. 그 족보의 '실제 카드'만 보여줌(엉뚱한 카드 안 껴게).
+  const JOKBO = [
+    ['kwang', '광', (c) => c.cat === 'KWANG'],
+    ['godori', '고도리', (c) => (c.flags || []).includes('GODORI')],
+    ['hongdan', '홍단', (c) => (c.flags || []).includes('HONGDAN')],
+    ['cheongdan', '청단', (c) => (c.flags || []).includes('CHEONGDAN')],
+    ['chodan', '초단', (c) => (c.flags || []).includes('CHODAN')],
+  ];
+  function newJokbo(prevDet, det, cap) {
+    if (!det) return null;
+    prevDet = prevDet || {};
+    for (const [key, name, filt] of JOKBO) {
+      if ((det[key] || 0) > (prevDet[key] || 0)) {
+        const cards = (cap || []).filter(filt).map((c) => cardSrc(c)).slice(0, 5);   // 그 족보 카드만
+        return { name, pt: '+' + det[key] + '점', cards };
+      }
+    }
+    return null;
   }
 
   // 선 토스트 — 선 정해질 때 "👑 X 선!"
@@ -572,7 +591,7 @@ export default function Gostop({ ws }) {
               const p = slotPctFor(c.id);
               return (
                 <img key={c.id} className={'gscard floorc' + (ch ? ' choosable' : '')} src={cardSrc(c)} data-id={c.id} data-m={c.m} draggable={false} alt=""
-                  style={{ left: p.x + '%', top: p.y + '%', '--rot': p.rot + 'deg', opacity: hidden ? 0 : undefined }}
+                  style={{ left: p.x + '%', top: p.y + '%', '--rot': p.rot + 'deg', opacity: hidden ? 0 : undefined, zIndex: 1 + (p.stack || 0) }}
                   onClick={() => ch && send({ type: 'choose', cardId: c.id })} />
               );
             })}
