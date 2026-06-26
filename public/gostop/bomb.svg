@@ -1,0 +1,53 @@
+<svg viewBox="0 0 180 280" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff7e6"/><stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <radialGradient id="ball" cx="38%" cy="34%" r="72%">
+      <stop offset="0" stop-color="#6b7280"/><stop offset="0.5" stop-color="#2b2f36"/><stop offset="1" stop-color="#0b0d10"/>
+    </radialGradient>
+    <radialGradient id="spark" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff7c2"/><stop offset="0.5" stop-color="#ffd34d"/><stop offset="1" stop-color="#ff7a18"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 화투 카드 프레임 -->
+  <rect x="3" y="3" width="174" height="274" rx="15" fill="url(#bg)" stroke="#e01f26" stroke-width="7"/>
+  <rect x="11" y="11" width="158" height="258" rx="10" fill="none" stroke="#e01f26" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- 폭탄 본체 -->
+  <g>
+    <ellipse cx="92" cy="196" rx="46" ry="13" fill="#000" opacity="0.12"/>
+    <circle cx="90" cy="160" r="50" fill="url(#ball)" stroke="#000" stroke-width="2"/>
+    <!-- 하이라이트 -->
+    <ellipse cx="72" cy="140" rx="16" ry="11" fill="#aab2bd" opacity="0.55"/>
+    <!-- 심지 마개 -->
+    <rect x="80" y="100" width="20" height="16" rx="3" fill="#3a3f47" stroke="#000" stroke-width="1.5"/>
+  </g>
+
+  <!-- 심지 + 불꽃 -->
+  <path d="M90 102 q14 -18 30 -20" fill="none" stroke="#7a5230" stroke-width="4" stroke-linecap="round"/>
+  <g>
+    <circle cx="124" cy="80" r="11" fill="url(#spark)"/>
+    <g fill="#ffd34d">
+      <path d="M124 64 l3 9 -3 -2 -3 2z"/>
+      <path d="M140 80 l-9 3 2 -3 -2 -3z"/>
+      <path d="M124 96 l3 -9 -3 2 -3 -2z"/>
+      <path d="M108 80 l9 3 -2 -3 2 -3z"/>
+    </g>
+  </g>
+
+  <!-- 폭탄 배너 -->
+  <g>
+    <rect x="24" y="216" width="132" height="38" rx="9" fill="#111418"/>
+    <rect x="24" y="216" width="132" height="38" rx="9" fill="none" stroke="#ffd34d" stroke-width="2"/>
+    <text x="90" y="244" text-anchor="middle" font-family="'Apple SD Gothic Neo','Malgun Gothic',sans-serif"
+          font-size="27" font-weight="900" fill="#fff" letter-spacing="3">폭탄</text>
+  </g>
+
+  <!-- 피 표식(코너) -->
+  <g font-family="sans-serif" font-weight="900">
+    <circle cx="30" cy="32" r="17" fill="#fff" stroke="#e01f26" stroke-width="3"/>
+    <text x="30" y="39" text-anchor="middle" font-size="19" fill="#e01f26">皮</text>
+  </g>
+</svg>

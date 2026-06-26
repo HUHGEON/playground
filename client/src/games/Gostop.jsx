@@ -314,7 +314,7 @@ export default function Gostop({ ws }) {
 
     // ── ① 낸 패: 손 → 바닥 착지(매칭이면 그 월 위, 아니면 빈 슬롯) ──
     // 보너스피는 제외(아래 보너스 블록이 따로 연출) → 손패 보너스 낼 때 같은 카드 이중 연출 방지
-    const played = bombEv ? null : (leftHand.find((c) => c.m !== 0 && !(c.flags || []).includes('BONUS')) || null);
+    const played = bombEv ? null : (leftHand.find((c) => c.m > 0 && !(c.flags || []).includes('BONUS')) || null);   // m>0: 보너스(0)·폭탄피(-1) 제외
     const playedToFloor = played && addedFloor.find((c) => c.id === played.id);
     const playedCaptured = played && realCap.find((c) => c.id === played.id);
     let playedFloorPos = null;   // 낸 패가 바닥에 놓인 위치(뒤집기 매칭이 여기 얹히도록 공유)
@@ -630,11 +630,16 @@ export default function Gostop({ ws }) {
     if (result.chongtong) resultTags.push('총통×4');
     [...new Set(Object.values(result.bak || {}).flat())].forEach((b) => resultTags.push(b));
   }
+  // 폭탄/흔들기는 버튼이 아니라 "그 월 손패를 내면" 자동 발동(아래 onClick). 총통만 선택 버튼 유지.
+  const bombableMonths = s.bombable || [], shakeableMonths = s.shakeable || [];
+  const playHand = (c) => {
+    if (!myTurn) return;
+    if (bombableMonths.includes(c.m)) { send({ type: 'bomb', m: c.m }); return; }       // 폭탄: 그 월 전부 슬램
+    if (shakeableMonths.includes(c.m)) { send({ type: 'shake', m: c.m }); send({ type: 'play', cardId: c.id }); return; }  // 흔들고 그 패 내기
+    send({ type: 'play', cardId: c.id });
+  };
   const actions = [];
   if (s.canChongtong) actions.push(<button key="ct" className="gs-act ct" onClick={() => send({ type: 'chongtong' })}>💣 총통</button>);
-  if (s.myFreeFlips > 0) actions.push(<button key="flip" className="gs-act flip" onClick={() => send({ type: 'flip' })}>🔄 뒤집기({s.myFreeFlips})</button>);
-  (s.bombable || []).forEach((mo) => actions.push(<button key={'b' + mo} className="gs-act bomb" onClick={() => send({ type: 'bomb', m: mo })}>💥 폭탄·{MNAME[mo]}</button>));
-  (s.shakeable || []).forEach((mo) => actions.push(<button key={'s' + mo} className="gs-act shake" onClick={() => send({ type: 'shake', m: mo })}>🤝 흔들기·{MNAME[mo]}</button>));
 
   const myScoreShow = m.current.scoreShow.my != null ? m.current.scoreShow.my : (s.scores ? s.scores[me] : 0);
   const callout = m.current.callout, jokbo = m.current.jokbo, dim = m.current.dim;
@@ -704,8 +709,11 @@ export default function Gostop({ ws }) {
           <div id="gsHand" className={myTurn ? 'myturn' : ''}>
             {(s.myHand || []).map((c) => {
               const mat = myTurn && floorMonths.has(c.m);
-              return <img key={c.id} className={'gscard' + (myTurn ? '' : ' dim') + (mat ? ' matchable' : '')} src={cardSrc(c)} data-id={c.id} data-m={c.m} draggable={false} alt=""
-                onClick={() => myTurn && send({ type: 'play', cardId: c.id })} />;
+              const canBomb = myTurn && bombableMonths.includes(c.m);
+              const canShake = myTurn && !canBomb && shakeableMonths.includes(c.m);
+              const cls = 'gscard' + (myTurn ? '' : ' dim') + (mat ? ' matchable' : '') + (canBomb ? ' canbomb' : '') + (canShake ? ' canshake' : '');
+              return <img key={c.id} className={cls} src={cardSrc(c)} data-id={c.id} data-m={c.m} draggable={false} alt=""
+                onClick={() => playHand(c)} />;
             })}
           </div>
           <div id="gsActions">{actions}</div>

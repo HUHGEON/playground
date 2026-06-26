@@ -23,7 +23,7 @@ function conservationError(room) {
   const r = room.gs.round;
   if (!r) return null;
   const all = [];
-  for (const h of r.hands) for (const c of h) all.push(c.id);
+  for (const h of r.hands) for (const c of h) if (!(c.flags && c.flags.includes('BOMB'))) all.push(c.id);   // 폭탄피는 덱 외 임시카드 → 보존검사 제외
   for (const c of r.floor) all.push(c.id);
   for (const c of r.draw) all.push(c.id);
   for (const cap of r.captured) for (const c of cap) all.push(c.id);
