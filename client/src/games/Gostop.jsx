@@ -327,6 +327,18 @@ export default function Gostop({ ws }) {
       else step(T.playLand, () => {}); // 매칭/쪽이면 캡처 단계까지 flyer 유지(바닥 그 자리)
     }
 
+    // ── ①' 상대가 낸 패(바닥에 깔리는 경우) ──
+    // 상대 턴엔 내 손패가 안 바뀌어 played=null → 상대 낸 패가 hide된 채 안 보이다 settle 때 갑툭.
+    // 상대 손패(상단)에서 바닥으로 내려오게 보강(뒤집은 패는 flip 블록이 처리하므로 제외).
+    const oppPlayed = (played == null) ? addedFloor.find((c) => !(flipped && c.id === flipped.id)) : null;
+    if (oppPlayed) {
+      const oppHandPt = elPx('#gsTop .gs-opp') || elPx('#gsTop') || { x: deck.x, y: deck.y };
+      const odst = slotPx(oppPlayed.id); const orot = slotPctFor(oppPlayed.id).rot;
+      step(0, () => FLY({ key: 'op1', id: oppPlayed.id, src: srcOf(oppPlayed), x: oppHandPt.x, y: oppHandPt.y, rot: 0, z: 30 }));
+      step(T.play, () => setFly('op1', { x: odst.x, y: odst.y, rot: orot }));
+      step(T.playLand, () => { unhide(oppPlayed.id); dropFly('op1'); });
+    }
+
     // ── ② 더미 뒤집기(rotateY 리빌) → 바닥 착지(매칭이면 그 월 카드/낸 패 위) ──
     const flippedToFloor = flipped && addedFloor.find((c) => c.id === flipped.id);
     const flippedCaptured = flipped && realCap.find((c) => c.id === flipped.id);
