@@ -114,10 +114,11 @@ export default function Gostop({ ws }) {
   const dealtRound = useRef(-1);   // 딜 인트로 1회/라운드
 
   // 슬롯 배정 — 월별로 묶어 한 슬롯 배정(같은 월은 같은 슬롯에 stack으로 약간 겹침). 매번 깨끗이 재구성.
-  function syncSlots(floorCards) {
+  function syncSlots(floorCards, reserve) {
     const byMonth = {};
     for (const c of floorCards) (byMonth[c.m] = byMonth[c.m] || []).push(c);
     const usedSet = new Set(); const monthSlot = {};
+    if (reserve) for (const s of reserve) usedSet.add(s);   // 회수 애니 중인 빈 슬롯 예약(겹침 방지)
     // 1) 같은 월이 쓰던 슬롯 유지(현재 배정된 카드에서)
     for (const c of floorCards) {
       const prev = slots.current[c.id];
@@ -274,8 +275,12 @@ export default function Gostop({ ws }) {
 
     // 슬롯: capturedFloor의 옛 슬롯은 lift 후 회수해야 하므로, 새 바닥 동기화 전에 좌표 확보
     const liftFrom = {}; for (const c of capturedFloor) { const px = slotPx(c.id); liftFrom[c.id] = { x: px.x, y: px.y, rot: slotPctFor(c.id).rot || 0 }; }
-    // 낸/뒤집힌 노매칭 패의 새 슬롯 확정
-    syncSlots(nf);
+    // 이번 턴 완전히 먹혀 사라지는 월의 슬롯은 회수 애니 동안 예약 → 새 비매칭 패가 그 자리에 안 깔리게
+    const nfMonths = new Set(nf.map((c) => c.m));
+    const reserve = new Set();
+    for (const c of capturedFloor) { const a = slots.current[c.id]; if (a && !nfMonths.has(c.m)) reserve.add(a.slot); }
+    // 낸/뒤집힌 노매칭 패의 새 슬롯 확정(예약 슬롯 회피)
+    syncSlots(nf, reserve);
 
     resetSeq();
     // 이전(중단된) 시퀀스 잔여 정리 — 봇 턴이 빠르게 와도 flyer/숨김 누적 안 되게
