@@ -670,6 +670,7 @@ function projectedScore(room, seat) {
   const r = room.gs.round, gs = room.gs, cfg = gs.cfg;
   if (!r || !r.captured) return 0;
   const sc = scoreOf(r.captured[seat] || []);
+  if (sc.total < r.params.minScore) return sc.total;   // 승리 기준(7점) 미만이면 배수/박 미반영 — 원점수 그대로
   const goCount = r.goCount[seat] || 0;
   let goScore = sc.total + goCount;
   if (goCount >= 3) goScore *= Math.pow(2, goCount - 2);
