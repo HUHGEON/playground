@@ -292,34 +292,49 @@ export default function Gostop({ ws }) {
     for (const c of capturedFloor) { const from = liftFrom[c.id] || capPile; FLY({ key: 'lf:' + c.id, id: c.id, src: srcOf(c), x: from.x, y: from.y, rot: from.rot || 0, z: 20 }); }
     sync();   // 숨김/정적 flyer를 paint 전에 반영(먹힌 패가 1프레임 사라지거나 새 패가 번쩍이는 것 방지)
 
-    // ── ① 낸 패 ──
+    // 매칭되는 기존 바닥 월 위치(낸/뒤집힌 매칭패는 빈 칸이 아니라 그 월 카드 위로 얹힘)
+    const matchPosOf = (card) => { const mf = capturedFloor.find((c) => c.m === card.m); return mf ? (liftFrom[mf.id] || null) : null; };
+    // 빈 슬롯 px — 낸 패가 잠깐 바닥에 놓였다 먹히는 쪽(jjok) 케이스용
+    const freeSlotPx = () => {
+      const felt = feltRect(); const fl = document.getElementById('gsFloor');
+      if (!felt || !fl) return { x: capPile.x, y: capPile.y, rot: 0 };
+      let i = 0; while (used.current.has(i)) i++; used.current.add(i);
+      const p = slotPct(i); const r = fl.getBoundingClientRect();
+      return { x: r.left - felt.left + (p.x / 100) * r.width, y: r.top - felt.top + (p.y / 100) * r.height, rot: p.rot };
+    };
+
+    // ── ① 낸 패: 손 → 바닥 착지(매칭이면 그 월 위, 아니면 빈 슬롯) ──
     const played = leftHand.find((c) => c.m !== 0) || leftHand[0];
     const playedToFloor = played && addedFloor.find((c) => c.id === played.id);
     const playedCaptured = played && realCap.find((c) => c.id === played.id);
-    // 매칭되는 바닥 월 위치(낸/뒤집힌 매칭패는 빈 칸이 아니라 그 월 위로 던져짐)
-    const matchPosOf = (card) => { const mf = capturedFloor.find((c) => c.m === card.m); return mf ? (liftFrom[mf.id] || null) : null; };
+    let playedFloorPos = null;   // 낸 패가 바닥에 놓인 위치(뒤집기 매칭이 여기 얹히도록 공유)
     if (played) {
-      const mpos = playedCaptured ? matchPosOf(played) : null;
-      const dst = playedToFloor ? slotPx(played.id) : (mpos || capPile);
-      const slotrot = playedToFloor ? slotPctFor(played.id).rot : 0;
+      let landPos, landRot;
+      const preMatch = matchPosOf(played);
+      if (playedToFloor) { landPos = slotPx(played.id); landRot = slotPctFor(played.id).rot; playedFloorPos = landPos; }
+      else if (preMatch) { landPos = preMatch; landRot = 0; playedFloorPos = preMatch; }
+      else if (playedCaptured) { playedFloorPos = freeSlotPx(); landPos = playedFloorPos; landRot = playedFloorPos.rot; }  // 쪽: 빈 자리에 잠깐 놓임
+      else { landPos = capPile; landRot = 0; }
       step(0, () => FLY({ key: 'p1', id: played.id, src: srcOf(played), x: handPt.x, y: handPt.y, rot: 0, z: 30 }));
-      step(T.play, () => setFly('p1', { x: dst.x, y: dst.y, rot: slotrot, ring: playedCaptured ? 1 : 0 }));
+      step(T.play, () => setFly('p1', { x: landPos.x, y: landPos.y, rot: landRot, ring: playedCaptured ? 1 : 0 }));
       if (playedToFloor) step(T.playLand, () => { unhide(played.id); dropFly('p1'); });
-      else step(T.playLand, () => {}); // 매칭이면 캡처 단계까지 flyer 유지(그 월 위에서)
+      else step(T.playLand, () => {}); // 매칭/쪽이면 캡처 단계까지 flyer 유지(바닥 그 자리)
     }
 
-    // ── ② 더미 뒤집기(rotateY 리빌) ──
+    // ── ② 더미 뒤집기(rotateY 리빌) → 바닥 착지(매칭이면 그 월 카드/낸 패 위) ──
     const flippedToFloor = flipped && addedFloor.find((c) => c.id === flipped.id);
     const flippedCaptured = flipped && realCap.find((c) => c.id === flipped.id);
     if (flipped) {
       step(flipped ? T.flipSpawn : 0, () => FLY({ key: 'd1', src: BACK_BG, face: 'back', x: deck.x, y: deck.y, rot: 0, z: 32 }));
       step(T.flipRy, () => setFly('d1', { ry: 90 }));
       step(T.flipFront, () => setFly('d1', { ry: 0, face: 'front', src: srcOf(flipped) }));
-      // 뒤집힌 매칭패도 그 월 위로(없으면 낸 패가 간 자리, 그것도 없으면 더미)
-      const fmpos = flippedCaptured ? (matchPosOf(flipped) || (played && played.m === flipped.m && playedCaptured ? matchPosOf(played) : null)) : null;
-      const dst = flippedToFloor ? slotPx(flipped.id) : (fmpos || capPile);
-      const slotrot = flippedToFloor ? slotPctFor(flipped.id).rot : 0;
-      step(T.flipLand, () => setFly('d1', { x: dst.x, y: dst.y, rot: slotrot, ring: flippedCaptured ? 1 : 0 }));
+      let landPos, landRot = 0;
+      const preMatch = matchPosOf(flipped);
+      if (flippedToFloor) { landPos = slotPx(flipped.id); landRot = slotPctFor(flipped.id).rot; }
+      else if (preMatch) { landPos = preMatch; }                                            // 기존 바닥 월 카드 위
+      else if (flippedCaptured && played && played.m === flipped.m && playedFloorPos) { landPos = playedFloorPos; }  // 쪽: 낸 패 위에 얹힘
+      else { landPos = capPile; }
+      step(T.flipLand, () => setFly('d1', { x: landPos.x, y: landPos.y, rot: landRot, ring: flippedCaptured ? 1 : 0 }));
       if (flippedToFloor) step(T.flipDrop, () => { unhide(flipped.id); dropFly('d1'); });
       else step(T.flipDrop, () => {});
     }
