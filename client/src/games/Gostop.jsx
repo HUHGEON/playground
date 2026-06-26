@@ -309,7 +309,8 @@ export default function Gostop({ ws }) {
     };
 
     // ── ① 낸 패: 손 → 바닥 착지(매칭이면 그 월 위, 아니면 빈 슬롯) ──
-    const played = leftHand.find((c) => c.m !== 0) || leftHand[0];
+    // 보너스피는 제외(아래 보너스 블록이 따로 연출) → 손패 보너스 낼 때 같은 카드 이중 연출 방지
+    const played = leftHand.find((c) => c.m !== 0 && !(c.flags || []).includes('BONUS')) || null;
     const playedToFloor = played && addedFloor.find((c) => c.id === played.id);
     const playedCaptured = played && realCap.find((c) => c.id === played.id);
     let playedFloorPos = null;   // 낸 패가 바닥에 놓인 위치(뒤집기 매칭이 여기 얹히도록 공유)
@@ -329,7 +330,10 @@ export default function Gostop({ ws }) {
     // ── ② 더미 뒤집기(rotateY 리빌) → 바닥 착지(매칭이면 그 월 카드/낸 패 위) ──
     const flippedToFloor = flipped && addedFloor.find((c) => c.id === flipped.id);
     const flippedCaptured = flipped && realCap.find((c) => c.id === flipped.id);
-    if (flipped) {
+    // 바닥 동월 2장 "선택 대기"(pending) 중엔 뒤집은 패의 운명이 미정 → 더미로 보내지 말고 연출 보류
+    // (바닥/더미 어디에도 없는 상태는 오직 pending뿐. 선택 끝나면 다음 델타에서 정상 연출)
+    const flipLimbo = flipped && !flippedToFloor && !flippedCaptured;
+    if (flipped && !flipLimbo) {
       step(flipped ? T.flipSpawn : 0, () => FLY({ key: 'd1', src: BACK_BG, face: 'back', x: deck.x, y: deck.y, rot: 0, z: 32 }));
       step(T.flipRy, () => setFly('d1', { ry: 90 }));
       step(T.flipFront, () => setFly('d1', { ry: 0, face: 'front', src: srcOf(flipped) }));
