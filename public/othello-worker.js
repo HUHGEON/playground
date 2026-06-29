@@ -49,28 +49,56 @@ function meValueOfChild(child, me, oppc) {
   return -v;                                     // 상대 관점 음수화 = me 가치
 }
 
-// 왜 그 수가 최선인가(휴리스틱 설명) — 오셀로 원리 기반
-function explainBest(board, bm, me) {
-  const AI = self.OthelloAI, oppc = AI.opp(me);
-  const child = AI.applyOn(board, bm[0], bm[1], me);
-  const oppMob = AI.legalMoves(child, oppc).length;
-  const rs = [];
-  if (isCorner(bm)) rs.push('코너를 잡아 절대 안 뒤집히는 돌을 확보');
-  if (oppMob === 0) rs.push('상대를 둘 곳 없게 만들어 한 번 더 두게 함');
-  else if (oppMob <= 2) rs.push('상대가 둘 곳을 ' + oppMob + '곳으로 좁혀 기동력을 압박');
-  // 빈 코너 옆(X·C자리)을 내가 안 채워 코너를 안 내줌
-  const nearEmptyCorner = (m) => CORNERS.some((c) => board[c[0]][c[1]] == null && Math.abs(m[0] - c[0]) <= 1 && Math.abs(m[1] - c[1]) <= 1);
-  if (!isCorner(bm) && !nearEmptyCorner(bm)) rs.push('코너 옆 위험 칸을 피한 안전한 자리');
-  if (!rs.length) rs.push('수읽기상 가장 유리한 전개');
-  return rs.join(' · ');
-}
-function moveWhyWorse(board, mv, me) {
-  const oppc = self.OthelloAI.opp(me);
-  if (CORNERS.some((c) => board[c[0]][c[1]] == null && Math.abs(mv[0] - c[0]) <= 1 && Math.abs(mv[1] - c[1]) <= 1) && !isCorner(mv))
-    return '빈 코너 옆(X·C자리)이라 상대에게 코너를 내줄 위험';
-  const child = self.OthelloAI.applyOn(board, mv[0], mv[1], me);
-  if (self.OthelloAI.legalMoves(child, oppc).length >= 6) return '상대에게 둘 곳을 너무 많이 내줌(기동력 손해)';
+// 좌표 표기, 코너 위험칸(X·C자리) 분류
+const sq = (m) => String.fromCharCode(65 + m[1]) + (m[0] + 1);
+const CORNER_DANGER = [
+  { corner: [0, 0], x: [1, 1], c: [[0, 1], [1, 0]] },
+  { corner: [0, 7], x: [1, 6], c: [[0, 6], [1, 7]] },
+  { corner: [7, 0], x: [6, 1], c: [[7, 1], [6, 0]] },
+  { corner: [7, 7], x: [6, 6], c: [[7, 6], [6, 7]] },
+];
+// 빈 코너에 대한 위험칸이면 {type:'X'|'C', corner} (코너가 이미 차있으면 위험 아님 → null)
+function dangerClass(board, m) {
+  for (const d of CORNER_DANGER) {
+    if (board[d.corner[0]][d.corner[1]] != null) continue;
+    if (m[0] === d.x[0] && m[1] === d.x[1]) return { type: 'X', corner: d.corner };
+    if (d.c.some((cc) => cc[0] === m[0] && cc[1] === m[1])) return { type: 'C', corner: d.corner };
+  }
   return null;
+}
+const onEdge = (m) => m[0] === 0 || m[0] === 7 || m[1] === 0 || m[1] === 7;
+const oppMobAfter = (board, m, me) => self.OthelloAI.legalMoves(self.OthelloAI.applyOn(board, m[0], m[1], me), self.OthelloAI.opp(me)).length;
+const flipN = (board, m, me) => self.OthelloAI.flips(board, m[0], m[1], me).length;
+
+// 왜 그 수가 최선인가 — 구체적 오셀로 원리(코너/기동력/조용함/변)
+function explainBest(board, bm, me) {
+  if (isCorner(bm)) return '🎯 코너 획득 — 절대 안 뒤집히는 영구 돌이라 가장 강력';
+  const oppMob = oppMobAfter(board, bm, me);
+  const fl = flipN(board, bm, me);
+  const rs = [];
+  if (oppMob === 0) rs.push('상대가 둘 곳이 없어 한 번 더 둠(템포 이득)');
+  else if (oppMob <= 3) rs.push('상대 선택지를 ' + oppMob + '곳으로 좁혀 기동력을 묶음');
+  if (!dangerClass(board, bm)) {
+    if (fl <= 2) rs.push('적게(' + fl + '장) 뒤집는 조용한 수로 유연성 유지');
+    if (onEdge(bm)) rs.push('안정적인 변을 확보');
+  }
+  if (!rs.length) rs.push('수읽기상 국면 가치가 가장 높은 전개');
+  return rs.slice(0, 2).join(' · ');
+}
+// 내 수가 왜 별로인가 — 최선과 비교한 구체적 손해
+function moveWhyWorse(board, mv, me, bestMove, loss) {
+  const dc = dangerClass(board, mv);
+  if (dc) {
+    const cn = sq(dc.corner);
+    if (dc.type === 'X') return '❌ X자리(' + cn + ' 코너 대각) — 다음에 상대가 ' + cn + ' 코너를 가져감';
+    return '⚠️ C자리(빈 ' + cn + ' 코너 옆) — 상대에게 ' + cn + ' 코너 길을 열어줌';
+  }
+  const myMob = oppMobAfter(board, mv, me), bestMob = oppMobAfter(board, bestMove, me);
+  if (myMob - bestMob >= 3) return '상대에게 둘 곳을 ' + myMob + '개나 내줌(최선은 ' + bestMob + '개) — 기동력 손해';
+  const myFl = flipN(board, mv, me), bestFl = flipN(board, bestMove, me);
+  if (myFl - bestFl >= 4) return '한 번에 ' + myFl + '장이나 뒤집어 약점(프런티어)이 늘고 유연성을 잃음';
+  if (isCorner(bestMove)) return '바로 잡을 수 있는 ' + sq(bestMove) + ' 코너를 놓침';
+  return '최선보다 −' + loss + '돌 불리한 전개(장기 수읽기 손해)';
 }
 
 function analyze(boardBefore, move, me) {
@@ -88,7 +116,7 @@ function analyze(boardBefore, move, me) {
   return {
     best, bestValue: top.v, myValue: mine.v, loss, rank, total: moves.length,
     why: explainBest(boardBefore, best, me),
-    whyWorse: matchedBest ? null : moveWhyWorse(boardBefore, move, me),
+    whyWorse: matchedBest ? null : moveWhyWorse(boardBefore, move, me, best, loss),
   };
 }
 
