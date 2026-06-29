@@ -70,20 +70,40 @@ const onEdge = (m) => m[0] === 0 || m[0] === 7 || m[1] === 0 || m[1] === 7;
 const oppMobAfter = (board, m, me) => self.OthelloAI.legalMoves(self.OthelloAI.applyOn(board, m[0], m[1], me), self.OthelloAI.opp(me)).length;
 const flipN = (board, m, me) => self.OthelloAI.flips(board, m[0], m[1], me).length;
 
-// 왜 그 수가 최선인가 — 구체적 오셀로 원리(코너/기동력/조용함/변)
-function explainBest(board, bm, me) {
-  if (isCorner(bm)) return '🎯 코너 획득 — 절대 안 뒤집히는 영구 돌이라 가장 강력';
+// 프런티어(빈칸에 닿은 돌) 수 — 적을수록 안정적
+function frontier(board, me) {
+  let n = 0;
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    if (board[r][c] !== me) continue;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const nr = r + dr, nc = c + dc;
+      if ((dr || dc) && nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] == null) { n++; dr = dc = 2; }
+    }
+  }
+  return n;
+}
+// 왜 그 수가 최선인가 — 빡센 다요인 분석(코너/기동력/조용함/변/프런티어/종반 정확값)
+function explainBest(board, bm, me, bestValue, empties) {
+  const oppc = self.OthelloAI.opp(me);
+  const rs = [];
+  if (isCorner(bm)) rs.push('🎯 코너 — 절대 안 뒤집히는 영구 돌');
   const oppMob = oppMobAfter(board, bm, me);
   const fl = flipN(board, bm, me);
-  const rs = [];
-  if (oppMob === 0) rs.push('상대가 둘 곳이 없어 한 번 더 둠(템포 이득)');
-  else if (oppMob <= 3) rs.push('상대 선택지를 ' + oppMob + '곳으로 좁혀 기동력을 묶음');
+  if (oppMob === 0) rs.push('상대 둘 곳 0 → 연속 착수(템포 이득)');
+  else if (oppMob <= 3) rs.push('상대 선택지 ' + oppMob + '곳으로 압박(기동력)');
   if (!dangerClass(board, bm)) {
-    if (fl <= 2) rs.push('적게(' + fl + '장) 뒤집는 조용한 수로 유연성 유지');
-    if (onEdge(bm)) rs.push('안정적인 변을 확보');
+    if (fl <= 2) rs.push('적게(' + fl + '장) 뒤집는 조용한 수');
+    if (onEdge(bm) && !isCorner(bm)) rs.push('변 안정 확보');
   }
-  if (!rs.length) rs.push('수읽기상 국면 가치가 가장 높은 전개');
-  return rs.slice(0, 2).join(' · ');
+  // 프런티어 비교(이 수가 내 프런티어를 덜 늘리면 안정)
+  const child = self.OthelloAI.applyOn(board, bm[0], bm[1], me);
+  if (!isCorner(bm) && oppMob > 3 && rs.length < 2) {
+    const f0 = frontier(board, me), f1 = frontier(child, me);
+    if (f1 - f0 <= 1) rs.push('내 노출(프런티어)을 거의 안 늘림');
+  }
+  if (empties <= 16) rs.push('끝까지 수읽기 결과 ' + (bestValue >= 0 ? '+' : '') + bestValue + '돌');
+  if (!rs.length) rs.push('장기 수읽기상 국면 가치 최고');
+  return rs.slice(0, 3).join(' · ');
 }
 // 내 수가 왜 별로인가 — 최선과 비교한 구체적 손해
 function moveWhyWorse(board, mv, me, bestMove, loss) {
@@ -113,9 +133,10 @@ function analyze(boardBefore, move, me) {
   const loss = top.v - mine.v;
   const matchedBest = loss <= 0;                 // 동점이면 내 수도 최선으로 취급(다른 동점수 안 가리킴)
   const best = matchedBest ? mine.m : top.m;     // 표시용 최선수 = 내 수(동점) 또는 진짜 최선
+  const empties = boardBefore.reduce((n, row) => n + row.filter((v) => v == null).length, 0);
   return {
-    best, bestValue: top.v, myValue: mine.v, loss, rank, total: moves.length,
-    why: explainBest(boardBefore, best, me),
+    best, bestValue: top.v, myValue: mine.v, loss, rank, total: moves.length, empties,
+    why: explainBest(boardBefore, best, me, top.v, empties),
     whyWorse: matchedBest ? null : moveWhyWorse(boardBefore, move, me, best, loss),
   };
 }
