@@ -91,7 +91,7 @@ export default function Othello({ ws }) {
   const boardBeforeRef = useRef(null);   // 내 수 두기 직전 보드(분석 입력)
   const myMoveRef = useRef(null);        // 내가 둔 수 [r,c]
   const analyzedSeq = useRef(-1);        // 분석 요청한 lastMove.seq
-  const [coachMode, setCoachMode] = useState(() => { try { return localStorage.getItem('oCoach') === '1'; } catch { return false; } });
+  const coachMode = !!s.coach;                   // 코치는 별도 모드 → 방 설정에서 결정(인게임 토글 X)
   const [review, setReview] = useState(null);   // null=리뷰 안함, {pending} 또는 {pending:false, data}
   const [coachHold, setCoachHold] = useState(false);   // 내 수 후 봇 보류(계속 누를 때까지) — lastBotSeq보다 먼저 평가돼야 함
 
@@ -111,7 +111,6 @@ export default function Othello({ ws }) {
     return workerRef.current;
   };
   useEffect(() => () => { if (workerRef.current) { workerRef.current.terminate(); workerRef.current = null; } }, []);
-  useEffect(() => { try { localStorage.setItem('oCoach', coachMode ? '1' : '0'); } catch { /* noop */ } }, [coachMode]);
 
   // 봇 구동 — 봇 차례면 수 계산. 코치 리뷰 중이면 보류([계속] 누르면 review=null → 재실행).
   useEffect(() => {
@@ -196,7 +195,6 @@ export default function Othello({ ws }) {
   } else if (s.isHost && (s.phase === 'lobby' || s.phase === 'finished')) {
     ctrl.push(<button key="cw0" className="ostart" disabled>상대 입장 대기 중</button>);
   }
-  if (s.singleplayer) ctrl.push(<button key="coach" className={'sub ocoach-toggle' + (coachMode ? ' on' : '')} onClick={() => setCoachMode((m) => !m)}>🎓 코치 {coachMode ? 'ON' : 'OFF'}</button>);
   if (s.canResign) ctrl.push(<button key="cr" className="danger" onClick={() => { if (confirm('기권하시겠습니까?')) send({ type: 'resign' }); }}>기권</button>);
   if (s.canDefer) ctrl.push(<button key="cd" className="sub" onClick={() => send({ type: 'defer' })}>순위 미루기</button>);
 

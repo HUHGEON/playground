@@ -23,10 +23,13 @@ export default function Lobby({ ws }) {
   useEffect(() => { chatEnd.current?.scrollIntoView({ block: 'end' }); }, [chat]);
 
   const isOthello = game === 'othello';
+  // 오셀로가 아니면 코치 모드 불가 → 멀티로 되돌림
+  useEffect(() => { if (mode === 'coach' && !isOthello) setMode('multi'); }, [isOthello, mode]);
   const create = () => {
     if (!game) return;
     const msg = { type: 'createRoom', gameType: game, name: roomName.trim() };
     if (mode === 'single') { msg.singleplayer = true; msg.botLevel = isOthello ? level : 'hard'; }
+    else if (mode === 'coach') { msg.singleplayer = true; msg.coach = true; msg.botLevel = level; }   // 코치(오셀로): 봇전 + 실시간 평가
     send(msg);
   };
   const sendChat = () => { const t = chatText.trim(); if (!t) return; send({ type: 'chat', text: t }); setChatText(''); };
@@ -42,7 +45,7 @@ export default function Lobby({ ws }) {
               {rooms.map((r) => {
                 const g = games.find((x) => x.type === r.gameType) || {};
                 const meta = r.singleplayer
-                  ? `봇전 · 👁 관전 ${r.spectators || 0}명 · 방장 ${r.hostName || '-'}`
+                  ? `${r.coach ? '코치' : '봇전'} · 👁 관전 ${r.spectators || 0}명 · 방장 ${r.hostName || '-'}`
                   : `${r.count}명 · ${r.max || ''} · 방장 ${r.hostName || '-'}`;
                 return (
                   <div key={r.id} className="roomrow">
@@ -52,7 +55,7 @@ export default function Lobby({ ws }) {
                     <span className="rinfo"><div className="rname">{r.name}</div><div className="meta">{meta}</div></span>
                     <span className={`gtag g-${r.gameType}`}>{g.title || r.gameType}</span>
                     <span className={'badge' + (r.phase === 'playing' ? ' play' : '')}>{r.phase === 'playing' ? '진행중' : '대기중'}</span>
-                    {r.singleplayer && <span className="badge bot">🤖 봇전</span>}
+                    {r.singleplayer && <span className="badge bot">{r.coach ? '🎓 코치' : '🤖 봇전'}</span>}
                     <button onClick={() => send({ type: 'enterRoom', roomId: r.id })}>{r.singleplayer ? '관전' : '입장'}</button>
                   </div>
                 );
@@ -76,9 +79,14 @@ export default function Lobby({ ws }) {
               <button type="button" className={`modebtn${mode === 'single' ? ' on' : ''}`} onClick={() => setMode('single')}>
                 <span className="mem">🤖</span>봇전<small>나 vs 봇</small>
               </button>
+              {isOthello && (
+                <button type="button" className={`modebtn${mode === 'coach' ? ' on' : ''}`} onClick={() => setMode('coach')}>
+                  <span className="mem">🎓</span>코치<small>수 평가받기</small>
+                </button>
+              )}
             </div>
 
-            {mode === 'single' && isOthello && (
+            {(mode === 'single' || mode === 'coach') && isOthello && (
               <div className="levelpick">
                 <span className="lvlabel">봇 난이도</span>
                 <div className="lvbtns">
