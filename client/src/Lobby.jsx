@@ -29,7 +29,7 @@ export default function Lobby({ ws }) {
     if (!game) return;
     const msg = { type: 'createRoom', gameType: game, name: roomName.trim() };
     if (mode === 'single') { msg.singleplayer = true; msg.botLevel = isOthello ? level : 'hard'; }
-    else if (mode === 'coach') { msg.singleplayer = true; msg.coach = true; msg.botLevel = level; }   // 코치(오셀로): 봇전 + 실시간 평가
+    else if (mode === 'coach') { msg.singleplayer = true; msg.coach = true; msg.botLevel = 'hell'; }   // 코치: 헬봇(Edax 최강) 고정 + 실시간 평가
     send(msg);
   };
   const sendChat = () => { const t = chatText.trim(); if (!t) return; send({ type: 'chat', text: t }); setChatText(''); };
@@ -86,7 +86,7 @@ export default function Lobby({ ws }) {
               )}
             </div>
 
-            {(mode === 'single' || mode === 'coach') && isOthello && (
+            {mode === 'single' && isOthello && (
               <div className="levelpick">
                 <span className="lvlabel">봇 난이도</span>
                 <div className="lvbtns">
@@ -95,6 +95,9 @@ export default function Lobby({ ws }) {
                   ))}
                 </div>
               </div>
+            )}
+            {mode === 'coach' && isOthello && (
+              <div className="levelpick"><span className="lvlabel">상대</span><span className="coachnote">💀 헬봇(Edax 최강) — 매 수 빡센 평가</span></div>
             )}
 
             <div className="createbar">

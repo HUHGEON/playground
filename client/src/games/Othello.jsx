@@ -12,6 +12,7 @@ function avatar(name) {
 
 // 좌표 표기 — [r,c] → 'D3' (열 a~h, 행 1~8)
 const coord = (m) => m ? String.fromCharCode(65 + m[1]) + (m[0] + 1) : '';
+const sgn = (v) => (v >= 0 ? '+' : '') + v + '돌';   // 평가 가치(내 관점, +면 유리)
 // 손해(돌 단위) → 등급 라벨/색
 function rateMove(loss, rank) {
   if (rank === 1 || loss <= 0) return { label: '최선!', cls: 'best', emoji: '🌟' };
@@ -99,7 +100,7 @@ export default function Othello({ ws }) {
   const ensureWorker = () => {
     if (workerRef.current) return workerRef.current;
     try {
-      const w = new Worker('/othello-worker.js?v=eval4');   // ?v 바뀌면 워커가 edax.js/wasm까지 새로 받음(캐시 버스트)
+      const w = new Worker('/othello-worker.js?v=eval5');   // ?v 바뀌면 워커가 edax.js/wasm까지 새로 받음(캐시 버스트)
       w.onmessage = (e) => {
         const d = e.data || {};
         if (d.type === 'analyze') { setReview({ pending: false, data: d.result }); return; }
@@ -146,6 +147,15 @@ export default function Othello({ ws }) {
   };
   const coachUndo = () => { setReview(null); setCoachHold(false); boardBeforeRef.current = null; myMoveRef.current = null; analyzedSeq.current = -1; send({ type: 'undo' }); };
   const coachContinue = () => { setReview(null); setCoachHold(false); };   // 보류 해제 → 봇 구동 효과가 이어서 둠
+  // 리뷰 떠 있으면 5초 후 자동 계속(무르기/수동 계속하면 취소)
+  const [autoSecs, setAutoSecs] = useState(null);
+  useEffect(() => {
+    if (!review || review.pending || !review.data) { setAutoSecs(null); return undefined; }
+    setAutoSecs(5);
+    const iv = setInterval(() => setAutoSecs((x) => (x > 1 ? x - 1 : 0)), 1000);
+    const t = setTimeout(() => { setReview(null); setCoachHold(false); }, 5000);
+    return () => { clearInterval(iv); clearTimeout(t); };
+  }, [review]);
 
   // 하단 = 항상 내 좌석(관전이면 흑), 상단 = 상대
   const botSeat = myColor === 'W' ? 'W' : 'B';
@@ -285,15 +295,15 @@ export default function Othello({ ws }) {
             <>
               <div className="ocoach-main">
                 <span className="ocoach-badge">{rate.emoji} {rate.label}</span>
-                {reviewData.loss > 0 && <span className="ocoach-loss">−{reviewData.loss}</span>}
-                <span className="ocoach-rank">내 수 <b>{coord(myMoveRef.current)}</b> · {reviewData.total}개 중 <b>{reviewData.rank}위</b></span>
+                {reviewData.loss > 0 && <span className="ocoach-loss">−{reviewData.loss}돌</span>}
+                <span className="ocoach-rank">내 수 <b>{coord(myMoveRef.current)}</b> ({sgn(reviewData.myValue)}) · {reviewData.total}개 중 <b>{reviewData.rank}위</b></span>
               </div>
-              {reviewData.rank > 1 && <div className="ocoach-line">최선 <b>{coord(reviewData.best)}</b> — {reviewData.why}</div>}
+              {reviewData.rank > 1 && <div className="ocoach-line">최선 <b>{coord(reviewData.best)}</b> ({sgn(reviewData.bestValue)}) — {reviewData.why}</div>}
               {reviewData.rank === 1 && <div className="ocoach-line">{reviewData.why}</div>}
               {reviewData.whyWorse && <div className="ocoach-worse">⚠ 내 수: {reviewData.whyWorse}</div>}
               <div className="ocoach-btns">
                 {s.canUndo && <button className="ocoach-undo" onClick={coachUndo}>↶ 무르고 다시</button>}
-                <button className="ocoach-cont" onClick={coachContinue}>계속 ▶</button>
+                <button className="ocoach-cont" onClick={coachContinue}>계속 ▶{autoSecs != null ? ` (${autoSecs})` : ''}</button>
               </div>
             </>
           ) : (

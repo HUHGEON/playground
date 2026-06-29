@@ -95,6 +95,7 @@
   /* 봇 난이도 */
   .levelpick { display: flex; flex-direction: column; gap: 6px; margin-bottom: 9px; }
   .levelpick .lvlabel { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .5px; }
+  .levelpick .coachnote { font-size: 13px; font-weight: 800; color: #f1d28a; background: rgba(217,164,65,.14); border: 1px solid rgba(217,164,65,.32); border-radius: 9px; padding: 8px 10px; }
   .levelpick .lvbtns { display: flex; gap: 6px; }
   .levelpick .levelbtn { flex: 1; padding: 8px; border-radius: 10px; border: 1px solid #3a4350; background: rgba(0,0,0,.22); color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 700; box-shadow: none; transition: .15s; }
   .levelpick .levelbtn:hover { filter: brightness(1.12); transform: none; }
