@@ -147,13 +147,13 @@ export default function Othello({ ws }) {
   };
   const coachUndo = () => { setReview(null); setCoachHold(false); boardBeforeRef.current = null; myMoveRef.current = null; analyzedSeq.current = -1; send({ type: 'undo' }); };
   const coachContinue = () => { setReview(null); setCoachHold(false); };   // 보류 해제 → 봇 구동 효과가 이어서 둠
-  // 리뷰 떠 있으면 5초 후 자동 계속(무르기/수동 계속하면 취소)
+  // 리뷰 떠 있으면 10초 후 자동 계속(무르기/수동 계속하면 취소)
   const [autoSecs, setAutoSecs] = useState(null);
   useEffect(() => {
     if (!review || review.pending || !review.data) { setAutoSecs(null); return undefined; }
-    setAutoSecs(5);
+    setAutoSecs(10);
     const iv = setInterval(() => setAutoSecs((x) => (x > 1 ? x - 1 : 0)), 1000);
-    const t = setTimeout(() => { setReview(null); setCoachHold(false); }, 5000);
+    const t = setTimeout(() => { setReview(null); setCoachHold(false); }, 10000);
     return () => { clearInterval(iv); clearTimeout(t); };
   }, [review]);
 
