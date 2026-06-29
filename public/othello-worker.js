@@ -1,6 +1,7 @@
 // 브라우저 Web Worker — 오셀로 봇 수 계산 + 코치 분석(페이지 메인스레드 안 멈춤).
 // 1순위: Edax 엔진(WASM, 초인간). 실패 시 자체 미니맥스(othello-ai.js)로 폴백.
-importScripts('othello-ai.js');                 // 폴백용 + 헬퍼(legalMoves/flips/applyOn)
+const VQ = self.location.search || '';          // 클라가 준 ?v=… → ai/edax/wasm 캐시 버스트에 전파
+importScripts('othello-ai.js' + VQ);            // 폴백용 + 헬퍼(legalMoves/flips/applyOn)
 
 let edaxBest = null;                             // cwrap된 edax_bestmove
 let edaxEval = null;                             // cwrap된 edax_eval (코치용 국면 평가)
@@ -10,8 +11,8 @@ function ensureEdax() {
   if (edaxInit) return edaxInit;
   edaxInit = new Promise((resolve) => {
     try {
-      importScripts('edax.js');
-      self.createEdax().then((M) => {
+      importScripts('edax.js' + VQ);
+      self.createEdax({ locateFile: (p) => p + VQ }).then((M) => {   // edax.wasm/edax.data도 버전 쿼리로
         M.ccall('edax_boot', null, [], []);
         edaxBest = (s, lv, ms) => M.ccall('edax_bestmove', 'number', ['string', 'number', 'number'], [s, lv, ms]);
         edaxEval = (s, lv, ms) => M.ccall('edax_eval', 'number', ['string', 'number', 'number'], [s, lv, ms]);
