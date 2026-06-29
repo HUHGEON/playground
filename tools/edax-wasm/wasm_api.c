@@ -84,5 +84,5 @@ EMSCRIPTEN_KEEPALIVE int edax_eval(const char* b,int level,int timeMs){
   play_set_board(&g_play,(char*)b);
   if(play_is_game_over(&g_play))return -127;
   play_go(&g_play,1);
-  Move *m=play_get_last_move(&g_play); return m?m->score:-127;
+  return g_play.result.score;   // 탐색 점수는 result에 저장됨(play_get_last_move의 score는 0). 둘 차례(X) 관점.
 }

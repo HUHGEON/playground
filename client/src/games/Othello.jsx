@@ -99,7 +99,7 @@ export default function Othello({ ws }) {
   const ensureWorker = () => {
     if (workerRef.current) return workerRef.current;
     try {
-      const w = new Worker('/othello-worker.js');
+      const w = new Worker('/othello-worker.js?v=eval3');   // ?v 바뀌면 워커가 edax.js/wasm까지 새로 받음(캐시 버스트)
       w.onmessage = (e) => {
         const d = e.data || {};
         if (d.type === 'analyze') { setReview({ pending: false, data: d.result }); return; }
