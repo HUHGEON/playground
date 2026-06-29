@@ -75,3 +75,14 @@ EMSCRIPTEN_KEEPALIVE int edax_bestmove(const char* b,int level,int timeMs){
   play_go(&g_play,1);
   Move *m=play_get_last_move(&g_play); return m?m->x:-1;
 }
+// 코치 모드: 둘 차례(X) 관점에서 이 국면의 평가값(돌 차이). play_go가 찾은 최선수의 score = 국면값.
+// 자식 국면을 각각 넣어 부르면(상대 관점) 음수화로 각 수의 가치를 매겨 순위/손해 산출.
+// 합법수 없음/종국 → sentinel(-127).
+EMSCRIPTEN_KEEPALIVE int edax_eval(const char* b,int level,int timeMs){
+  if(!g_inited)edax_boot();
+  options.level=level; options.time=timeMs;
+  play_set_board(&g_play,(char*)b);
+  if(play_is_game_over(&g_play))return -127;
+  play_go(&g_play,1);
+  Move *m=play_get_last_move(&g_play); return m?m->score:-127;
+}

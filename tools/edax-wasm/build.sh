@@ -16,7 +16,7 @@ docker run --rm -v "$WORK/edax:/src" -w /src/src emscripten/emsdk \
   -o /src/edax.js --preload-file /src/data/eval.dat@data/eval.dat \
   -sALLOW_MEMORY_GROWTH=1 -sMODULARIZE=1 -sEXPORT_NAME=createEdax \
   -sEXPORTED_RUNTIME_METHODS=ccall -sENVIRONMENT=web,worker,node \
-  -sEXPORTED_FUNCTIONS=_edax_boot,_edax_bestmove
+  -sEXPORTED_FUNCTIONS=_edax_boot,_edax_bestmove,_edax_eval
 OUT="$(cd "$(dirname "$0")/../../public" && pwd)"
 cp "$WORK/edax/edax.js" "$WORK/edax/edax.wasm" "$WORK/edax/edax.data" "$OUT/"
 echo "완료 → $OUT/edax.{js,wasm,data}"

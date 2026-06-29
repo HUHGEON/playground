@@ -125,4 +125,4 @@ function bestMove(board, me, level, budgetMs) {
   return searchFixed(board, me, level === 'easy' ? 2 : (empties <= 9 ? empties : 4));
 }
 
-self.OthelloAI = { bestMove, legalMoves };   // 워커/페이지 전역에 등록
+self.OthelloAI = { bestMove, legalMoves, flips, applyOn, opp };   // 워커/페이지 전역에 등록(코치 분석용 헬퍼 포함)

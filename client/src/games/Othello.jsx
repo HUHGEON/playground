@@ -10,6 +10,18 @@ function avatar(name) {
   return AVATARS[h % AVATARS.length];
 }
 
+// 좌표 표기 — [r,c] → 'D3' (열 a~h, 행 1~8)
+const coord = (m) => m ? String.fromCharCode(65 + m[1]) + (m[0] + 1) : '';
+// 손해(돌 단위) → 등급 라벨/색
+function rateMove(loss, rank) {
+  if (rank === 1 || loss <= 0) return { label: '최선!', cls: 'best', emoji: '🌟' };
+  if (loss <= 1) return { label: '훌륭', cls: 'great', emoji: '👍' };
+  if (loss <= 3) return { label: '좋음', cls: 'good', emoji: '🙂' };
+  if (loss <= 6) return { label: '부정확', cls: 'inacc', emoji: '🤔' };
+  if (loss <= 12) return { label: '실수', cls: 'mistake', emoji: '⚠️' };
+  return { label: '블런더', cls: 'blunder', emoji: '💥' };
+}
+
 function Panel({ s, seat, isMe }) {
   const name = seat === 'B' ? (s.blackName || '흑') : (s.whiteName || '백');
   const color = seat === 'B' ? s.blackColor : s.whiteColor;
@@ -73,28 +85,68 @@ export default function Othello({ ws }) {
   const myColor = myName && myName === s.blackName ? 'B' : (myName && myName === s.whiteName ? 'W' : null);
   const myTurn = s.phase === 'playing' && myColor != null && myColor === s.turn;
 
-  // 봇전: 봇 차례면 브라우저 워커가 수 계산 → botMove 전송(서버는 합법성만 검증). 바닐라 maybeDriveBot 이전.
+  // 봇전: 봇 차례면 브라우저 워커가 수 계산 → botMove 전송. + 코치 모드(내 수 평가).
   const workerRef = useRef(null);
   const lastBotSeq = useRef(-1);
+  const boardBeforeRef = useRef(null);   // 내 수 두기 직전 보드(분석 입력)
+  const myMoveRef = useRef(null);        // 내가 둔 수 [r,c]
+  const analyzedSeq = useRef(-1);        // 분석 요청한 lastMove.seq
+  const [coachMode, setCoachMode] = useState(() => { try { return localStorage.getItem('oCoach') === '1'; } catch { return false; } });
+  const [review, setReview] = useState(null);   // null=리뷰 안함, {pending} 또는 {pending:false, data}
+  const [coachHold, setCoachHold] = useState(false);   // 내 수 후 봇 보류(계속 누를 때까지) — lastBotSeq보다 먼저 평가돼야 함
+
+  // 워커 보장 — 봇 수·분석 응답을 type으로 분기
+  const ensureWorker = () => {
+    if (workerRef.current) return workerRef.current;
+    try {
+      const w = new Worker('/othello-worker.js');
+      w.onmessage = (e) => {
+        const d = e.data || {};
+        if (d.type === 'analyze') { setReview({ pending: false, data: d.result }); return; }
+        if (d.type === 'move' && d.mv) send({ type: 'botMove', r: d.mv[0], c: d.mv[1] });
+      };
+      w.onerror = () => { workerRef.current = null; };
+      workerRef.current = w;
+    } catch { workerRef.current = null; }
+    return workerRef.current;
+  };
   useEffect(() => () => { if (workerRef.current) { workerRef.current.terminate(); workerRef.current = null; } }, []);
+  useEffect(() => { try { localStorage.setItem('oCoach', coachMode ? '1' : '0'); } catch { /* noop */ } }, [coachMode]);
+
+  // 봇 구동 — 봇 차례면 수 계산. 코치 리뷰 중이면 보류([계속] 누르면 review=null → 재실행).
   useEffect(() => {
     if (!s.singleplayer || s.phase !== 'playing' || !myColor || s.turn === myColor) return undefined;
+    if (coachMode && coachHold) return undefined;          // 내 수 후 리뷰 중 봇 보류(가드 세팅 전에 막아야 함)
     const seq = s.lastMove ? s.lastMove.seq : 0;
-    if (seq === lastBotSeq.current) return undefined;       // 이 상태엔 이미 요청함
+    if (seq === lastBotSeq.current) return undefined;
     lastBotSeq.current = seq;
     const level = s.botLevel || 'normal';
     const budget = (level === 'hard' || level === 'hell') ? 3000 : (level === 'normal' ? 1200 : 350);
-    if (!workerRef.current) {
-      try {
-        workerRef.current = new Worker('/othello-worker.js');
-        workerRef.current.onmessage = (e) => { const mv = e.data; if (mv) send({ type: 'botMove', r: mv[0], c: mv[1] }); };
-        workerRef.current.onerror = () => { workerRef.current = null; };
-      } catch { workerRef.current = null; }
-    }
-    const w = workerRef.current;
-    const t = setTimeout(() => { if (w) w.postMessage({ board: s.board, me: s.turn, level, budgetMs: budget }); }, 550 + Math.random() * 650);
+    const w = ensureWorker(); if (!w) return undefined;
+    const t = setTimeout(() => { if (workerRef.current) workerRef.current.postMessage({ type: 'move', board: s.board, me: s.turn, level, budgetMs: budget }); }, 550 + Math.random() * 650);
     return () => clearTimeout(t);
-  }, [s, myColor, send]);
+  }, [s, myColor, send, coachMode, coachHold]);
+
+  // 코치 분석 — 내 수가 방금 끝나면(상대 차례) 1회 분석 요청
+  useEffect(() => {
+    if (!coachMode || !s.singleplayer || s.phase !== 'playing') return;
+    const lm0 = s.lastMove;
+    if (!lm0 || lm0.color !== myColor || s.turn === myColor) return;   // 마지막 수=내 수, 지금 상대 차례
+    if (analyzedSeq.current === lm0.seq) return;
+    if (!boardBeforeRef.current || !myMoveRef.current) return;
+    analyzedSeq.current = lm0.seq;
+    setReview({ pending: true });
+    const w = ensureWorker(); if (!w) { setReview(null); return; }
+    w.postMessage({ type: 'analyze', boardBefore: boardBeforeRef.current, move: myMoveRef.current, me: myColor });
+  }, [s, coachMode, myColor]);
+
+  const playMove = (r, c) => {
+    if (!myTurn) return;
+    if (coachMode) { boardBeforeRef.current = s.board.map((row) => row.slice()); myMoveRef.current = [r, c]; setCoachHold(true); }
+    send({ type: 'move', r, c });
+  };
+  const coachUndo = () => { setReview(null); setCoachHold(false); boardBeforeRef.current = null; myMoveRef.current = null; analyzedSeq.current = -1; send({ type: 'undo' }); };
+  const coachContinue = () => { setReview(null); setCoachHold(false); };   // 보류 해제 → 봇 구동 효과가 이어서 둠
 
   // 하단 = 항상 내 좌석(관전이면 흑), 상단 = 상대
   const botSeat = myColor === 'W' ? 'W' : 'B';
@@ -104,6 +156,9 @@ export default function Othello({ ws }) {
   const lm = s.lastMove;
   const placedIdx = lm ? lm.placed.r * 8 + lm.placed.c : -1;
   const legalSet = new Set((s.legal || []).map(([r, c]) => r * 8 + c));
+  // 코치: 리뷰 중 최선수 칸 표시(둔 뒤에만 공개)
+  const reviewData = review && !review.pending ? review.data : null;
+  const bestIdx = reviewData && reviewData.best ? reviewData.best[0] * 8 + reviewData.best[1] : -1;
 
   // 뒤집힌 돌을 놓은 위치에서 거리순으로 촤르르륵 — 이전 보드와 비교해 바뀐 칸에 딜레이 부여
   const prevBoard = useRef(null);
@@ -141,8 +196,11 @@ export default function Othello({ ws }) {
   } else if (s.isHost && (s.phase === 'lobby' || s.phase === 'finished')) {
     ctrl.push(<button key="cw0" className="ostart" disabled>상대 입장 대기 중</button>);
   }
+  if (s.singleplayer) ctrl.push(<button key="coach" className={'sub ocoach-toggle' + (coachMode ? ' on' : '')} onClick={() => setCoachMode((m) => !m)}>🎓 코치 {coachMode ? 'ON' : 'OFF'}</button>);
   if (s.canResign) ctrl.push(<button key="cr" className="danger" onClick={() => { if (confirm('기권하시겠습니까?')) send({ type: 'resign' }); }}>기권</button>);
   if (s.canDefer) ctrl.push(<button key="cd" className="sub" onClick={() => send({ type: 'defer' })}>순위 미루기</button>);
+
+  const rate = reviewData ? rateMove(reviewData.loss, reviewData.rank) : null;
 
   // 대기열(사이드바) — #roomInfo 포털
   const sidebar = (
@@ -203,8 +261,9 @@ export default function Othello({ ws }) {
               } else if (s.phase === 'playing' && legalSet.has(i)) {
                 cls += myTurn ? ' playable' : ' hint';
               }
+              if (i === bestIdx) cls += ' obest';   // 최선수 칸(리뷰 중)
               return (
-                <div key={i} className={cls} onClick={() => { if (myTurn) send({ type: 'move', r, c }); }}>{inner}</div>
+                <div key={i} className={cls} onClick={() => playMove(r, c)}>{inner}{i === bestIdx && <span className="obest-mark">최선</span>}</div>
               );
             })}
           </div>
@@ -220,6 +279,30 @@ export default function Othello({ ws }) {
           )}
         </div>
       </div>
+      {coachMode && review && (
+        <div id="oCoach" className={rate ? rate.cls : 'pending'}>
+          {review.pending ? (
+            <div className="ocoach-pending">🔍 수 분석 중…</div>
+          ) : reviewData ? (
+            <>
+              <div className="ocoach-main">
+                <span className="ocoach-badge">{rate.emoji} {rate.label}</span>
+                {reviewData.loss > 0 && <span className="ocoach-loss">−{reviewData.loss}</span>}
+                <span className="ocoach-rank">내 수 <b>{coord(myMoveRef.current)}</b> · {reviewData.total}개 중 <b>{reviewData.rank}위</b></span>
+              </div>
+              {reviewData.rank > 1 && <div className="ocoach-line">최선 <b>{coord(reviewData.best)}</b> — {reviewData.why}</div>}
+              {reviewData.rank === 1 && <div className="ocoach-line">{reviewData.why}</div>}
+              {reviewData.whyWorse && <div className="ocoach-worse">⚠ 내 수: {reviewData.whyWorse}</div>}
+              <div className="ocoach-btns">
+                {s.canUndo && <button className="ocoach-undo" onClick={coachUndo}>↶ 무르고 다시</button>}
+                <button className="ocoach-cont" onClick={coachContinue}>계속 ▶</button>
+              </div>
+            </>
+          ) : (
+            <div className="ocoach-pending">분석 불가 <button className="ocoach-cont" onClick={coachContinue}>계속 ▶</button></div>
+          )}
+        </div>
+      )}
       <Panel s={s} seat={botSeat} isMe={myColor === botSeat} />
       <div className="btnrow" id="oCtrl">{ctrl}</div>
       {infoEl && createPortal(sidebar, infoEl)}

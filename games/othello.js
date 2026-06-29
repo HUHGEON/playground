@@ -61,6 +61,7 @@ function clearTurnTimer(gs) {
 function startTurnTimer(room) {
   const gs = room.gs;
   clearTurnTimer(gs);
+  if (room.singleplayer) { gs.deadline = null; return; }   // 봇전(연습/코치)은 시간제한 없음 — 리뷰 중 타임아웃 방지
   gs.deadline = Date.now() + TURN_MS;
   gs.moveTimer = setTimeout(() => onTimeout(room), TURN_MS);
 }
@@ -206,6 +207,12 @@ module.exports = {
       }
       const { r, c } = msg;
       if (!Number.isInteger(r) || !Number.isInteger(c) || r < 0 || r >= 8 || c < 0 || c >= 8) return false;
+      // 무르기용 스냅샷(봇전만) — 수 적용 전 상태 저장
+      if (room.singleplayer) {
+        gs.history = gs.history || [];
+        gs.history.push({ board: gs.board.map((row) => row.slice()), turn: gs.turn, lastMove: gs.lastMove, winner: gs.winner, phase: room.phase });
+        if (gs.history.length > 120) gs.history.shift();
+      }
       const flipped = applyMove(gs.board, r, c, gs.turn);
       if (!flipped) return false;
       gs.lastMove = {
@@ -219,6 +226,22 @@ module.exports = {
         const w = gs.winner === 'draw' ? '무승부' : `${gs.winner === 'B' ? '흑 ●' : '백 ○'} 승리`;
         conclude(room, `게임 종료 — ${w} (● ${sc.B} : ${sc.W} ○)`);
       } else startTurnTimer(room);
+      return true;
+
+    } else if (msg.type === 'undo') {
+      // 무르기(봇전 코치 모드) — 사람 차례가 될 때까지 되돌림
+      if (!room.singleplayer || room.phase !== 'playing' || ws.isBot || !room.queue.includes(ws)) return false;
+      const humanColor = colorOf(gs, ws); if (!humanColor) return false;
+      if (!gs.history || !gs.history.length) return false;
+      let popped = 0;
+      do {
+        const snap = gs.history.pop();
+        gs.board = snap.board; gs.turn = snap.turn; gs.lastMove = snap.lastMove; gs.winner = snap.winner; room.phase = snap.phase;
+        popped++;
+      } while (gs.history.length && gs.turn !== humanColor && popped < 6);
+      gs.winner = null; room.phase = 'playing';
+      startTurnTimer(room);
+      room.ctx.notify(room, `${ws.name}님이 무르기 했습니다.`);
       return true;
 
     } else if (msg.type === 'defer') {
@@ -250,6 +273,8 @@ module.exports = {
       yourRole: roleOf(room, ws),
       canStart: room.host === ws && module.exports.canStart(room),
       canResign: room.phase === 'playing' && !!colorOf(gs, ws),
+      singleplayer: !!room.singleplayer,
+      canUndo: !!room.singleplayer && room.phase === 'playing' && !!(gs.history && gs.history.length),
       canDefer: !room.singleplayer && room.queue.length >= 2 && !(room.phase === 'playing' && !!colorOf(gs, ws)) && idx >= 0 && idx < room.queue.length - 1,
       legal: room.phase === 'playing' ? legalMoves(gs.board, gs.turn) : [],
       winner: gs.winner,
