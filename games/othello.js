@@ -274,6 +274,7 @@ module.exports = {
       canStart: room.host === ws && module.exports.canStart(room),
       canResign: room.phase === 'playing' && !!colorOf(gs, ws),
       singleplayer: !!room.singleplayer,
+      coach: !!room.coach,                              // 코치 모드(별도 모드)
       canUndo: !!room.singleplayer && room.phase === 'playing' && !!(gs.history && gs.history.length),
       canDefer: !room.singleplayer && room.queue.length >= 2 && !(room.phase === 'playing' && !!colorOf(gs, ws)) && idx >= 0 && idx < room.queue.length - 1,
       legal: room.phase === 'playing' ? legalMoves(gs.board, gs.turn) : [],
