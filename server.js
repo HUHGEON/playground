@@ -358,7 +358,10 @@ wss.on('connection', (ws, req) => {
         room.botLevel = lv;
         const bc = Number.isFinite(Number(msg.botCount)) ? Number(msg.botCount) : null;   // UI 지정 봇 수(고스톱 2/4인)
         addBots(room, bc);
-        if (msg.coach && gameType === 'othello') room.coach = true;   // 코치 모드(오셀로): 봇전 + 수 평가
+        if (msg.coach && gameType === 'othello') {                    // 코치(오셀로): 봇전 + 평가 + 헬봇 상대 흑(선) 자동 시작
+          room.coach = true;
+          if (GAMES[gameType].canStart(room)) { GAMES[gameType].start(room, { color: 'B' }); broadcastRoom(room); }
+        }
       }
       alog(`🎮 방생성  "${name}"  ${gameType}${room.coach ? '(코치)' : msg.singleplayer ? `(봇전·${room.botLevel})` : ''}  by ${ws.name}`);
 
