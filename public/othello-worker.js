@@ -141,9 +141,36 @@ function analyze(boardBefore, move, me) {
   };
 }
 
+// 모든 합법수를 한 번에 평가(턴마다 1회 → hover는 캐시만 읽음)
+function analyzeAll(board, me) {
+  const AI = self.OthelloAI, oppc = AI.opp(me);
+  const moves = AI.legalMoves(board, me);
+  if (!moves.length) return null;
+  const scored = moves.map((lm) => ({ m: lm, v: meValueOfChild(AI.applyOn(board, lm[0], lm[1], me), me, oppc) }));
+  scored.sort((a, b) => b.v - a.v);
+  const top = scored[0];
+  const empties = board.reduce((n, row) => n + row.filter((v) => v == null).length, 0);
+  const out = scored.map((s) => {
+    const rank = 1 + scored.filter((x) => x.v > s.v).length;
+    const loss = top.v - s.v;
+    const isBest = loss <= 0;
+    return {
+      r: s.m[0], c: s.m[1], value: s.v, rank, loss,
+      reason: isBest ? explainBest(board, s.m, me, s.v, empties) : moveWhyWorse(board, s.m, me, top.m, loss),
+    };
+  });
+  return { best: top.m, bestValue: top.v, total: moves.length, moves: out };
+}
+
 onmessage = function (e) {
   const d = e.data, type = d.type || 'move';
   ensureEdax().then((ok) => {
+    if (type === 'analyzeAll') {
+      let res = null;
+      if (ok && edaxEval) { try { res = analyzeAll(d.board, d.me); } catch (err) { res = null; } }
+      postMessage({ type: 'analyzeAll', result: res });
+      return;
+    }
     if (type === 'analyze') {
       let res = null;
       if (ok && edaxEval) { try { res = analyze(d.boardBefore, d.move, d.me); } catch (err) { res = null; } }
