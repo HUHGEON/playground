@@ -82,32 +82,42 @@ function frontier(board, me) {
   }
   return n;
 }
-// 왜 이 자리가 좋은가 — 초보도 이해되게 "여기 두면 ~해서 좋아요" 식
-function explainBest(board, bm, me, bestValue, empties) {
+// 왜 이 자리가 좋은가 — 초보용 + 다른 자리들과 비교한 상황별 설명
+function explainBest(board, bm, me, bestValue, empties, allMoves) {
   if (isCorner(bm)) return '🟢 모서리예요! 모서리는 한번 먹으면 절대 안 뒤집혀서 제일 좋은 자리예요.';
   const oppMob = oppMobAfter(board, bm, me);
   const fl = flipN(board, bm, me);
+  const others = (allMoves || []).filter((m) => m[0] !== bm[0] || m[1] !== bm[1]);
+  const minOtherMob = others.length ? Math.min(...others.map((m) => oppMobAfter(board, m, me))) : 99;
+  const minOtherFl = others.length ? Math.min(...others.map((m) => flipN(board, m, me))) : 99;
   const rs = [];
   if (oppMob === 0) rs.push('여기 두면 상대가 둘 곳이 없어져서 내가 한 번 더 둘 수 있어요');
-  else if (oppMob <= 3) rs.push('여기 두면 상대가 둘 곳이 ' + oppMob + '곳밖에 안 남아서 상대가 곤란해져요');
+  else if (oppMob <= minOtherMob && oppMob <= 5) rs.push('다른 어떤 자리보다 상대 둘 곳을 적게(' + oppMob + '곳) 만들어서 상대가 곤란해져요');
+  else if (oppMob <= 3) rs.push('여기 두면 상대가 둘 곳이 ' + oppMob + '곳밖에 안 남아요');
   if (!dangerClass(board, bm)) {
-    if (fl <= 2) rs.push('조금만(' + fl + '장) 뒤집어서 나중에 둘 자리를 아껴둬요');
+    if (fl <= minOtherFl && fl <= 4) rs.push('다른 곳보다 적게(' + fl + '장) 뒤집어서 나중에 둘 자리를 아껴둬요');
+    else if (fl <= 2) rs.push('조금만 뒤집어서 나중에 둘 자리를 아껴둬요');
     else if (onEdge(bm)) rs.push('가장자리라 잘 안 뒤집혀서 비교적 안전해요');
   }
+  if (!rs.length && empties >= 44 && bm[0] >= 2 && bm[0] <= 5 && bm[1] >= 2 && bm[1] <= 5) rs.push('가운데 쪽이라 앞으로 둘 곳이 많아져서 유리해요');
   if (empties <= 16) rs.push('끝까지 계산하면 ' + Math.abs(bestValue) + '개 차이로 ' + (bestValue >= 0 ? '이겨요' : '지지만 이게 그나마 최선이에요'));
-  if (!rs.length) rs.push('지금 판에서 가장 유리한 자리예요');
+  if (!rs.length) rs.push('상대가 어디에 둬도 다음에 내가 받아치기 좋은 자리예요');
   return rs.slice(0, 2).join('. ') + '.';
 }
-// 왜 이 자리는 별로인가 — 초보용 결과 설명
+// 왜 이 자리는 별로인가 — 초보용 + 비교 기반 상황별 설명
 function moveWhyWorse(board, mv, me, bestMove, loss) {
+  const AI = self.OthelloAI;
   const dc = dangerClass(board, mv);
   if (dc) return '여기 두면 상대가 다음에 ' + cornerName(dc.corner) + ' 모서리를 먹을 수 있어요. 모서리를 뺏기면 그 돌은 영영 못 바꿔서 손해예요.';
-  const myMob = oppMobAfter(board, mv, me), bestMob = oppMobAfter(board, bestMove, me);
-  if (myMob - bestMob >= 3) return '여기 두면 상대가 둘 곳이 ' + myMob + '곳이나 생겨요. 상대한테 선택지를 많이 주면 불리해요(최선은 ' + bestMob + '곳).';
-  const myFl = flipN(board, mv, me), bestFl = flipN(board, bestMove, me);
-  if (myFl - bestFl >= 4) return '지금 너무 많이(' + myFl + '장) 뒤집었어요. 욕심내서 많이 먹으면 나중에 둘 곳이 없어져서 손해예요.';
   if (isCorner(bestMove)) return '지금 ' + cornerName(bestMove) + ' 모서리를 바로 먹을 수 있었는데 놓쳤어요.';
-  return '최선보다 살짝 손해예요(끝까지 보면 ' + loss + '개 차이).';
+  const myMob = oppMobAfter(board, mv, me), bestMob = oppMobAfter(board, bestMove, me);
+  if (myMob - bestMob >= 2) return '여기 두면 상대가 둘 곳이 ' + myMob + '곳이나 생겨요. 상대한테 둘 곳을 많이 주면 불리해요(최선 자리는 ' + bestMob + '곳).';
+  const myFl = flipN(board, mv, me), bestFl = flipN(board, bestMove, me);
+  if (myFl - bestFl >= 3) return '지금 너무 많이(' + myFl + '장) 뒤집었어요. 욕심내서 많이 먹으면 나중에 둘 곳이 없어져서 손해예요.';
+  const myFr = frontier(AI.applyOn(board, mv[0], mv[1], me), me), bestFr = frontier(AI.applyOn(board, bestMove[0], bestMove[1], me), me);
+  if (myFr - bestFr >= 3) return '여기 두면 내 돌이 빈 칸에 많이 닿아서(노출돼서) 나중에 상대한테 뒤집히기 쉬워져요.';
+  if (loss >= 10) return '여기 두면 그 다음부터 상대에게 점점 끌려가서 크게 손해예요(끝까지 보면 ' + loss + '개 차이).';
+  return '최선보다 조금 손해예요(끝까지 보면 ' + loss + '개 차이).';
 }
 
 function analyze(boardBefore, move, me) {
@@ -145,7 +155,7 @@ function analyzeAll(board, me) {
     const isBest = loss <= 0;
     return {
       r: s.m[0], c: s.m[1], value: s.v, rank, loss,
-      reason: isBest ? explainBest(board, s.m, me, s.v, empties) : moveWhyWorse(board, s.m, me, top.m, loss),
+      reason: isBest ? explainBest(board, s.m, me, s.v, empties, moves) : moveWhyWorse(board, s.m, me, top.m, loss),
     };
   });
   return { best: top.m, bestValue: top.v, total: moves.length, moves: out };
