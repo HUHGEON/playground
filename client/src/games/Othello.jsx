@@ -11,7 +11,6 @@ function avatar(name) {
 }
 
 // 좌표 표기 — [r,c] → 'D3' (열 a~h, 행 1~8)
-const coord = (m) => m ? String.fromCharCode(65 + m[1]) + (m[0] + 1) : '';
 // 손해(돌 단위) → 등급 라벨/색
 function rateMove(loss, rank) {
   if (rank === 1 || loss <= 0) return { label: '최선!', cls: 'best', emoji: '🌟' };
@@ -97,7 +96,7 @@ export default function Othello({ ws }) {
   const ensureWorker = () => {
     if (workerRef.current) return workerRef.current;
     try {
-      const w = new Worker('/othello-worker.js?v=eval8');   // ?v 바뀌면 워커가 edax.js/wasm까지 새로 받음(캐시 버스트)
+      const w = new Worker('/othello-worker.js?v=eval9');   // ?v 바뀌면 워커가 edax.js/wasm까지 새로 받음(캐시 버스트)
       w.onmessage = (e) => {
         const d = e.data || {};
         if (d.type === 'analyzeAll') { setAnalysis({ ...(d.result || { moves: [], total: 0 }), key: d.reqId }); return; }
@@ -281,7 +280,7 @@ export default function Othello({ ws }) {
               <div className="ocoach-main">
                 <span className="ocoach-badge">{hoverRate.emoji} {hoverRate.label}</span>
                 {hoverMd.loss > 0 && <span className="ocoach-loss" title="최선보다 이만큼 손해">최선보다 −{hoverMd.loss}</span>}
-                <span className="ocoach-rank"><b>{coord([Math.floor(hoverCell / 8), hoverCell % 8])}</b> · 둘 곳 {validAnalysis.total}개 중 <b>{hoverMd.rank}위</b></span>
+                <span className="ocoach-rank">둘 곳 {validAnalysis.total}개 중 <b>{hoverMd.rank}위</b></span>
               </div>
               <div className="ocoach-line">{hoverMd.reason}</div>
             </>
