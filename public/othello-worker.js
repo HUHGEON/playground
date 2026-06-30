@@ -82,43 +82,32 @@ function frontier(board, me) {
   }
   return n;
 }
-// 왜 그 수가 최선인가 — 빡센 다요인 분석(코너/기동력/조용함/변/프런티어/종반 정확값)
+// 왜 이 자리가 좋은가 — 초보도 이해되게 "여기 두면 ~해서 좋아요" 식
 function explainBest(board, bm, me, bestValue, empties) {
-  const oppc = self.OthelloAI.opp(me);
-  const rs = [];
-  if (isCorner(bm)) rs.push('🎯 코너 — 절대 안 뒤집히는 영구 돌');
+  if (isCorner(bm)) return '🟢 모서리예요! 모서리는 한번 먹으면 절대 안 뒤집혀서 제일 좋은 자리예요.';
   const oppMob = oppMobAfter(board, bm, me);
   const fl = flipN(board, bm, me);
-  if (oppMob === 0) rs.push('상대 둘 곳 0 → 연속 착수(템포 이득)');
-  else if (oppMob <= 3) rs.push('상대 선택지 ' + oppMob + '곳으로 압박(기동력)');
+  const rs = [];
+  if (oppMob === 0) rs.push('여기 두면 상대가 둘 곳이 없어져서 내가 한 번 더 둘 수 있어요');
+  else if (oppMob <= 3) rs.push('여기 두면 상대가 둘 곳이 ' + oppMob + '곳밖에 안 남아서 상대가 곤란해져요');
   if (!dangerClass(board, bm)) {
-    if (fl <= 2) rs.push('적게(' + fl + '장) 뒤집는 조용한 수');
-    if (onEdge(bm) && !isCorner(bm)) rs.push('변 안정 확보');
+    if (fl <= 2) rs.push('조금만(' + fl + '장) 뒤집어서 나중에 둘 자리를 아껴둬요');
+    else if (onEdge(bm)) rs.push('가장자리라 잘 안 뒤집혀서 비교적 안전해요');
   }
-  // 프런티어 비교(이 수가 내 프런티어를 덜 늘리면 안정)
-  const child = self.OthelloAI.applyOn(board, bm[0], bm[1], me);
-  if (!isCorner(bm) && oppMob > 3 && rs.length < 2) {
-    const f0 = frontier(board, me), f1 = frontier(child, me);
-    if (f1 - f0 <= 1) rs.push('내 노출(프런티어)을 거의 안 늘림');
-  }
-  if (empties <= 16) rs.push('끝까지 수읽기 결과 ' + (bestValue >= 0 ? '+' : '') + bestValue + '돌');
-  if (!rs.length) rs.push('장기 수읽기상 국면 가치 최고');
-  return rs.slice(0, 3).join(' · ');
+  if (empties <= 16) rs.push('끝까지 계산하면 ' + Math.abs(bestValue) + '개 차이로 ' + (bestValue >= 0 ? '이겨요' : '지지만 이게 그나마 최선이에요'));
+  if (!rs.length) rs.push('지금 판에서 가장 유리한 자리예요');
+  return rs.slice(0, 2).join('. ') + '.';
 }
-// 내 수가 왜 별로인가 — 최선과 비교한 구체적 손해
+// 왜 이 자리는 별로인가 — 초보용 결과 설명
 function moveWhyWorse(board, mv, me, bestMove, loss) {
   const dc = dangerClass(board, mv);
-  if (dc) {
-    const cn = sq(dc.corner);
-    if (dc.type === 'X') return '❌ X자리(' + cn + ' 코너 대각) — 다음에 상대가 ' + cn + ' 코너를 가져감';
-    return '⚠️ C자리(빈 ' + cn + ' 코너 옆) — 상대에게 ' + cn + ' 코너 길을 열어줌';
-  }
+  if (dc) return '여기 두면 상대가 다음에 ' + sq(dc.corner) + ' 모서리를 먹을 수 있어요. 모서리를 뺏기면 그 돌은 영영 못 바꿔서 손해예요.';
   const myMob = oppMobAfter(board, mv, me), bestMob = oppMobAfter(board, bestMove, me);
-  if (myMob - bestMob >= 3) return '상대에게 둘 곳을 ' + myMob + '개나 내줌(최선은 ' + bestMob + '개) — 기동력 손해';
+  if (myMob - bestMob >= 3) return '여기 두면 상대가 둘 곳이 ' + myMob + '곳이나 생겨요. 상대한테 선택지를 많이 주면 불리해요(최선은 ' + bestMob + '곳).';
   const myFl = flipN(board, mv, me), bestFl = flipN(board, bestMove, me);
-  if (myFl - bestFl >= 4) return '한 번에 ' + myFl + '장이나 뒤집어 약점(프런티어)이 늘고 유연성을 잃음';
-  if (isCorner(bestMove)) return '바로 잡을 수 있는 ' + sq(bestMove) + ' 코너를 놓침';
-  return '최선보다 −' + loss + '돌 불리한 전개(장기 수읽기 손해)';
+  if (myFl - bestFl >= 4) return '지금 너무 많이(' + myFl + '장) 뒤집었어요. 욕심내서 많이 먹으면 나중에 둘 곳이 없어져서 손해예요.';
+  if (isCorner(bestMove)) return '지금 ' + sq(bestMove) + ' 모서리를 바로 먹을 수 있었는데 놓쳤어요.';
+  return '최선보다 살짝 손해예요(끝까지 보면 ' + loss + '개 차이).';
 }
 
 function analyze(boardBefore, move, me) {
