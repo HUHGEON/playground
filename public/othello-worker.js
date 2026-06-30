@@ -168,7 +168,7 @@ onmessage = function (e) {
     if (type === 'analyzeAll') {
       let res = null;
       if (ok && edaxEval) { try { res = analyzeAll(d.board, d.me); } catch (err) { res = null; } }
-      postMessage({ type: 'analyzeAll', result: res });
+      postMessage({ type: 'analyzeAll', result: res, reqId: d.reqId });   // 어느 국면 분석인지 키 echo
       return;
     }
     if (type === 'analyze') {
