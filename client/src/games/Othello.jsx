@@ -96,7 +96,7 @@ export default function Othello({ ws }) {
   const ensureWorker = () => {
     if (workerRef.current) return workerRef.current;
     try {
-      const w = new Worker('/othello-worker.js?v=eval9');   // ?v 바뀌면 워커가 edax.js/wasm까지 새로 받음(캐시 버스트)
+      const w = new Worker('/othello-worker.js?v=eval11');   // ?v 바뀌면 워커가 edax.js/wasm까지 새로 받음(캐시 버스트)
       w.onmessage = (e) => {
         const d = e.data || {};
         if (d.type === 'analyzeAll') { setAnalysis({ ...(d.result || { moves: [], total: 0 }), key: d.reqId }); return; }
