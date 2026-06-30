@@ -50,7 +50,6 @@ function meValueOfChild(child, me, oppc) {
 }
 
 // 좌표 표기, 코너 위험칸(X·C자리) 분류
-const sq = (m) => String.fromCharCode(65 + m[1]) + (m[0] + 1);
 const CORNER_DANGER = [
   { corner: [0, 0], x: [1, 1], c: [[0, 1], [1, 0]] },
   { corner: [0, 7], x: [1, 6], c: [[0, 6], [1, 7]] },
@@ -67,6 +66,7 @@ function dangerClass(board, m) {
   return null;
 }
 const onEdge = (m) => m[0] === 0 || m[0] === 7 || m[1] === 0 || m[1] === 7;
+const cornerName = (cn) => (cn[1] === 0 ? '왼쪽' : '오른쪽') + ' ' + (cn[0] === 0 ? '위' : '아래');   // 초보용 모서리 위치 이름
 const oppMobAfter = (board, m, me) => self.OthelloAI.legalMoves(self.OthelloAI.applyOn(board, m[0], m[1], me), self.OthelloAI.opp(me)).length;
 const flipN = (board, m, me) => self.OthelloAI.flips(board, m[0], m[1], me).length;
 
@@ -101,12 +101,12 @@ function explainBest(board, bm, me, bestValue, empties) {
 // 왜 이 자리는 별로인가 — 초보용 결과 설명
 function moveWhyWorse(board, mv, me, bestMove, loss) {
   const dc = dangerClass(board, mv);
-  if (dc) return '여기 두면 상대가 다음에 ' + sq(dc.corner) + ' 모서리를 먹을 수 있어요. 모서리를 뺏기면 그 돌은 영영 못 바꿔서 손해예요.';
+  if (dc) return '여기 두면 상대가 다음에 ' + cornerName(dc.corner) + ' 모서리를 먹을 수 있어요. 모서리를 뺏기면 그 돌은 영영 못 바꿔서 손해예요.';
   const myMob = oppMobAfter(board, mv, me), bestMob = oppMobAfter(board, bestMove, me);
   if (myMob - bestMob >= 3) return '여기 두면 상대가 둘 곳이 ' + myMob + '곳이나 생겨요. 상대한테 선택지를 많이 주면 불리해요(최선은 ' + bestMob + '곳).';
   const myFl = flipN(board, mv, me), bestFl = flipN(board, bestMove, me);
   if (myFl - bestFl >= 4) return '지금 너무 많이(' + myFl + '장) 뒤집었어요. 욕심내서 많이 먹으면 나중에 둘 곳이 없어져서 손해예요.';
-  if (isCorner(bestMove)) return '지금 ' + sq(bestMove) + ' 모서리를 바로 먹을 수 있었는데 놓쳤어요.';
+  if (isCorner(bestMove)) return '지금 ' + cornerName(bestMove) + ' 모서리를 바로 먹을 수 있었는데 놓쳤어요.';
   return '최선보다 살짝 손해예요(끝까지 보면 ' + loss + '개 차이).';
 }
 
