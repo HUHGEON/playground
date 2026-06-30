@@ -81,9 +81,12 @@
 
 
   /* ── 코치 모드 ── */
-  .ocoach-toggle.on { background: linear-gradient(180deg,#2a7d5a,#1d5d43) !important; color: #d8ffe9 !important; box-shadow: 0 0 0 1.5px rgba(120,255,190,.5); }
-  .ocell.obest { box-shadow: inset 0 0 0 3px #4ad991, inset 0 0 14px rgba(74,217,145,.6); }
-  .obest-mark { position: absolute; bottom: 1px; right: 2px; font-size: 9px; font-weight: 900; color: #0c3; background: rgba(255,255,255,.92); padding: 0 3px; border-radius: 4px; z-index: 5; pointer-events: none; }
+  /* 코치 hover: 합법수 칸에 등급 점 + hover 강조 */
+  .ocell.ocoached { cursor: pointer; }
+  .ocell.ohover { box-shadow: inset 0 0 0 3px rgba(255,255,255,.65); }
+  .ocoach-dot { position: absolute; top: 3px; right: 3px; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.4); z-index: 5; pointer-events: none; }
+  .ocoach-dot.best { background: #45e08f; } .ocoach-dot.great { background: #5aa6e6; } .ocoach-dot.good { background: #a6d65a; }
+  .ocoach-dot.inacc { background: #e6c34a; } .ocoach-dot.mistake { background: #e6914a; } .ocoach-dot.blunder { background: #e35a5a; }
   #oCoach { align-self: center; width: min(96vw, 460px); margin-top: 10px; padding: 12px 14px; border-radius: 13px;
     background: linear-gradient(180deg, rgba(20,30,26,.96), rgba(12,22,18,.97)); border: 2px solid #3a5a4a; box-shadow: 0 10px 30px rgba(0,0,0,.5);
     color: #e8eef0; animation: oCoachIn .22s cubic-bezier(.34,1.4,.64,1) both; }
