@@ -98,10 +98,10 @@ export default function Othello({ ws }) {
   const ensureWorker = () => {
     if (workerRef.current) return workerRef.current;
     try {
-      const w = new Worker('/othello-worker.js?v=eval6');   // ?v 바뀌면 워커가 edax.js/wasm까지 새로 받음(캐시 버스트)
+      const w = new Worker('/othello-worker.js?v=eval7');   // ?v 바뀌면 워커가 edax.js/wasm까지 새로 받음(캐시 버스트)
       w.onmessage = (e) => {
         const d = e.data || {};
-        if (d.type === 'analyzeAll') { setAnalysis(d.result || { moves: [], total: 0 }); return; }
+        if (d.type === 'analyzeAll') { setAnalysis({ ...(d.result || { moves: [], total: 0 }), key: d.reqId }); return; }
         if (d.type === 'move' && d.mv) send({ type: 'botMove', r: d.mv[0], c: d.mv[1] });
       };
       w.onerror = () => { workerRef.current = null; };
@@ -130,9 +130,8 @@ export default function Othello({ ws }) {
     const key = s.lastMove ? s.lastMove.seq : 0;
     if (analyzedKey.current === key) return;     // 이 국면 이미 분석함
     analyzedKey.current = key;
-    setAnalysis(null);                           // 분석 중
-    const w = ensureWorker(); if (!w) { setAnalysis({ moves: [], total: 0 }); return; }
-    w.postMessage({ type: 'analyzeAll', board: s.board, me: myColor });
+    const w = ensureWorker(); if (!w) { setAnalysis({ moves: [], total: 0, key }); return; }
+    w.postMessage({ type: 'analyzeAll', board: s.board, me: myColor, reqId: key });
   }, [s, coachMode, myColor]);
 
   const playMove = (r, c) => { if (myTurn) send({ type: 'move', r, c }); };
@@ -145,9 +144,12 @@ export default function Othello({ ws }) {
   const lm = s.lastMove;
   const placedIdx = lm ? lm.placed.r * 8 + lm.placed.c : -1;
   const legalSet = new Set((s.legal || []).map(([r, c]) => r * 8 + c));
-  // 코치: 칸 인덱스 → 분석 데이터(value/rank/loss/reason). hover 시 그 칸 평가 표시
+  // 코치: 분석은 현재 국면(키) 것만 유효 — 턴 바뀌면 직전 분석 무시하고 '분석 중' 표시
+  const curKey = s.lastMove ? s.lastMove.seq : 0;
+  const validAnalysis = (analysis && analysis.key === curKey) ? analysis : null;
+  const analyzing = coachMode && myTurn && validAnalysis === null;   // 분석 중(버퍼링)
   const cellEval = {};
-  if (coachMode && analysis && analysis.moves) for (const mv of analysis.moves) cellEval[mv.r * 8 + mv.c] = mv;
+  if (coachMode && validAnalysis && validAnalysis.moves) for (const mv of validAnalysis.moves) cellEval[mv.r * 8 + mv.c] = mv;
   const hoverMd = hoverCell != null ? cellEval[hoverCell] : null;
   const hoverRate = hoverMd ? rateMove(hoverMd.loss, hoverMd.rank) : null;
 
@@ -273,8 +275,8 @@ export default function Othello({ ws }) {
       </div>
       {coachMode && myTurn && (
         <div id="oCoach" className={hoverRate ? hoverRate.cls : 'pending'}>
-          {analysis === null ? (
-            <div className="ocoach-pending">🔍 모든 수 분석 중…</div>
+          {analyzing ? (
+            <div className="ocoach-pending"><span className="ospin" /> 분석 중…</div>
           ) : hoverMd ? (
             <>
               <div className="ocoach-main">
